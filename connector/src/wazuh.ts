@@ -98,6 +98,12 @@ export function normalizeWazuhDocument(documentId: string, sourceValue: unknown)
 export type WazuhHit = { _id: string; _source: unknown };
 export type ScrollPage = { hits: WazuhHit[]; total: number; scrollId: string | null; version: string };
 
+class IndexerHttpError extends Error {
+  constructor(readonly status: number, method: string, path: string) {
+    super(`Indexer retornou HTTP ${status} (${method} ${path}).`);
+  }
+}
+
 export class WazuhIndexerClient {
   private readonly baseUrl: string;
   private readonly authorization: string;
@@ -119,10 +125,18 @@ export class WazuhIndexerClient {
   }
 
   async getVersion(): Promise<string> {
-    const info = await this.requestJson("GET", "/");
-    const version = asString(atPath(asRecord(info), "version.number"), 160);
-    if (!version) throw new Error("O Indexer respondeu sem a versão esperada.");
-    return version;
+    try {
+      const info = await this.requestJson("GET", "/");
+      const version = asString(atPath(asRecord(info), "version.number"), 160);
+      if (!version) throw new Error("O Indexer respondeu sem a versão esperada.");
+      return version;
+    } catch (error) {
+      // Reading cluster metadata is optional when the Indexer account is
+      // restricted to the vulnerability index. Keep the least-privilege
+      // account usable without hiding authentication or connectivity errors.
+      if (error instanceof IndexerHttpError && error.status === 403) return "not-exposed";
+      throw error;
+    }
   }
 
   async countDocuments(): Promise<number> {
@@ -196,7 +210,7 @@ export class WazuhIndexerClient {
     });
     if (!response.ok) {
       await response.body?.cancel();
-      throw new Error(`Indexer retornou HTTP ${response.status} (${method} ${path.split("?")[0]}).`);
+      throw new IndexerHttpError(response.status, method, path.split("?")[0]);
     }
     if (response.status === 204) return {};
     return response.json();
