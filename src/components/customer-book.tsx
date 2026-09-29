@@ -10,6 +10,7 @@ import {
   Cell,
   Line,
   LineChart,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -250,16 +251,19 @@ export function CustomerBook() {
 
   if (!supabase) return <BookConfigurationRequired />;
   if (!authReady || (session && !contextReady)) return <main className="loading-screen"><Brand /><div className="spinner"/><p>Preparando o Book dos Clientes…</p></main>;
-  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand /><div className="eyebrow">BOOK DOS CLIENTES</div><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><div className="welcome-art"/></main>;
+  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><div className="welcome-stat"><span className="stat-dot" aria-hidden="true"/>Relatório por empresa<span className="stat-value">Exposição atual</span></div><div className="welcome-stat second"><span className="stat-dot green" aria-hidden="true"/>Leitura dos dados<span className="stat-value">Critério explicado</span></div></aside></main>;
 
   return (
     <main className="app-shell book-shell">
+      <a className="skip-link" href="#book-overview">Pular para o conteúdo</a>
       <aside className="sidebar">
         <Brand />
-        <div className="nav-caption">WORKSPACE</div>
-        <Link className="nav-link" href="/"><span className="book-nav-mark"/>Vulnerabilidades</Link>
-        <Link className="nav-link active" href="/book"><span className="book-nav-mark"/>Book dos Clientes</Link>
-        {isInternal && <Link className="nav-link" href="/#admin"><span className="book-nav-mark"/>Administração</Link>}
+        <nav className="workspace-nav" aria-label="Navegação principal">
+          <div className="nav-caption">WORKSPACE</div>
+          <Link className="nav-link" href="/">Vulnerabilidades</Link>
+          <Link className="nav-link active" href="/book" aria-current="page">Book dos Clientes</Link>
+          {isInternal && <Link className="nav-link" href="/#admin">Administração</Link>}
+        </nav>
         <div className="sidebar-bottom"><div className="avatar">{session.user.email?.slice(0, 1).toUpperCase() ?? "U"}</div><div className="user-info"><strong>{session.user.email}</strong><span>{isInternal ? "Equipe Pier" : selectedCompanyName ?? "Cliente"}</span></div><button className="book-signout" onClick={() => void signOut()}>Sair</button></div>
       </aside>
 
@@ -272,7 +276,7 @@ export function CustomerBook() {
           </div>
         </header>
 
-        <div className="book-content">
+        <div className="book-content" id="book-overview" tabIndex={-1}>
           <div className="book-heading">
             <div><h1>Book dos Clientes</h1><p>Exposição atual, criticidade e tempo de permanência das vulnerabilidades.</p></div>
             <div className={`book-source-state ${isStale ? "book-source-stale" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Leitura desatualizada" : "Leitura completa") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Wazuh: ${formatDate(latestSync.finishedAt)}` : "Nenhum snapshot completo disponível"}</small></div>
@@ -299,13 +303,14 @@ export function CustomerBook() {
                 <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Criticidade dos achados</h2></div><small>{displayCount(metrics.total)} ativas</small></div>
                 <div className="book-chart" role="img" aria-label={`Distribuição por severidade: ${metrics.severity.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={metrics.severity} margin={{ top: 12, right: 12, bottom: 2, left: -16 }}>
+                    <BarChart data={metrics.severity} margin={{ top: 26, right: 12, bottom: 2, left: -16 }}>
                       <CartesianGrid vertical={false} stroke="rgba(186, 210, 229, .16)" />
-                      <XAxis dataKey="name" axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#c6d7e5", fontSize: 11 }} />
-                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 10 }} tickFormatter={shortCount} />
+                      <XAxis dataKey="name" axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#c6d7e5", fontSize: 12 }} />
+                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 12 }} tickFormatter={shortCount} />
                       <Tooltip cursor={{ fill: "rgba(100, 210, 220, .08)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#d7e7f1" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
                       <Bar dataKey="count" name="Vulnerabilidades" radius={[5, 5, 0, 0]} isAnimationActive={false}>
                         {metrics.severity.map((item) => <Cell key={item.name} fill={item.color} />)}
+                        <LabelList dataKey="count" position="top" fill="#e8f4f8" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -316,12 +321,14 @@ export function CustomerBook() {
                 <div className="book-section-heading"><div><span className="book-section-tag">EVOLUÇÃO TEMPORAL</span><h2>Primeira detecção</h2></div><small>Últimos 6 meses</small></div>
                 <div className="book-chart" role="img" aria-label="Vulnerabilidades ainda ativas, agrupadas pelo mês de primeira detecção nos últimos seis meses">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={metrics.months} margin={{ top: 16, right: 12, bottom: 2, left: -16 }}>
+                    <LineChart data={metrics.months} margin={{ top: 26, right: 12, bottom: 2, left: -16 }}>
                       <CartesianGrid vertical={false} stroke="rgba(186, 210, 229, .16)" />
-                      <XAxis dataKey="month" axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#c6d7e5", fontSize: 10 }} />
-                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 10 }} tickFormatter={shortCount} />
+                      <XAxis dataKey="month" axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#c6d7e5", fontSize: 12 }} />
+                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 12 }} tickFormatter={shortCount} />
                       <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#d7e7f1" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades ativas"]} />
-                      <Line type="monotone" dataKey="count" name="Vulnerabilidades ativas" stroke="#54dbe5" strokeWidth={3} dot={{ r: 3, fill: "#54dbe5", stroke: "#062844", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#062844", stroke: "#77eff0", strokeWidth: 2 }} isAnimationActive={false} />
+                      <Line type="monotone" dataKey="count" name="Vulnerabilidades ativas" stroke="#54dbe5" strokeWidth={3} dot={{ r: 3, fill: "#54dbe5", stroke: "#062844", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#062844", stroke: "#77eff0", strokeWidth: 2 }} isAnimationActive={false}>
+                        <LabelList dataKey="count" position="top" fill="#e8f4f8" fontSize={11} formatter={(value: unknown) => shortCount(Number(value))} />
+                      </Line>
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -334,13 +341,14 @@ export function CustomerBook() {
                 <div className="book-section-heading"><div><span className="book-section-tag">FAIXA DE TEMPO DA EXPOSIÇÃO</span><h2>Há quanto tempo continuam ativas</h2></div></div>
                 <div className="book-age-chart" role="img" aria-label={`Faixas de exposição: ${metrics.ages.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={metrics.ages} layout="vertical" margin={{ top: 8, right: 28, bottom: 4, left: 10 }}>
+                    <BarChart data={metrics.ages} layout="vertical" margin={{ top: 8, right: 40, bottom: 4, left: 10 }}>
                       <CartesianGrid horizontal={false} stroke="rgba(186, 210, 229, .13)" />
-                      <XAxis type="number" allowDecimals={false} axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 10 }} tickFormatter={shortCount} />
-                      <YAxis type="category" dataKey="name" width={88} axisLine={false} tickLine={false} tick={{ fill: "#d5e1eb", fontSize: 10 }} />
+                      <XAxis type="number" allowDecimals={false} axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 12 }} tickFormatter={shortCount} />
+                      <YAxis type="category" dataKey="name" width={88} axisLine={false} tickLine={false} tick={{ fill: "#d5e1eb", fontSize: 12 }} />
                       <Tooltip cursor={{ fill: "rgba(100, 210, 220, .08)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#d7e7f1" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
                       <Bar dataKey="count" name="Vulnerabilidades" radius={[0, 5, 5, 0]} isAnimationActive={false}>
-                        {metrics.ages.map((item, index) => <Cell key={item.name} fill={["#48b7c9", "#0c4e85", "#0871a8", "#1199b8"][index]} />)}
+                        {metrics.ages.map((item, index) => <Cell key={item.name} fill={["#48b7c9", "#207ea8", "#0871a8", "#1199b8"][index]} />)}
+                        <LabelList dataKey="count" position="right" fill="#e8f4f8" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -358,13 +366,13 @@ export function CustomerBook() {
             <section className="book-footer-row" aria-label="Ativos e inventário técnico">
               <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong>{displayCount(metrics.affectedHosts)}</strong><small>Agentes distintos com vulnerabilidades ativas</small></div>
               <div className="book-foot-stat"><span>CVEs ÚNICOS</span><strong>{displayCount(metrics.uniqueCves)}</strong><small>Identificadores diferentes no total ativo</small></div>
-              <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/">Explorar inventário técnico <span aria-hidden="true">↗</span></Link></div>
+              <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/">Explorar inventário técnico</Link></div>
             </section>
           </>}
           <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte Wazuh" : "fontes Wazuh"}</span></footer>
         </div>
       </section>
-      <nav className="book-mobile-nav" aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/book" aria-current="page">Book dos Clientes</Link></nav>
+      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/#admin">Administração</Link>}</nav>
     </main>
   );
 }
@@ -471,7 +479,7 @@ function monthVariation(current: number, previous: number) {
   if (previous === 0) return { label: "Novo", className: "book-variation-up" };
   const delta = Math.round(((current - previous) / previous) * 100);
   if (delta === 0) return { label: "0%", className: "book-variation-flat" };
-  return { label: `${delta > 0 ? "↑" : "↓"}${Math.abs(delta)}%`, className: delta > 0 ? "book-variation-up" : "book-variation-down" };
+  return { label: `${delta > 0 ? "Aumento" : "Redução"} de ${Math.abs(delta)}%`, className: delta > 0 ? "book-variation-up" : "book-variation-down" };
 }
 
 function shortCount(value: number) {
@@ -493,7 +501,7 @@ const tooltipStyle = {
   borderRadius: 8,
   backgroundColor: "#073653",
   color: "#e8f3fa",
-  fontSize: 11,
+  fontSize: 13,
 };
 
 function Brand() {

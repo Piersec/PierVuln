@@ -1,0 +1,419 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-29T22:50:07.503Z",
+  "title": "Design System: PierVuln",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Campo profundo",
+        "canonical": "#081923",
+        "tonalRamp": [
+          "#010d16",
+          "#162732",
+          "#334550",
+          "#516471",
+          "#728692",
+          "#94a8b6",
+          "#b7cddb",
+          "#def2ff"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Superfície de leitura",
+        "canonical": "#0d2330",
+        "tonalRamp": [
+          "#000d17",
+          "#122835",
+          "#2f4554",
+          "#4d6574",
+          "#6e8696",
+          "#90a9ba",
+          "#b3cedf",
+          "#def2ff"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Superfície elevada",
+        "canonical": "#102b3b",
+        "tonalRamp": [
+          "#000d17",
+          "#0d2838",
+          "#2b4657",
+          "#496578",
+          "#6a879a",
+          "#8caabe",
+          "#afcee3",
+          "#def2ff"
+        ]
+      },
+      "surface-inset": {
+        "role": "neutral",
+        "displayName": "Superfície de entrada",
+        "canonical": "#07151e",
+        "tonalRamp": [
+          "#020d15",
+          "#182731",
+          "#35444f",
+          "#53646f",
+          "#748591",
+          "#96a8b4",
+          "#baccd9",
+          "#dff2ff"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Divisória",
+        "canonical": "#607f90",
+        "tonalRamp": [
+          "#000d16",
+          "#0a2837",
+          "#294656",
+          "#486676",
+          "#688799",
+          "#8aaabc",
+          "#aecfe1",
+          "#dcf2ff"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Borda acessível",
+        "canonical": "#6f91a2",
+        "tonalRamp": [
+          "#000d15",
+          "#072937",
+          "#274756",
+          "#466676",
+          "#668899",
+          "#88abbc",
+          "#acd0e2",
+          "#dbf3ff"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Texto principal",
+        "canonical": "#f0f6f8",
+        "tonalRamp": [
+          "#080c0d",
+          "#212627",
+          "#3e4345",
+          "#5d6264",
+          "#7e8385",
+          "#a0a6a8",
+          "#c5cacc",
+          "#eaf0f2"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Texto auxiliar",
+        "canonical": "#b6c8d1",
+        "tonalRamp": [
+          "#020d13",
+          "#19272e",
+          "#35454c",
+          "#54646c",
+          "#74858e",
+          "#97a8b1",
+          "#bacdd6",
+          "#dff2fb"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Ciano de leitura",
+        "canonical": "#57dce5",
+        "tonalRamp": [
+          "#000e10",
+          "#002b2e",
+          "#004c50",
+          "#006f75",
+          "#00949c",
+          "#28bac3",
+          "#5bdfe8",
+          "#c1fbff"
+        ]
+      },
+      "primary-strong": {
+        "role": "primary",
+        "displayName": "Ciano luminoso",
+        "canonical": "#86f1f2",
+        "tonalRamp": [
+          "#000e0f",
+          "#002c2c",
+          "#004c4d",
+          "#007071",
+          "#169496",
+          "#4ab8b9",
+          "#72dedf",
+          "#b3ffff"
+        ]
+      },
+      "primary-ink": {
+        "role": "neutral",
+        "displayName": "Texto sobre ciano",
+        "canonical": "#06222d",
+        "tonalRamp": [
+          "#000d15",
+          "#0d2934",
+          "#2b4653",
+          "#4a6673",
+          "#6a8795",
+          "#8caab8",
+          "#b0cfde",
+          "#daf3ff"
+        ]
+      },
+      "nav-current": {
+        "role": "neutral",
+        "displayName": "Navegação ativa",
+        "canonical": "#123747",
+        "tonalRamp": [
+          "#000d15",
+          "#022939",
+          "#234758",
+          "#426779",
+          "#63889b",
+          "#85abbf",
+          "#a8d0e4",
+          "#dbf3ff"
+        ]
+      },
+      "positive": {
+        "role": "positive",
+        "displayName": "Estado positivo",
+        "canonical": "#78dfb5",
+        "tonalRamp": [
+          "#000f08",
+          "#002d1e",
+          "#004f38",
+          "#007353",
+          "#289871",
+          "#53bc93",
+          "#7ae1b7",
+          "#c0ffe2"
+        ]
+      },
+      "caution": {
+        "role": "caution",
+        "displayName": "Estado de atenção",
+        "canonical": "#ffce78",
+        "tonalRamp": [
+          "#120900",
+          "#332100",
+          "#583d00",
+          "#7f5a00",
+          "#a77919",
+          "#cb9c45",
+          "#f1c16b",
+          "#ffeccc"
+        ]
+      },
+      "critical": {
+        "role": "critical",
+        "displayName": "Severidade crítica",
+        "canonical": "#ff8190",
+        "tonalRamp": [
+          "#1e0004",
+          "#4c0015",
+          "#7f0028",
+          "#a63046",
+          "#cd5466",
+          "#f57887",
+          "#ffb1b7",
+          "#ffe8e9"
+        ]
+      },
+      "high": {
+        "role": "high",
+        "displayName": "Severidade alta",
+        "canonical": "#ffc078",
+        "tonalRamp": [
+          "#140800",
+          "#371f00",
+          "#5e3800",
+          "#885400",
+          "#ae7428",
+          "#d4974f",
+          "#fabb73",
+          "#ffebd5"
+        ]
+      },
+      "medium": {
+        "role": "medium",
+        "displayName": "Severidade média",
+        "canonical": "#62dce7",
+        "tonalRamp": [
+          "#000e10",
+          "#002b2f",
+          "#004c51",
+          "#006f77",
+          "#00949e",
+          "#37b9c4",
+          "#64dee9",
+          "#c4faff"
+        ]
+      },
+      "low": {
+        "role": "low",
+        "displayName": "Severidade baixa",
+        "canonical": "#a0caff",
+        "tonalRamp": [
+          "#000b1f",
+          "#00244d",
+          "#1e436f",
+          "#3d6392",
+          "#5d85b6",
+          "#7fa8db",
+          "#a5cdff",
+          "#e4f0ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "IBM Plex Sans",
+        "purpose": "Títulos principais do painel e do Book."
+      },
+      "title": {
+        "displayName": "IBM Plex Sans",
+        "purpose": "Títulos de seção e de formulário."
+      },
+      "body": {
+        "displayName": "IBM Plex Sans",
+        "purpose": "Conteúdo e explicações."
+      },
+      "label": {
+        "displayName": "IBM Plex Mono",
+        "purpose": "Identificadores, contagens e rótulos técnicos."
+      },
+      "micro-label": {
+        "displayName": "Micro label",
+        "purpose": "Rótulos de seção e categorias não essenciais."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Datas, notas e detalhes auxiliares."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Rótulos de filtros e ações secundárias."
+      },
+      "compact-body": {
+        "displayName": "Compact body",
+        "purpose": "Conteúdo auxiliar que reflowa em mobile."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Remove transitions and animation when the user requests reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "860px"
+      },
+      {
+        "name": "mobile",
+        "value": "680px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action on a dark surface.",
+      "html": "<button class=\"ds-button-primary\">Atualizar</button>",
+      "css": ".ds-button-primary{display:inline-flex;min-height:46px;align-items:center;justify-content:center;padding:0 17px;border:1px solid transparent;border-radius:5px;background:var(--accent);color:var(--accent-ink);font:600 14px 'IBM Plex Sans',Arial,sans-serif;cursor:pointer;transition:background-color .16s ease}.ds-button-primary:hover{background:var(--accent-strong)}.ds-button-primary:focus-visible{outline:3px solid var(--accent-strong);outline-offset:3px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary action with a visible boundary.",
+      "html": "<button class=\"ds-button-secondary\">Cancelar</button>",
+      "css": ".ds-button-secondary{display:inline-flex;min-height:44px;align-items:center;justify-content:center;padding:0 13px;border:1px solid var(--line-strong);border-radius:5px;background:var(--surface-raised);color:var(--ink);font:500 14px 'IBM Plex Sans',Arial,sans-serif;cursor:pointer}.ds-button-secondary:hover{border-color:var(--accent);background:#153648}.ds-button-secondary:focus-visible{outline:3px solid var(--accent-strong);outline-offset:3px}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text field with a high contrast border.",
+      "html": "<label class=\"ds-field\"><span>Buscar casos</span><input placeholder=\"CVE, ativo ou pacote\" /></label>",
+      "css": ".ds-field{display:grid;gap:6px;color:var(--muted);font:500 13px 'IBM Plex Sans',Arial,sans-serif}.ds-field input{min-height:44px;padding:0 12px;border:1px solid var(--line-strong);border-radius:5px;background:var(--surface-inset);color:var(--ink);font:400 14px 'IBM Plex Sans',Arial,sans-serif}.ds-field input:focus-visible{outline:3px solid var(--accent-strong);outline-offset:2px}"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-current",
+      "description": "Current location in the workspace navigation.",
+      "html": "<a class=\"ds-nav-current\" href=\"#\" aria-current=\"page\">Vulnerabilidades</a>",
+      "css": ".ds-nav-current{display:flex;min-height:46px;align-items:center;padding:0 12px;border:1px solid var(--line-strong);border-radius:5px;background:var(--nav-current);color:var(--accent-strong);font:500 14px 'IBM Plex Sans',Arial,sans-serif;text-decoration:none}.ds-nav-current:focus-visible{outline:3px solid var(--accent-strong);outline-offset:3px}"
+    },
+    {
+      "name": "Critical Severity Chip",
+      "kind": "chip",
+      "refersTo": "severity-critical",
+      "description": "Severity stays readable as text as well as color.",
+      "html": "<span class=\"ds-severity-critical\"><i aria-hidden=\"true\"></i>Crítica</span>",
+      "css": ".ds-severity-critical{display:inline-flex;min-height:30px;align-items:center;gap:8px;padding:3px 9px;border:1px solid #a34f60;border-radius:4px;background:var(--surface-raised);color:var(--severity-critical);font:600 12px 'IBM Plex Sans',Arial,sans-serif}.ds-severity-critical i{width:8px;height:8px;border:1px solid currentColor;border-radius:50%;background:currentColor}"
+    },
+    {
+      "name": "Data Panel",
+      "kind": "card",
+      "refersTo": "surface-card",
+      "description": "Flat panel organized by dividers and typography.",
+      "html": "<section class=\"ds-panel\"><span>Total da seleção</span><strong>—</strong></section>",
+      "css": ".ds-panel{display:grid;gap:8px;padding:16px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font-family:'IBM Plex Sans',Arial,sans-serif}.ds-panel span{color:var(--muted);font-size:13px}.ds-panel strong{font:600 24px 'IBM Plex Mono',Consolas,monospace;font-variant-numeric:tabular-nums}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Registro de exposição técnica",
+    "overview": "PierVuln trata cada achado como um item verificável: a interface mostra o estado da fonte, a identidade do caso e o andamento do tratamento sem confundir leitura atual com histórico mensal. O painel de vulnerabilidades funciona como uma fila operacional; o Book transforma a mesma leitura em comparações que ajudam a priorizar correções.\n\nO sistema usa superfícies azul-marinho, texto claro e um acento ciano reservado a navegação, foco e dados em destaque. A hierarquia vem de tipografia, bordas e espaçamento; estados críticos, altos, médios e baixos mantêm cores próprias e rótulos textuais.",
+    "keyCharacteristics": [
+      "Totais globais permanecem separados da paginação da tabela.",
+      "O estado recente ou desatualizado da fonte fica visível antes dos casos.",
+      "Gráficos incluem valores e texto que explica o recorte dos dados.",
+      "Controles mantêm rótulos acessíveis, foco claro e alvos grandes em telas pequenas."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Rule",
+        "body": "Ciano indica ação ou dado em foco; a severidade usa sua própria cor e sempre conserva o rótulo textual.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readable Number Rule",
+        "body": "Use IBM Plex Mono para identificadores e contagens; mantenha unidades e rótulos em texto normal ao lado do valor.",
+        "section": "typography"
+      },
+      {
+        "name": "The Border First Rule",
+        "body": "Use tom de superfície e divisórias para organizar conteúdo; reserve sobreposição escura para o diálogo de detalhes.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do manter o total consultado separado da quantidade de registros exibidos na página.",
+      "Do mostrar quando a última leitura completa ficou desatualizada.",
+      "Do validar que a tabela, filtros e navegação cabem em telas de 390px sem rolagem horizontal da página.",
+      "Do manter contraste AA para texto comum e foco claramente visível em teclado."
+    ],
+    "donts": [
+      "Don't usar cor isolada para comunicar severidade, fluxo ou frescor da fonte.",
+      "Don't apresentar a distribuição atual por primeira detecção como contagem histórica de snapshots.",
+      "Don't reduzir rótulos essenciais para microtexto nem trocar texto de ação por glifos ambíguos."
+    ]
+  }
+}

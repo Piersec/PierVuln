@@ -48,9 +48,9 @@ export default function LoginPage() {
 
   return (
     <main className="auth-shell">
-      <section className="auth-card">
+      <a className="skip-link" href="#login-content">Pular para o formulário</a>
+      <section className="auth-card" id="login-content" tabIndex={-1}>
         <Brand />
-        <div className="eyebrow">ACESSO CONTROLADO</div>
         <h1>{isInvite && hasSession ? "Crie sua senha" : "Entrar no painel"}</h1>
         <p>{isInvite ? "Seu acesso foi enviado pela equipe. Defina uma senha para continuar." : "Entre com o e-mail associado ao seu convite."}</p>
         {isInvite && hasSession ? (
@@ -68,6 +68,9 @@ export default function LoginPage() {
         {notice && <p className="form-notice" role="status">{notice}</p>}
         <Link href="/" className="back-link">Voltar ao painel</Link>
       </section>
+      <aside className="auth-rail" aria-label="Sobre o PierVuln">
+        <div className="auth-rail-content"><span className="auth-rail-label">PIERVULN / OPERAÇÕES</span><h2>Uma leitura clara da exposição.</h2><p>Consulte os achados reportados pelo Wazuh e acompanhe o tratamento com o histórico de cada caso.</p><div className="auth-rail-foot"><span className="status-mark" aria-hidden="true"/>Acesso por convite</div></div>
+      </aside>
     </main>
   );
 }
