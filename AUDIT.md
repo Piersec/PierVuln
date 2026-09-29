@@ -2,7 +2,7 @@
 
 ## Escopo e método
 
-Foram revisadas as rotas `/`, `/book` e `/login` em desktop (1440 × 1000) e mobile (390 × 844), primeiro na versão publicada para observar o produto com dados reais e depois na prévia local para conferir o redesign sem gravar alterações no Supabase. A auditoria foi visual e funcional, com snapshots de acessibilidade do navegador e medições de largura da página. Não foram executadas suítes de teste.
+As rotas `/`, `/book` e `/login` foram revisadas antes do redesign na produção e, depois, na prévia local em desktop e mobile (390 × 844), sem gravar alterações no Supabase. Após publicar, `/` e `/book` foram conferidas novamente em desktop com a sessão autenticada, e `/login` foi conferida em mobile. A auditoria combinou inspeção visual, árvore de acessibilidade do navegador e medições de largura. A aba móvel separada não herdou a sessão autenticada para `/` e `/book`; nessas rotas protegidas, a revisão responsiva final foi feita na prévia local. Não foram executadas suítes de teste.
 
 As capturas do Chrome foram inspecionadas durante o trabalho, mas não puderam ser exportadas para arquivos locais: a API de navegador disponível retorna imagens para inspeção e não oferece caminho de gravação. Portanto, este relatório registra o método e os achados; não afirma que existam arquivos de screenshot anexados.
 
@@ -49,4 +49,21 @@ O script `contrast-check.py` da skill estava presente, mas o alias de Python do 
 
 ## Auditoria visual depois do redesign
 
-_A preencher após a revisão autenticada das rotas publicadas em desktop e mobile._
+### Desktop publicado
+
+- `/`: a hierarquia do painel, navegação, paginação, indicadores e tabela foram conferidos na produção. O resumo agora deixa claro o escopo do conjunto completo; a quantidade de linhas exibidas fica associada à página atual. O estado de atualização comunica quando uma fonte está desatualizada.
+- `/book`: os cartões, gráficos de severidade, evolução, tempo de exposição, tabela Top 3 e inventário técnico foram conferidos com a sessão autenticada. Rótulos e totais aparecem junto às visualizações. A nota explica que os pontos mensais agrupam achados ativos pela primeira detecção e não representam snapshots mensais históricos.
+- `/login`: a composição de acesso foi verificada na prévia local em desktop; o caminho de autenticação e convite continuou presente.
+
+### Mobile
+
+- Na prévia local a 390 × 844, `/` e `/book` refluem para uma coluna sem overflow horizontal da página. A navegação continua disponível, os casos ficam em cartões e os gráficos ficam empilhados. A área inferior reserva espaço para a navegação móvel.
+- Em produção, `/login` foi verificada a 390 × 844: os campos e o botão ocupam a largura disponível, os rótulos permanecem legíveis e a página não cria rolagem horizontal.
+- A aba autenticada de produção foi mantida no tamanho normal do Chrome e uma nova aba móvel não recebeu a sessão existente; não foi inserida senha para tentar contornar essa limitação. Por isso, as rotas protegidas `/` e `/book` foram revisadas em mobile na prévia local, sem dados do cliente.
+
+### Correções e verificação
+
+- A revisão visual encontrou uma resolução incorreta das variáveis de fonte, que fazia a interface cair em fontes de sistema; os estilos foram corrigidos antes da publicação e a IBM Plex aparece no resultado publicado.
+- Uma única execução de `impeccable detect --json` apontou dois acentos laterais estreitos (“side-tab”); esses acentos foram removidos. A ferramenta também apresentou recomendações de valores de tokens. O detector não foi executado novamente após os ajustes, então este relatório não afirma que todos os avisos tenham sido eliminados.
+- `pnpm typecheck` e `pnpm build` passaram para o código publicado. Nenhuma suíte de testes foi executada. Os screenshots foram inspecionados no navegador, sem exportação para arquivos locais.
+- A revisão final de acabamento e documentação Impeccable foi feita nesta sessão, inline; não havia executor de subagentes disponível para delegar os papéis `finish-reviewer` e `documenter`.
