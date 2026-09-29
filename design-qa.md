@@ -19,7 +19,7 @@
 
 **Evidence**
 
-- Fonte visual: `C:/Users/GabrielMorgadoGoes/Downloads/imagem (2).png` (856 × 343), `C:/Users/GabrielMorgadoGoes/Downloads/imagem (1).png` (936 × 343) e `C:/Users/GabrielMorgadoGoes/Downloads/imagem.png` (827 × 112). Densidade original preservada; as capturas não foram normalizadas.
+- Fonte visual: três imagens anexadas à conversa — `imagem (2).png` (856 × 343), `imagem (1).png` (936 × 343) e `imagem.png` (827 × 112). Densidade original preservada; as capturas não foram normalizadas.
 - Implementação: [https://piervuln.vercel.app/book](https://piervuln.vercel.app/book). Captura visível via navegador em 1280 × 720 pixels, sem sessão; viewport CSS e densidade não foram expostos pela ferramenta. Arquivo local da captura: indisponível; a ferramenta de navegador não exportou a imagem para o workspace.
 - Estado: visitante sem sessão, diferente do estado autenticado das referências. Comparação lado a lado não realizada; nenhuma diferença visual foi classificada como aprovada ou corrigida com base em uma comparação.
 - Região focada: indisponível no estado autenticado; a tela de acesso observada não mostra os gráficos.

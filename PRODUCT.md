@@ -19,7 +19,7 @@ O PierVuln apresenta vulnerabilidades detectadas pelo Wazuh e permite acompanhar
 ## Operating Context
 
 - O Wazuh compartilhado é separado por vínculos manuais de agente ou grupo.
-- As empresas atualmente atendidas nessa conexão compartilhada são Yamam (código 100), Maxipark (200), Reliance (300) e Amalog (400).
+- A conexão Wazuh compartilhada é segmentada por vínculos manuais de agentes ou grupos cadastrados no banco.
 - Os dados são sincronizados do índice de vulnerabilidades do Wazuh por um conector; o painel usa as leituras completas mais recentes do banco.
 
 ## Capabilities and Constraints
