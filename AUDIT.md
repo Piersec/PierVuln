@@ -32,7 +32,7 @@ As coleções serviram como referência de hierarquia e comportamento; não fora
 
 ## Skills consultadas
 
-- `product-design:audit`: inventário de rotas e fluxos, evidência visual por viewport e priorização dos problemas encontrados.
+- `product-design:index` e `product-design:audit`: seleção do método de produto e inventário de rotas e fluxos, evidência visual por viewport e priorização dos problemas encontrados.
 - `design-taste-frontend` e `impeccable` (`new-work`, `craft-floor`, `concept-seed`, `document`): direção “registro de exposição técnica”, hierarquia orientada aos dados e documentação dos tokens implementados.
 - `redesign-existing-projects`: redesign integral sem trocar Next.js, React, Recharts ou o fluxo já existente.
 - `antislop-ui` e `antislop`: revisão de hierarquia, estados reais, consistência e remoção de adornos que não explicam o produto.
