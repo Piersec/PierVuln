@@ -9,3 +9,5 @@ minimumReleaseAgeExclude:
   - '@next/swc-win32-arm64-msvc@16.3.7'
   - '@next/swc-win32-x64-msvc@16.3.7'
   - next@16.3.7
+allowBuilds:
+  esbuild: true
