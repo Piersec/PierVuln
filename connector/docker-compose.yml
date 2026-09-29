@@ -1,0 +1,35 @@
+services:
+  wazuh-connector:
+    build:
+      context: ..
+      dockerfile: connector/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_EXTRA_CA_CERTS: ${WAZUH_INDEXER_CA_FILE:-/etc/wazuh/certs/indexer-ca.pem}
+    volumes:
+      - ./certs:/etc/wazuh/certs:ro
+      - /etc/localtime:/etc/localtime:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  archive-scheduler:
+    build:
+      context: ..
+      dockerfile: connector/Dockerfile
+    command: ["pnpm", "archive:run"]
+    restart: unless-stopped
+    env_file:
+      - .env.archive
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
