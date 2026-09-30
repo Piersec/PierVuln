@@ -104,6 +104,29 @@ class IndexerHttpError extends Error {
   }
 }
 
+const networkErrorCodes = new Set([
+  "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET",
+  "ETIMEDOUT", "ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH",
+  "ENOTFOUND", "EAI_AGAIN", "CERT_HAS_EXPIRED", "SELF_SIGNED_CERT_IN_CHAIN",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "ERR_TLS_CERT_ALTNAME_INVALID",
+]);
+
+function networkFailureReason(error: unknown): string {
+  const pending = [error];
+  const seen = new Set<unknown>();
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    const record = current as { code?: unknown; cause?: unknown; errors?: unknown; name?: unknown };
+    if (typeof record.code === "string" && networkErrorCodes.has(record.code)) return record.code;
+    if (record.name === "TimeoutError") return "INDEXER_REQUEST_TIMEOUT";
+    if (record.cause) pending.push(record.cause);
+    if (Array.isArray(record.errors)) pending.push(...record.errors);
+  }
+  return "INDEXER_NETWORK_ERROR";
+}
+
 export class WazuhIndexerClient {
   private readonly baseUrl: string;
   private readonly authorization: string;
@@ -198,16 +221,21 @@ export class WazuhIndexerClient {
   }
 
   private async requestJson(method: string, path: string, body?: unknown): Promise<unknown> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: {
-        authorization: this.authorization,
-        accept: "application/json",
-        ...(body === undefined ? {} : { "content-type": "application/json" }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(this.timeoutMs),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: {
+          authorization: this.authorization,
+          accept: "application/json",
+          ...(body === undefined ? {} : { "content-type": "application/json" }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch (error) {
+      throw new Error(`Conexão com o Indexer falhou (${networkFailureReason(error)}) em ${method} ${path.split("?")[0]}.`);
+    }
     if (!response.ok) {
       await response.body?.cancel();
       throw new IndexerHttpError(response.status, method, path.split("?")[0]);

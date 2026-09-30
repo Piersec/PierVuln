@@ -14,6 +14,16 @@ import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { AdminRequestError, adminDate, archiveLabels, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership } from "@/src/lib/admin";
 
 type Section = "dashboard" | "tenants" | "integrations" | "users" | "audit";
+type SyncMeasurement = {
+  id: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  pages_received: number;
+  documents_received: number;
+  full_snapshot: boolean;
+  error_summary: string | null;
+};
 const sections: { key: Section; label: string; href: string }[] = [
   { key: "dashboard", label: "Visão geral", href: "/admin" },
   { key: "tenants", label: "Empresas", href: "/admin/tenants" },
@@ -159,6 +169,57 @@ export function AdminSection({ section }: { section: Section }) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [archiveLink, setArchiveLink] = useState<{ id: string; url: string } | null>(null);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+  const [syncHistory, setSyncHistory] = useState<Record<string, SyncMeasurement[]>>({});
+  const [syncNow, setSyncNow] = useState(() => Date.now());
+  const connectionIds = data?.connections.map((connection) => connection.id).sort().join(",") ?? "";
+
+  useEffect(() => {
+    if ((section !== "dashboard" && section !== "integrations") || !connectionIds) {
+      setSyncHistory({});
+      return;
+    }
+    const ids = connectionIds.split(",");
+    let active = true;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    async function loadHistory() {
+      const columns = "id,connection_id,status,started_at,finished_at,pages_received,documents_received,full_snapshot,error_summary";
+      const [attempts, completions] = await Promise.all([
+        client.from("sync_runs").select(columns).in("connection_id", ids)
+          .order("started_at", { ascending: false }).limit(Math.min(ids.length * 16, 200)),
+        client.from("sync_runs").select(columns).in("connection_id", ids)
+          .eq("status", "succeeded").eq("full_snapshot", true)
+          .order("started_at", { ascending: false }).limit(Math.min(ids.length * 5, 200)),
+      ]);
+      if (!active || attempts.error || completions.error) return;
+      const grouped: Record<string, SyncMeasurement[]> = {};
+      const uniqueRows = new Map<string, (typeof attempts.data)[number]>();
+      for (const row of [...(attempts.data ?? []), ...(completions.data ?? [])]) uniqueRows.set(row.id, row);
+      for (const row of uniqueRows.values()) {
+        const run = row as typeof row & { connection_id: string };
+        (grouped[run.connection_id] ??= []).push(run as unknown as SyncMeasurement);
+      }
+      for (const runs of Object.values(grouped)) runs.sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+      setSyncHistory(grouped);
+      setSyncNow(Date.now());
+    }
+    const request = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => void loadHistory(), 500);
+    };
+    void loadHistory();
+    const channel = client.channel(`sync-metrics-${ids.join("-")}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sync_runs" }, request)
+      .subscribe();
+    const clock = setInterval(() => setSyncNow(Date.now()), 15_000);
+    const fallback = setInterval(request, 30_000);
+    return () => {
+      active = false;
+      if (debounce) clearTimeout(debounce);
+      clearInterval(clock);
+      clearInterval(fallback);
+      void client.removeChannel(channel);
+    };
+  }, [client, connectionIds, section]);
   useFilterNotice(`admin-selection:${section}`, [search || query.search ? `Busca: ${search || query.search}` : "Sem busca", status ? `Status: ${status === "true" ? "Ativas" : status === "false" ? "Inativas" : archiveLabels[status] ?? status}` : "Todos os status", data?.companies.find((c) => c.id === (companyFilter || query.scope))?.name ?? (query.scope === "pier" ? "Equipe Pier" : "Todas as empresas"), `Página ${query.page + 1}`].join(" · "), !!data);
   useEffect(() => {
     if (editor) notify({ title: "Formulário aberto.", detail: editor.kind === "invite" ? "Convite de usuário" : editor.kind === "company" ? "Empresa" : editor.kind === "connection" ? "Integração Wazuh" : editor.kind === "mapping" ? "Vínculo de agente ou grupo" : editor.kind === "membership" ? "Vínculo com empresa" : "Alteração de status", key: "admin-editor" });
@@ -192,9 +253,9 @@ export function AdminSection({ section }: { section: Section }) {
         <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/users"><span>Usuários vinculados</span><strong>{data.stats.users}</strong><small>Equipe Pier e clientes</small></Link>
         <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/integrations"><span>Conexões Wazuh</span><strong>{data.stats.connections}</strong><small>{data.stats.active_connections} ativas · {data.stats.connections - data.stats.active_connections} inativas</small></Link>
       </div>
-      <section className="panel admin-list-panel"><div className="panel-heading"><h2>Última sincronização por conexão</h2><Link className="button button-secondary" href="/admin/integrations">Gerenciar integrações</Link></div>
-        <DataTable headings={["Conexão", "Empresa", "Estado", "Última execução", "Documentos"]} empty={!data.connections.length}>
-          {data.connections.map((c) => <tr key={c.id}><td>{c.name}<small>{c.is_active ? "Ativa" : "Inativa"}</small></td><td>{companyName(c.tenant_id)}</td><td><SyncStatus connection={c} /></td><td>{adminDate(c.latest_sync?.finished_at ?? c.latest_sync?.started_at)}</td><td>{c.latest_sync ? c.latest_sync.documents_received.toLocaleString("pt-BR") : "Sem execução"}</td></tr>)}
+      <section className="panel admin-list-panel"><div className="panel-heading"><div><h2>Última sincronização por conexão</h2><p>A média usa até cinco leituras completas; a previsão considera o ritmo da execução atual.</p></div><Link className="button button-secondary" href="/admin/integrations">Gerenciar integrações</Link></div>
+        <DataTable headings={["Conexão", "Empresa", "Estado", "Última execução", "Documentos", "Ritmo de sincronização"]} empty={!data.connections.length}>
+          {data.connections.map((c) => <tr key={c.id}><td>{c.name}<small>{c.is_active ? "Ativa" : "Inativa"}</small></td><td>{companyName(c.tenant_id)}</td><td><SyncStatus connection={c} /></td><td>{adminDate(c.latest_sync?.finished_at ?? c.latest_sync?.started_at)}</td><td>{c.latest_sync ? c.latest_sync.documents_received.toLocaleString("pt-BR") : "Sem execução"}</td><td><SyncTiming runs={syncHistory[c.id] ?? []} now={syncNow} /></td></tr>)}
         </DataTable>
       </section>
     </>}
@@ -203,7 +264,7 @@ export function AdminSection({ section }: { section: Section }) {
       {companies.map((c) => <tr key={c.id}><td><strong>{c.name}</strong><small>{c.slug}</small></td><td>{c.user_count}</td><td>{c.connection_count}</td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "company", company: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: c.name, active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>)}
     </DataTable></section>}
     {section === "integrations" && <section className="panel admin-list-panel"><DataTable headings={["Conexão / vínculos", "Empresa", "Endpoint", "Sincronização", "Status", "Ações"]} empty={!connections.length}>
-      {connections.map((c) => <tr key={c.id}><td><strong>{c.name}</strong><small>{c.mode === "shared" ? "Compartilhada" : "Dedicada"}</small>{c.mode === "shared" && <details className="admin-mappings"><summary>Vínculos de agentes e grupos ({data.mappings.filter((m) => m.connection_id === c.id).length})</summary>{data.mappings.filter((m) => m.connection_id === c.id).map((m) => <div key={m.id}><span>{m.match_type === "group" ? "Grupo" : "Agente"}: {m.match_value}<small>{companyName(m.tenant_id)} · {m.is_active ? "Ativo" : "Inativo"}</small></span>{m.is_active && <button className="button button-secondary" disabled={busy} onClick={() => void run({ action: "disable_agent_mapping", mappingId: m.id }, "Vínculo desativado.")}>Desativar</button>}</div>)}<button className="button button-secondary" disabled={!c.is_active} onClick={() => setEditor({ kind: "mapping", connectionId: c.id })}>Adicionar ou reativar vínculo</button></details>}</td><td>{companyName(c.tenant_id)}</td><td className="admin-endpoint">{c.endpoint_url}</td><td><SyncStatus connection={c} /><small>{adminDate(c.latest_sync?.finished_at ?? c.latest_sync?.started_at)}</small></td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "connection", connection: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "connection", id: c.id, name: c.name, active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>)}
+      {connections.map((c) => <tr key={c.id}><td><strong>{c.name}</strong><small>{c.mode === "shared" ? "Compartilhada" : "Dedicada"}</small>{c.mode === "shared" && <details className="admin-mappings"><summary>Vínculos de agentes e grupos ({data.mappings.filter((m) => m.connection_id === c.id).length})</summary>{data.mappings.filter((m) => m.connection_id === c.id).map((m) => <div key={m.id}><span>{m.match_type === "group" ? "Grupo" : "Agente"}: {m.match_value}<small>{companyName(m.tenant_id)} · {m.is_active ? "Ativo" : "Inativo"}</small></span>{m.is_active && <button className="button button-secondary" disabled={busy} onClick={() => void run({ action: "disable_agent_mapping", mappingId: m.id }, "Vínculo desativado.")}>Desativar</button>}</div>)}<button className="button button-secondary" disabled={!c.is_active} onClick={() => setEditor({ kind: "mapping", connectionId: c.id })}>Adicionar ou reativar vínculo</button></details>}</td><td>{companyName(c.tenant_id)}</td><td className="admin-endpoint">{c.endpoint_url}</td><td><SyncStatus connection={c} /><small>{adminDate(c.latest_sync?.finished_at ?? c.latest_sync?.started_at)}</small></td><td><SyncTiming runs={syncHistory[c.id] ?? []} now={syncNow} /></td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "connection", connection: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "connection", id: c.id, name: c.name, active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>)}
     </DataTable></section>}
     {section === "users" && <>
       <div className="admin-filters"><label><span className="sr-only">Buscar usuário</span><input type="search" placeholder="Buscar nome ou e-mail…" value={query.search} onChange={(e) => setQuery({ ...query, search: e.target.value, page: 0 })} /></label><label><span className="sr-only">Filtrar usuários por equipe ou empresa</span><select value={query.scope} onChange={(e) => setQuery({ ...query, scope: e.target.value, page: 0 })}><option value="">Todos os usuários</option><option value="pier">Equipe Pier</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label></div>
@@ -222,6 +283,44 @@ export function AdminSection({ section }: { section: Section }) {
 }
 
 function ActiveStatus({ active }: { active: boolean }) { return <span className={`admin-status${active ? " positive" : ""}`}>{active ? "Ativa" : "Inativa"}</span>; }
+function SyncTiming({ runs, now }: { runs: SyncMeasurement[]; now: number }) {
+  const current = runs.find((run) => run.status === "running");
+  const completed = runs.filter((run) => run.status === "succeeded" && run.full_snapshot && run.finished_at)
+    .slice(0, 5)
+    .map((run) => ({
+      seconds: (Date.parse(run.finished_at!) - Date.parse(run.started_at)) / 1000,
+      documents: run.documents_received,
+    }))
+    .filter((run) => Number.isFinite(run.seconds) && run.seconds > 0 && run.documents >= 0);
+  const avgSeconds = completed.length ? completed.reduce((sum, run) => sum + run.seconds, 0) / completed.length : null;
+  const totalSeconds = completed.reduce((sum, run) => sum + run.seconds, 0);
+  const totalDocuments = completed.reduce((sum, run) => sum + run.documents, 0);
+  const documentsPerSecond = totalSeconds > 0 ? totalDocuments / totalSeconds : null;
+  const basisDocuments = completed[0]?.documents ?? 0;
+  const elapsed = current ? Math.max(0, (now - Date.parse(current.started_at)) / 1000) : 0;
+  const liveRate = current && elapsed >= 5 && current.documents_received > 0 ? current.documents_received / elapsed : null;
+  const progress = current && basisDocuments > 0 ? Math.min(99, current.documents_received / basisDocuments * 100) : null;
+  const remaining = current && progress != null && progress < 99 && liveRate
+    ? Math.ceil(Math.max(0, basisDocuments - current.documents_received) / liveRate)
+    : null;
+  const latest = runs[0];
+
+  if (current) {
+    return <span className="sync-timing"><strong>Em andamento</strong><small>{remaining != null && progress != null
+      ? `~${Math.round(progress)}% · ~${formatSyncDuration(remaining)} restantes`
+      : current.documents_received > 0 ? `${current.documents_received.toLocaleString("pt-BR")} documentos lidos · calculando estimativa`
+        : "Aguardando o Indexer enviar dados"}</small></span>;
+  }
+  if (!completed.length) return <span className="sync-timing"><strong>Sem leitura completa recente</strong><small>{latest?.status === "failed" ? latest.error_summary || "Última tentativa falhou" : "Aguardando uma leitura completa"}</small></span>;
+  return <span className="sync-timing"><strong>Média: {formatSyncDuration(avgSeconds!)}</strong><small>{documentsPerSecond!.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} documentos/s · {completed.length} leituras completas</small></span>;
+}
+
+function formatSyncDuration(seconds: number) {
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ${Math.round(seconds % 60)} s`;
+}
+
 function SyncStatus({ connection }: { connection: AdminConnection }) {
   const status = connection.latest_sync?.status;
   return <span className={`admin-status${status === "failed" || status === "partial" ? " caution" : status === "succeeded" ? " positive" : ""}`}>{status ? syncLabels[status] ?? status : "Sem execução"}{connection.latest_sync && !connection.latest_sync.full_snapshot ? " · Incremental" : ""}</span>;

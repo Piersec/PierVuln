@@ -54,6 +54,9 @@
 .admin-status { display: inline-block; padding: 4px 9px; border-radius: 6px; background: var(--surface-raised); color: var(--muted-strong); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .admin-status.positive { color: var(--positive); }
 .admin-status.caution { color: var(--caution); }
+.sync-timing { display: grid; gap: 4px; min-width: 145px; }
+.sync-timing strong { color: var(--ink); font-size: 13px; font-weight: 600; }
+.sync-timing small { color: var(--muted); font-size: 11px; line-height: 1.4; }
 .admin-endpoint { min-width: 180px; max-width: 350px; overflow-wrap: anywhere; font-family: var(--font-code); font-size: 12px; }
 .admin-file { min-width: 220px; max-width: 420px; overflow-wrap: anywhere; }
 .admin-membership { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 240px; margin-bottom: 12px; }
