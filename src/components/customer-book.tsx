@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSiteNotifications } from "@/src/components/site-notifications";
+import { useErrorNotice, useFilterNotice } from "@/src/lib/use-filter-notice";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import {
@@ -70,6 +72,7 @@ const dayMs = 24 * 60 * 60 * 1000;
 
 export function CustomerBook() {
   const supabase = getSupabaseBrowserClient();
+  const { notify } = useSiteNotifications();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [contextReady, setContextReady] = useState(false);
@@ -83,6 +86,15 @@ export function CustomerBook() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const refreshRequested = useRef(false);
+  useErrorNotice(error || contextError, "book-feedback");
+  useFilterNotice("book-selection", companies.find((company) => company.id === selectedCompany)?.name ?? "Todas as empresas", contextReady && !!session);
+
+  function refresh() {
+    refreshRequested.current = true;
+    notify({ title: "Atualizando relatório…", key: "book-feedback" });
+    setRefreshKey((value) => value + 1);
+  }
 
   useEffect(() => {
     if (!supabase) {
@@ -189,7 +201,7 @@ export function CustomerBook() {
       .from("wazuh_connections")
       .select("id,tenant_id,mode")
       .eq("is_active", true);
-    if (connectionError) return { finishedAt: null, connections: 0 };
+    if (connectionError) { notify({ title: "Não foi possível consultar as fontes Wazuh.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
     let connections = connectionRows ?? [];
     if (companyId && internal) {
       const { data: mappingRows, error: mappingError } = await client
@@ -197,7 +209,7 @@ export function CustomerBook() {
         .select("connection_id")
         .eq("tenant_id", companyId)
         .eq("is_active", true);
-      if (mappingError) return { finishedAt: null, connections: 0 };
+      if (mappingError) { notify({ title: "Não foi possível consultar os vínculos Wazuh.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
       const mappedIds = new Set((mappingRows ?? []).map((row) => row.connection_id));
       connections = connections.filter((connection) =>
         connection.tenant_id === companyId || (connection.mode === "shared" && mappedIds.has(connection.id))
@@ -214,9 +226,9 @@ export function CustomerBook() {
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false })
       .limit(1);
-    if (runError) return { finishedAt: null, connections: ids.length };
+    if (runError) { notify({ title: "Não foi possível consultar a última sincronização.", error: true, key: "book-sync" }); return { finishedAt: null, connections: ids.length }; }
     return { finishedAt: runs?.[0]?.finished_at ?? null, connections: ids.length };
-  }, []);
+  }, [notify]);
 
   useEffect(() => {
     if (!supabase || !session || !contextReady || contextError || (!isInternal && !selectedCompany)) return;
@@ -231,8 +243,13 @@ export function CustomerBook() {
       setFindings(nextFindings);
       setLatestSync(nextSync);
       setLoadedAt(new Date().toISOString());
+      if (refreshRequested.current) {
+        notify({ title: "Relatório atualizado.", detail: `${nextFindings.length.toLocaleString("pt-BR")} achados ativos consultados.`, key: "book-feedback" });
+        refreshRequested.current = false;
+      }
     }).catch((loadError: unknown) => {
       if (!active) return;
+      refreshRequested.current = false;
       setError(loadError instanceof Error
         ? loadError.message
         : "Não foi possível carregar os dados completos deste relatório.");
@@ -240,7 +257,7 @@ export function CustomerBook() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [contextError, contextReady, isInternal, loadFindings, loadSyncSummary, refreshKey, selectedCompany, session, supabase]);
+  }, [contextError, contextReady, isInternal, loadFindings, loadSyncSummary, notify, refreshKey, selectedCompany, session, supabase]);
 
   const metrics = useMemo(() => buildMetrics(findings), [findings]);
   const selectedCompanyName = companies.find((company) => company.id === selectedCompany)?.name;
@@ -249,7 +266,9 @@ export function CustomerBook() {
   const displayCount = (value: number) => value.toLocaleString("pt-BR");
 
   async function signOut() {
-    if (supabase) await supabase.auth.signOut();
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) notify({ title: "Não foi possível encerrar a sessão.", error: true, key: "auth-session" });
   }
 
   if (!supabase) return <BookConfigurationRequired />;
@@ -275,7 +294,7 @@ export function CustomerBook() {
           <div className="breadcrumb">PierVuln <span>/</span> <strong>Book dos Clientes</strong></div>
           <div className="topbar-actions">
             {isInternal ? <select aria-label="Empresa do relatório" value={selectedCompany} onChange={(event) => setSelectedCompany(event.target.value)}><option value="">Todas as empresas</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select> : <span className="book-company-chip">{selectedCompanyName ?? "Minha empresa"}</span>}
-            <button className="book-refresh" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}>{loading ? "Atualizando…" : "Atualizar"}</button>
+            <button className="book-feedback" onClick={refresh} disabled={loading}>{loading ? "Atualizando…" : "Atualizar"}</button>
           </div>
         </header>
 
@@ -286,7 +305,7 @@ export function CustomerBook() {
           </div>
 
           {contextError && <div className="book-alert" role="alert">{contextError}</div>}
-          {error && <div className="book-alert" role="alert"><span>{error}</span><button onClick={() => setRefreshKey((value) => value + 1)}>Tentar novamente</button></div>}
+          {error && <div className="book-alert" role="alert"><span>{error}</span><button onClick={refresh}>Tentar novamente</button></div>}
 
           {!contextError && <>
             <BentoGrid className="book-overview" aria-label="Indicadores de exposição">

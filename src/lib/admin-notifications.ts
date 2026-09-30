@@ -30,6 +30,11 @@ export function changeNotice(change: AdminChange): NoticeInput {
 
 export function enqueueNotice(queue: AdminNotice[], incoming: AdminNotice): AdminNotice[] {
   const index = incoming.key ? queue.findIndex((notice) => notice.key === incoming.key && !notice.secret) : -1;
-  if (index < 0) return [...queue, incoming];
-  return queue.map((notice, i) => i === index ? incoming : notice);
+  if (index >= 0) return queue.map((notice, i) => i === index ? incoming : notice);
+  if (queue.length < 8) return [...queue, incoming];
+  // Keep the visible notice and prioritize failures over queued informational updates.
+  let replace = queue.findIndex((notice, i) => i > 0 && !notice.error && !notice.secret);
+  if (replace < 0 && incoming.error) replace = queue.findIndex((notice, i) => i > 0 && !notice.secret);
+  if (replace < 0) return queue;
+  return [...queue.filter((_notice, i) => i !== replace), incoming];
 }

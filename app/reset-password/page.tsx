@@ -18,6 +18,9 @@ export default function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   useEffect(() => { if (notice) notify({ title: notice, error: true }); }, [notice, notify]);
+  useEffect(() => {
+    if (step === "invalid") notify({ title: "Link de recuperação inválido ou expirado.", detail: "Solicite um novo link para continuar.", error: true, key: "auth-recovery" });
+  }, [notify, step]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -94,6 +97,7 @@ export default function ResetPasswordPage() {
       setStep("done");
       window.history.replaceState(null, "", "/reset-password");
       await supabase.auth.signOut({ scope: "local" });
+      setTimeout(() => notify({ title: "Senha atualizada.", detail: "Entre novamente com a nova senha.", key: "auth-session" }), 0);
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally { setBusy(false); }

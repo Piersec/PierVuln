@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { SiteIsland } from "@/src/components/site-island";
 import { changeNotice, enqueueNotice, parseAdminChange, type AdminNotice, type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { usePathname } from "next/navigation";
 
 type Notifications = {
   notify: (notice: NoticeInput) => void;
@@ -22,6 +23,8 @@ export function useSiteNotifications() {
 
 export function SiteNotifications({ children }: { children: ReactNode }) {
   const client = getSupabaseBrowserClient();
+  const pathname = usePathname();
+  const previousPath = useRef(pathname);
   const [notices, setNotices] = useState<AdminNotice[]>([]);
   const [host, setIslandHost] = useState<HTMLElement | null>(null);
   const [revision, setRevision] = useState(0);
@@ -43,6 +46,38 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    const names: Record<string, string> = { "/": "Vulnerabilidades", "/book": "Book dos Clientes", "/admin": "Visão geral administrativa", "/admin/tenants": "Empresas", "/admin/integrations": "Integrações", "/admin/users": "Usuários", "/admin/audit": "Auditoria", "/login": "Login", "/reset-password": "Recuperação de acesso", "/onboarding": "Cadastro" };
+    if (names[pathname]) notify({ title: names[pathname], detail: "Área selecionada.", key: "navigation" });
+  }, [notify, pathname]);
+
+  useEffect(() => {
+    let lastInvalid = 0;
+    const offline = () => notify({ title: "Você está sem conexão.", detail: "As alterações precisam de internet para serem salvas.", error: true, key: "network" });
+    const online = () => notify({ title: "Conexão restabelecida.", detail: "Você pode atualizar os dados e tentar novamente.", key: "network" });
+    const invalid = (event: Event) => {
+      if (Date.now() - lastInvalid < 100) return;
+      lastInvalid = Date.now();
+      const field = event.target;
+      if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
+        notify({ title: "Revise o formulário.", detail: field.validationMessage, error: true, key: "form-validation" });
+      }
+    };
+    const rejected = () => notify({ title: "Não foi possível concluir a operação.", detail: "Tente novamente em alguns instantes.", error: true, key: "unexpected-error" });
+    window.addEventListener("offline", offline);
+    window.addEventListener("online", online);
+    window.addEventListener("unhandledrejection", rejected);
+    document.addEventListener("invalid", invalid, true);
+    return () => {
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("online", online);
+      window.removeEventListener("unhandledrejection", rejected);
+      document.removeEventListener("invalid", invalid, true);
+    };
+  }, [notify]);
+
+  useEffect(() => {
     if (!client) return;
     let mounted = true;
     let generation = 0;
@@ -58,12 +93,22 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
       }
     }
     void client.auth.getSession().then(({ data }) => { if (mounted) void check(data.session?.user.id ?? null); });
-    const { data } = client.auth.onAuthStateChange((_event, session) => {
+    const { data } = client.auth.onAuthStateChange((event, session) => {
       // Auth callbacks finish before RPC calls to avoid the auth client lock.
-      setTimeout(() => { if (mounted) void check(session?.user.id ?? null); }, 0);
+      setTimeout(() => {
+        if (!mounted) return;
+        const id = session?.user.id ?? null;
+        const changedUser = userId !== id;
+        void check(id).then(() => {
+          if (!mounted || userId !== id) return;
+          if (event === "SIGNED_IN" && changedUser) notify({ title: "Acesso confirmado.", key: "auth-session" });
+          if (event === "SIGNED_OUT" && changedUser) notify({ title: "Sessão encerrada.", key: "auth-session" });
+          if (event === "PASSWORD_RECOVERY") notify({ title: "Link de recuperação validado.", detail: "Defina sua nova senha para continuar.", key: "auth-recovery" });
+        });
+      }, 0);
     });
     return () => { mounted = false; generation++; data.subscription.unsubscribe(); };
-  }, [client, clear]);
+  }, [client, clear, notify]);
 
   useEffect(() => {
     if (!client || !adminId) return;
@@ -114,13 +159,17 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
 }
 
 function ConnectorSecret({ secret, close }: { secret: string; close: () => void }) {
+  const { notify, setIslandHost } = useSiteNotifications();
   const dialog = useRef<HTMLDialogElement>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { dialog.current?.showModal(); }, []);
+  useEffect(() => {
+    dialog.current?.showModal(); setIslandHost(dialog.current);
+    return () => setIslandHost(null);
+  }, [setIslandHost]);
   async function copy() {
-    try { await navigator.clipboard.writeText(secret); setCopied(true); }
-    catch { setError("Selecione o segredo abaixo para copiar manualmente."); }
+    try { await navigator.clipboard.writeText(secret); setCopied(true); notify({ title: "Segredo copiado.", key: "connector-copy" }); }
+    catch { setError("Selecione o segredo abaixo para copiar manualmente."); notify({ title: "Não foi possível copiar o segredo.", detail: "Selecione o texto para copiar manualmente.", error: true, key: "connector-copy" }); }
   }
   return <dialog ref={dialog} className="admin-dialog" aria-labelledby="connector-secret-title" onCancel={close}>
     <div className="admin-dialog-header"><h2 id="connector-secret-title">Segredo do conector</h2></div>

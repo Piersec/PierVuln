@@ -27,6 +27,9 @@ export default function OnboardingPage() {
   const [confirmation, setConfirmation] = useState("");
   const [notice, setNotice] = useState("");
   useEffect(() => { if (notice) notify({ title: notice, error: true }); }, [notice, notify]);
+  useEffect(() => {
+    if (step === "preparing") notify({ title: "Cadastro concluído.", detail: "Seu painel será aberto em instantes.", key: "onboarding-step" });
+  }, [notify, step]);
   const [busy, setBusy] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 

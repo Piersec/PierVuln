@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { Brand } from "@/src/components/brand";
@@ -8,6 +9,7 @@ import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 
 export default function LoginPage() {
+  const router = useRouter();
   const supabase = getSupabaseBrowserClient();
   const { notify } = useSiteNotifications();
   const [email, setEmail] = useState("");
@@ -35,7 +37,7 @@ export default function LoginPage() {
     setNotice("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setNotice("Não foi possível entrar. Confira o e-mail e a senha ou peça um novo convite à equipe.");
-    else window.location.assign("/");
+    else router.replace("/");
     setBusy(false);
   }
 

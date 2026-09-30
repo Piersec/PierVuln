@@ -7,6 +7,7 @@ import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { useSiteNotifications } from "@/src/components/site-notifications";
+import { useErrorNotice, useFilterNotice } from "@/src/lib/use-filter-notice";
 import { type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { AdminRequestError, adminDate, archiveLabels, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership } from "@/src/lib/admin";
@@ -41,6 +42,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
   const { notify, clear, setIslandHost, beginMutation, endMutation, revision } = useSiteNotifications();
+  useErrorNotice(loadError, "admin-feedback");
   const [query, setQuery] = useState({ search: "", scope: "", page: 0 });
   const requestId = useRef(0);
   const mutationLock = useRef(false);
@@ -69,13 +71,14 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
     return () => { mounted = false; };
   }, [client, session?.user.id]);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (manual = false) => {
     if (!client || access !== "allowed") return;
     const id = ++requestId.current;
     setLoading(true); setLoadError("");
+    if (manual) notify({ title: "Atualizando administração…", key: "admin-feedback" });
     try {
       const next = await invokeAdmin<AdminData>(client, { action: "panel_data", ...query });
-      if (id === requestId.current) setData(next);
+      if (id === requestId.current) { setData(next); if (manual) notify({ title: "Dados administrativos atualizados.", key: "admin-feedback" }); }
     } catch (error) {
       if (id === requestId.current) {
         setLoadError((error as Error).message);
@@ -83,7 +86,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
       }
     }
     finally { if (id === requestId.current) setLoading(false); }
-  }, [access, client, query]);
+  }, [access, clear, client, notify, query]);
   reloadRef.current = reload;
 
   useEffect(() => { const timer = setTimeout(() => void reload(), 250); return () => clearTimeout(timer); }, [reload]);
@@ -114,6 +117,13 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
     finally { mutationLock.current = false; endMutation(); setBusy(false); }
   }
 
+  async function signOut() {
+    if (!client) return;
+    const { error } = await client.auth.signOut();
+    if (error) notify({ title: "Não foi possível encerrar a sessão.", error: true, key: "auth-session" });
+    else { setData(null); setAccess("checking"); }
+  }
+
   if (!client) return <main className="auth-shell"><section className="auth-card"><Brand /><h1>Configuração necessária</h1><p>Configure a conexão pública com o Supabase para abrir o painel.</p></section></main>;
   if (!authReady || (session && access === "checking")) return <main className="loading-screen"><Brand /><div className="spinner" /><p>Verificando acesso administrativo…</p></main>;
   if (!session) return <main className="auth-shell"><section className="auth-card"><Brand /><h1>Administração Pier</h1><p>Entre com a conta da equipe para continuar.</p><Link className="button button-primary" href="/login">Entrar</Link></section></main>;
@@ -126,11 +136,11 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
         <Link className="nav-link active" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /></Link>
-      </nav><div className="sidebar-bottom"><div className="avatar" aria-hidden="true">{session.user.email?.slice(0, 1).toUpperCase()}</div><button className="sidebar-signout" onClick={() => { setData(null); clear(); setAccess("checking"); void client.auth.signOut(); }}>Sair</button></div></aside>
-      <section className="main-column"><header className="topbar"><div className="breadcrumb">ADMIN <span>/</span><strong>{sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload()}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
+      </nav><div className="sidebar-bottom"><div className="avatar" aria-hidden="true">{session.user.email?.slice(0, 1).toUpperCase()}</div><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>
+      <section className="main-column"><header className="topbar"><div className="breadcrumb">ADMIN <span>/</span><strong>{sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload(true)}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
         <div className="content-wrap admin-content" id="admin-content" tabIndex={-1}>
           <nav className="admin-tabs" aria-label="Administração">{sections.map((s) => <Link href={s.href} key={s.key} className={pathname === s.href ? "active" : ""} aria-current={pathname === s.href ? "page" : undefined}>{s.label}</Link>)}</nav>
-          {loadError && <div className="inline-alert" role="alert">{loadError}<button className="button button-secondary" onClick={() => void reload()}>Tentar novamente</button></div>}
+          {loadError && <div className="inline-alert" role="alert">{loadError}<button className="button button-secondary" onClick={() => void reload(true)}>Tentar novamente</button></div>}
           {loading && !data ? <div className="admin-loading" role="status"><div className="spinner" />Carregando dados administrativos…</div> : data && children}
         </div>
       </section>
@@ -148,6 +158,10 @@ export function AdminSection({ section }: { section: Section }) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [archiveLink, setArchiveLink] = useState<{ id: string; url: string } | null>(null);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+  useFilterNotice(`admin-selection:${section}`, [search || query.search ? `Busca: ${search || query.search}` : "Sem busca", status ? `Status: ${status === "true" ? "Ativas" : status === "false" ? "Inativas" : archiveLabels[status] ?? status}` : "Todos os status", data?.companies.find((c) => c.id === (companyFilter || query.scope))?.name ?? (query.scope === "pier" ? "Equipe Pier" : "Todas as empresas"), `Página ${query.page + 1}`].join(" · "), !!data);
+  useEffect(() => {
+    if (editor) notify({ title: "Formulário aberto.", detail: editor.kind === "invite" ? "Convite de usuário" : editor.kind === "company" ? "Empresa" : editor.kind === "connection" ? "Integração Wazuh" : editor.kind === "mapping" ? "Vínculo de agente ou grupo" : editor.kind === "membership" ? "Vínculo com empresa" : "Alteração de status", key: "admin-editor" });
+  }, [editor, notify]);
   if (!data) return null;
   const companyName = (id: string | null) => data.companies.find((c) => c.id === id)?.name ?? "Compartilhada";
   const matches = (value: string) => value.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR"));
@@ -216,10 +230,14 @@ function DataTable({ headings, empty, children }: { headings: string[]; empty: b
 }
 
 function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
-  const { data, busy, run, setIslandHost } = useAdmin();
+  const { data, busy, run, notify, setIslandHost } = useAdmin();
   const dialog = useRef<HTMLDialogElement>(null);
   const [inviteKind, setInviteKind] = useState("client");
   const [mode, setMode] = useState(editor.kind === "connection" ? editor.connection?.mode ?? "dedicated" : "dedicated");
+  function cancel() {
+    if (busy) return;
+    close(); notify({ title: "Formulário fechado.", key: "admin-editor" });
+  }
   useEffect(() => {
     dialog.current?.showModal(); setIslandHost(dialog.current);
     return () => setIslandHost(null);
@@ -244,8 +262,8 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
     else { payload = { action: editor.entity === "company" ? "update_company" : "update_connection", id: editor.id, isActive: !editor.active }; message = `${editor.name} ${editor.active ? "desativada" : "reativada"}.`; }
     if (await run(payload, message)) close();
   }
-  return <dialog className="admin-dialog" ref={dialog} onCancel={(e) => { if (busy) e.preventDefault(); else close(); }} onClick={(e) => { if (e.target === e.currentTarget && !busy) close(); }} aria-labelledby="admin-dialog-title">
-    <div className="admin-dialog-header"><h2 id="admin-dialog-title">{title}</h2><button className="icon-button" aria-label="Fechar formulário" disabled={busy} onClick={close}>Fechar</button></div>
+  return <dialog className="admin-dialog" ref={dialog} onCancel={(e) => { if (busy) e.preventDefault(); else cancel(); }} onClick={(e) => { if (e.target === e.currentTarget && !busy) cancel(); }} aria-labelledby="admin-dialog-title">
+    <div className="admin-dialog-header"><h2 id="admin-dialog-title">{title}</h2><button className="icon-button" aria-label="Fechar formulário" disabled={busy} onClick={cancel}>Fechar</button></div>
     <form onSubmit={(e) => void submit(e)} className="admin-editor-form"><fieldset disabled={busy}>
       {(editor.kind === "company" || editor.kind === "connection") && <label>Nome<input name="name" required minLength={2} maxLength={160} defaultValue={editor.kind === "company" ? editor.company?.name : editor.connection?.name} autoFocus /></label>}
       {editor.kind === "connection" && <><label>Endpoint HTTPS do Wazuh Indexer<input name="endpoint" type="url" required maxLength={2048} placeholder="https://indexer.exemplo.com:9200" defaultValue={editor.connection?.endpoint_url} pattern="https://.*" /></label><label>Tipo<select value={mode} disabled={!!editor.connection} onChange={(e) => setMode(e.target.value)}><option value="dedicated">Dedicada a uma empresa</option><option value="shared">Compartilhada entre empresas</option></select></label>{mode === "dedicated" && <label>Empresa<select name="company" required disabled={!!editor.connection} defaultValue={editor.connection?.tenant_id ?? ""}><option value="">Selecione uma empresa</option>{(editor.connection ? data.companies : activeCompanies).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}{editor.connection && <p className="muted-copy">O tipo e a empresa preservam a atribuição dos achados históricos.</p>}</>}
@@ -255,6 +273,6 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
       {editor.kind === "membership" && <><p className="muted-copy">{editor.email}</p><label>Estado do vínculo<select name="active" defaultValue={String(editor.membership.is_active)}><option value="true">Ativo</option><option value="false">Inativo</option></select></label><p className="muted-copy">Desativar impede o acesso pela empresa e preserva os casos e comentários.</p></>}
       {editor.kind === "mapping" && <><label>Identificador<select name="matchType"><option value="agent_id">ID do agente</option><option value="group">Grupo Wazuh</option></select></label><label>Valor<input name="matchValue" required maxLength={256} /></label></>}
       {editor.kind === "toggle" && <p>{editor.active ? "O acesso será interrompido. Casos, vínculos e histórico serão preservados para uma futura reativação." : "O acesso será restaurado com os mesmos vínculos e histórico."}</p>}
-    </fieldset><div className="admin-dialog-footer"><button className="button button-secondary" type="button" disabled={busy} onClick={close}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? "Salvando…" : editor.kind === "toggle" ? editor.active ? "Desativar" : "Reativar" : editor.kind === "invite" ? "Liberar acesso" : "Salvar"}</button></div></form>
+    </fieldset><div className="admin-dialog-footer"><button className="button button-secondary" type="button" disabled={busy} onClick={cancel}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? "Salvando…" : editor.kind === "toggle" ? editor.active ? "Desativar" : "Reativar" : editor.kind === "invite" ? "Liberar acesso" : "Salvar"}</button></div></form>
   </dialog>;
 }
