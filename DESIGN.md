@@ -66,7 +66,7 @@ rounded:
   tight: "4px"
   control: "5px"
   compact: "6px"
-  card: "15px"
+  card: "12px"
   brand: "8px"
   circle: "50%"
 spacing:
@@ -168,7 +168,7 @@ A paleta parte de um campo escuro e usa o ciano para orientar atenção sem pint
 
 ## Layout
 
-Em desktop, a navegação lateral fixa a orientação do produto e o conteúdo ocupa uma coluna fluida. O primeiro bloco usa um bento de 12 colunas: o total ocupa duas linhas, os indicadores críticos e de fluxo ficam próximos e o estado da fonte recebe uma faixa própria. O Book repete a lógica com blocos de larguras diferentes para resumo, critérios, gráficos e concentração por CVE. A lista de casos continua em tabela compacta com paginação explícita.
+Em desktop, uma faixa lateral de 72px mantém a navegação por ícones acessíveis e libera largura para o painel. O cabeçalho reúne contexto e ações. O primeiro bloco do dashboard ocupa as 12 colunas: título discreto no alto, número central e ação no rodapé. Logo abaixo, três módulos compactos ocupam larguras diferentes para severidade, andamento e saúde da fonte. O Book segue a mesma hierarquia: total em largura inteira, contexto em dois módulos e gráficos em colunas assimétricas. A lista de casos continua em tabela compacta com paginação explícita.
 
 Em larguras intermediárias, os bentos passam para seis colunas. Em telas pequenas, a leitura vira uma coluna, com os dois indicadores curtos lado a lado quando houver espaço; a tabela de casos vira cartões empilhados e os gráficos passam para uma coluna. Os resumos apresentam o total da seleção independentemente das 50 linhas da página atual.
 
@@ -181,7 +181,11 @@ O sistema usa planos de fundo e bordas para separar as superfícies. O bloco pri
 
 ## Shapes
 
-Controles têm cantos discretos e consistentes; cartões bento e painéis usam raio de 15px para marcar regiões de conteúdo. Chips de severidade usam borda e fundo preenchido, enquanto navegação e tabela evitam cápsulas decorativas. Campos, botões e seletores mantêm altura mínima confortável para toque.
+Controles têm cantos discretos e consistentes; cartões bento e painéis usam raio de 12px para marcar regiões de conteúdo. Chips de severidade usam borda e fundo preenchido, enquanto navegação e tabela evitam cápsulas decorativas. Campos, botões e seletores mantêm altura mínima confortável para toque.
+
+## Auditoria da referência
+
+O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), inspecionado em 30/09/2026, usa uma barra lateral mínima, cabeçalho sem competição com o conteúdo, ferramentas agrupadas à direita, um módulo principal de largura inteira e widgets subsequentes de proporções diferentes. Os cartões têm raio moderado, separação estreita e cabeçalhos compactos. O PierVuln adota essa estrutura e mantém sua paleta, tipografia, informações, permissões e ações próprias. A referência não determina métricas novas nem interações de arrastar widgets.
 
 ## Components
 

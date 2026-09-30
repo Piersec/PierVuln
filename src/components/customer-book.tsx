@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
+import { NavSymbol } from "@/src/components/ui/nav-symbol";
 
 type Company = { id: string; name: string; slug: string; role: string };
 type BookFinding = {
@@ -261,9 +262,9 @@ export function CustomerBook() {
         <Brand />
         <nav className="workspace-nav" aria-label="Navegação principal">
           <div className="nav-caption">WORKSPACE</div>
-          <Link className="nav-link" href="/">Vulnerabilidades</Link>
-          <Link className="nav-link active" href="/book" aria-current="page">Book dos Clientes</Link>
-          {isInternal && <Link className="nav-link" href="/#admin">Administração</Link>}
+          <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
+          <Link className="nav-link active" href="/book" aria-current="page" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
+          {isInternal && <Link className="nav-link" href="/#admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}
         </nav>
         <div className="sidebar-bottom"><div className="avatar">{session.user.email?.slice(0, 1).toUpperCase() ?? "U"}</div><div className="user-info"><strong>{session.user.email}</strong><span>{isInternal ? "Equipe Pier" : selectedCompanyName ?? "Cliente"}</span></div><button className="book-signout" onClick={() => void signOut()}>Sair</button></div>
       </aside>
