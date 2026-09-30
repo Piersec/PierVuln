@@ -7,7 +7,8 @@ test("notifications accept only administrative entities and discard secret field
   const change = parseAdminChange({ id: "2", table: "wazuh_connections", entity_id: "c", operation: "UPDATE", label: "Fonte", is_active: false, ingestToken: "secret", endpoint_url: "https://user:secret@example.com" });
   assert.ok(change);
   assert.equal(JSON.stringify(change).includes("secret"), false);
-  assert.equal(changeNotice(change).title, "Conexão Wazuh: inativo.");
+  assert.equal(changeNotice(change).title, "Conexão Wazuh: atualizada.");
+  assert.equal(changeNotice(change).detail, "Fonte · Inativa");
 });
 
 test("sync failures become error notices and successful syncs stay informational", () => {

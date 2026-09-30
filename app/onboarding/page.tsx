@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@heroui/react";
 import { FormEvent, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { useSiteNotifications } from "@/src/components/site-notifications";
 import { Brand } from "@/src/components/brand";
 import Rays from "@/src/components/light-rays";
 import { SignaturePad } from "@/src/components/ui/signature-pad";
@@ -18,12 +19,14 @@ function strongPassword(value: string) {
 
 export default function OnboardingPage() {
   const supabase = getSupabaseBrowserClient();
+  const { notify } = useSiteNotifications();
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("welcome");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [notice, setNotice] = useState("");
+  useEffect(() => { if (notice) notify({ title: notice, error: true }); }, [notice, notify]);
   const [busy, setBusy] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -62,6 +65,7 @@ export default function OnboardingPage() {
     if (error) { setNotice("Não foi possível salvar a senha. Abra novamente o link do convite ou fale com a equipe."); return; }
     setPassword("");
     setConfirmation("");
+    notify({ title: "Senha salva. Continue seu cadastro." });
     setStep("signature");
   }
 

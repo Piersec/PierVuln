@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { useSiteNotifications } from "@/src/components/site-notifications";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 
@@ -9,12 +10,14 @@ type Step = "checking" | "request" | "sent" | "update" | "invalid" | "done";
 
 export default function ResetPasswordPage() {
   const supabase = getSupabaseBrowserClient();
+  const { notify } = useSiteNotifications();
   const [step, setStep] = useState<Step>("checking");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  useEffect(() => { if (notice) notify({ title: notice, error: true }); }, [notice, notify]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -60,7 +63,7 @@ export default function ResetPasswordPage() {
         setNotice(error.status === 429
           ? "Muitas solicitações. Aguarde alguns minutos e tente novamente."
           : "Não foi possível solicitar o link. Tente novamente em alguns instantes.");
-      } else setStep("sent");
+      } else { setStep("sent"); notify({ title: "Solicitação recebida.", detail: "Se o e-mail estiver associado a uma conta, você receberá o link de recuperação." }); }
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally { setBusy(false); }

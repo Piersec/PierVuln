@@ -3,9 +3,9 @@
 
 /* Administrative tables keep the source data together; only their region scrolls. */
 .admin-content { padding-top: 20px; }
-.admin-shell .topbar { min-height: 124px; align-items: flex-end; padding-bottom: 16px; }
-.admin-island { position: fixed; top: 12px; left: calc(50% + 36px); z-index: 12; width: 270px; max-width: calc(100vw - 100px); padding: 3px 14px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 30px; background: #050607; color: var(--ink); box-shadow: 0 12px 35px rgb(0 0 0 / 35%); transform: translateX(-50%); transition: width .35s cubic-bezier(.22,1,.36,1), border-radius .35s ease; }
-.admin-island.expanded { width: 520px; border-radius: 24px; }
+.admin-shell .button, .admin-dialog .button, .site-island .button { min-height: 44px; }
+.site-island { position: fixed; top: 12px; left: 50%; z-index: 100; width: 270px; max-width: calc(100vw - 28px); padding: 3px 14px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 30px; background: #050607; color: var(--ink); box-shadow: 0 12px 35px rgb(0 0 0 / 35%); transform: translateX(-50%); transition: width .35s cubic-bezier(.22,1,.36,1), border-radius .35s ease; }
+.site-island.expanded { width: 520px; border-radius: 24px; }
 .island-summary { display: flex; min-height: 44px; align-items: center; gap: 10px; }
 .island-signal { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .island-signal.live { background: var(--positive); }
@@ -26,7 +26,7 @@
 .island-secret button { justify-self: start; }
 @keyframes island-working { from { opacity: .35; } to { opacity: 1; } }
 @keyframes island-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .admin-island { transition: none; } .island-body, .island-signal.working { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .site-island { transition: none; } .island-body, .island-signal.working { animation: none; } }
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
 .admin-tabs a { display: flex; min-height: 44px; align-items: center; padding: 0 17px; border-radius: 12px; background: var(--surface); color: var(--muted-strong); font-weight: 600; }
 .admin-tabs a.active { background: var(--nav-current); color: var(--accent-strong); }
@@ -78,7 +78,7 @@
 .admin-content .inline-alert > button { margin-left: 12px; }
 .admin-content .inline-alert code { overflow-wrap: anywhere; user-select: all; }
 @media (max-width: 700px) {
-  .admin-island { left: 50%; max-width: calc(100vw - 28px); }
+  .site-island { left: 50%; max-width: calc(100vw - 28px); }
   .admin-metrics { grid-template-columns: 1fr; gap: 12px; }
   .admin-metric { grid-template-columns: 1fr auto; align-items: center; padding: 20px; }
   .admin-metric small { grid-column: 1 / -1; }

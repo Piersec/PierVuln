@@ -58,10 +58,14 @@ Deno.serve(async (request) => {
 
   const userClient = createClient(url, publicKey, {
     auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { authorization: `Bearer ${jwt}` } },
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
   });
   const { data: userData, error: userError } = await userClient.auth.getUser(jwt);
-  if (userError || !userData.user) return json(401, { error: "Authentication required" });
+  if (userError || !userData.user) {
+    console.error(`[admin-actions] authentication code=${userError?.code ?? "unknown"} status=${userError?.status ?? "unavailable"}`);
+    const unavailable = !userError?.status || userError.status >= 500;
+    return json(unavailable ? 503 : 401, { error: unavailable ? "A validação de acesso está temporariamente indisponível. Tente novamente." : "Sua sessão não pôde ser validada. Entre novamente." });
+  }
   const { data: context, error: contextError } = await userClient.rpc("current_user_context");
   if (contextError || context?.is_internal_admin !== true) return json(403, { error: "Internal administrator required" });
 

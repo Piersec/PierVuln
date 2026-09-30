@@ -20,9 +20,11 @@ export function parseAdminChange(value: unknown): AdminChange | null {
 
 export function changeNotice(change: AdminChange): NoticeInput {
   const entity = entityLabels[change.table];
-  const operation = change.operation === "INSERT" ? "criado" : change.operation === "DELETE" ? "removido" : "atualizado";
-  const state = change.status ? stateLabels[change.status] ?? change.status : change.is_active === false ? "inativo" : change.is_active === true ? "ativo" : operation;
-  return { title: `${entity}: ${state}.`, detail: change.label || "Alteração recebida do banco de dados.", error: change.status === "failed" || change.status === "partial",
+  const feminine = ["companies", "wazuh_connections", "internal_admins"].includes(change.table);
+  const operation = change.operation === "INSERT" ? feminine ? "criada" : "criado" : change.operation === "DELETE" ? feminine ? "removida" : "removido" : feminine ? "atualizada" : "atualizado";
+  const state = change.status ? stateLabels[change.status] ?? change.status : operation;
+  const active = change.is_active === undefined ? "" : change.is_active ? feminine ? "Ativa" : "Ativo" : feminine ? "Inativa" : "Inativo";
+  return { title: `${entity}: ${state}.`, detail: [change.label, active].filter(Boolean).join(" · ") || "Alteração recebida do banco de dados.", error: change.status === "failed" || change.status === "partial",
     key: `${change.table}:${change.entity_id}`, source: "realtime" };
 }
 

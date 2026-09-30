@@ -6,8 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
-import { AdminIsland } from "@/src/components/admin-island";
-import { changeNotice, enqueueNotice, parseAdminChange, type AdminNotice, type NoticeInput } from "@/src/lib/admin-notifications";
+import { useSiteNotifications } from "@/src/components/site-notifications";
+import { type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { AdminRequestError, adminDate, archiveLabels, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership } from "@/src/lib/admin";
 
@@ -40,19 +40,12 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [notices, setNotices] = useState<AdminNotice[]>([]);
-  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "live" | "offline">("connecting");
-  const [islandHost, setIslandHost] = useState<HTMLElement | null>(null);
+  const { notify, clear, setIslandHost, beginMutation, endMutation, revision } = useSiteNotifications();
   const [query, setQuery] = useState({ search: "", scope: "", page: 0 });
   const requestId = useRef(0);
   const mutationLock = useRef(false);
   const currentUser = useRef<string | null>(null);
-  const recentLocal = useRef(new Map<string, number>());
   const reloadRef = useRef<() => Promise<void>>(async () => {});
-  const notify = useCallback((notice: Notice) => {
-    setNotices((queue) => enqueueNotice(queue, { ...notice, id: crypto.randomUUID() }));
-  }, []);
-  const dismiss = useCallback((id: string) => setNotices((queue) => queue.filter((notice) => notice.id !== id)), []);
 
   useEffect(() => {
     if (!client) return;
@@ -67,7 +60,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     currentUser.current = session?.user.id ?? null;
-    setData(null); setNotices([]); recentLocal.current.clear(); setAccess("checking"); requestId.current += 1;
+    setData(null); setAccess("checking"); requestId.current += 1;
     if (!client || !session?.user.id) return;
     let mounted = true;
     void client.rpc("current_user_context").then(({ data: context, error }) => {
@@ -86,7 +79,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
     } catch (error) {
       if (id === requestId.current) {
         setLoadError((error as Error).message);
-        if (error instanceof AdminRequestError && (error.status === 401 || error.status === 403)) { setAccess("denied"); setData(null); setNotices([]); }
+        if (error instanceof AdminRequestError && (error.status === 401 || error.status === 403)) { setAccess("denied"); setData(null); clear(); }
       }
     }
     finally { if (id === requestId.current) setLoading(false); }
@@ -96,74 +89,29 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   useEffect(() => { const timer = setTimeout(() => void reload(), 250); return () => clearTimeout(timer); }, [reload]);
 
   useEffect(() => {
-    if (!client || access !== "allowed" || !session?.user.id) return;
-    let mounted = true;
-    let hadFailure = false;
-    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-    const timers = new Set<ReturnType<typeof setTimeout>>();
-    const seen = new Set<string>();
-    setRealtimeStatus("connecting");
-    const channel = client.channel("pier-admin", { config: { private: true } });
-    function refresh() {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => { if (mounted) void reloadRef.current(); }, 400);
-    }
-    function later(callback: () => void, delay: number) {
-      const timer = setTimeout(() => { timers.delete(timer); if (mounted) callback(); }, delay);
-      timers.add(timer);
-    }
-    channel.on("broadcast", { event: "admin_change" }, ({ payload }) => {
-      if (!mounted) return;
-      const event = parseAdminChange(payload);
-      if (!event || seen.has(event.id)) return;
-      seen.add(event.id);
-      if (seen.size > 500) seen.delete(seen.values().next().value!);
-      refresh();
-      function deliver() {
-        if (mutationLock.current) { later(deliver, 250); return; }
-        const localTime = recentLocal.current.get(event!.entity_id);
-        if (localTime && Date.now() - localTime < 8000) return;
-        notify(changeNotice(event!));
-      }
-      later(deliver, 1200);
-    });
-    void client.realtime.setAuth().then(() => {
-      if (!mounted) return;
-      channel.subscribe((status) => {
-        if (!mounted) return;
-        if (status === "SUBSCRIBED") {
-          setRealtimeStatus("live"); refresh();
-          if (hadFailure) { notify({ title: "Notificações em tempo real reconectadas.", key: "realtime-connection" }); hadFailure = false; }
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          setRealtimeStatus("offline");
-          if (!hadFailure) notify({ title: "Tempo real indisponível.", detail: "As ações continuam disponíveis. Use Atualizar para consultar as mudanças.", error: true, key: "realtime-connection" });
-          hadFailure = true;
-        }
-      });
-    }).catch(() => { if (mounted) { setRealtimeStatus("offline"); notify({ title: "Não foi possível conectar as notificações em tempo real.", error: true }); } });
-    return () => { mounted = false; timers.forEach(clearTimeout); if (refreshTimer) clearTimeout(refreshTimer); void client.removeChannel(channel); };
-  }, [access, client, notify, session?.user.id]);
+    const timer = setTimeout(() => void reloadRef.current(), 400);
+    return () => clearTimeout(timer);
+  }, [revision]);
 
   async function run(payload: Record<string, unknown>, title: string) {
     if (!client || mutationLock.current || access !== "allowed") return null;
-    mutationLock.current = true; setBusy(true);
+    mutationLock.current = true; beginMutation(); setBusy(true);
     const actor = currentUser.current;
     try {
       const result = await invokeAdmin(client, payload);
       if (actor !== currentUser.current) return null;
       const entityId = result.entityId ?? result.id ?? result.connectionId ?? result.mappingId ?? payload.id ?? payload.mappingId;
-      if (typeof entityId === "string") recentLocal.current.set(entityId, Date.now());
-      for (const [id, time] of recentLocal.current) if (Date.now() - time > 8000) recentLocal.current.delete(id);
+      endMutation(typeof entityId === "string" ? entityId : undefined);
       notify({ title, secret: typeof result.ingestToken === "string" ? result.ingestToken : undefined });
       await reload(); return result;
     } catch (error) {
       if (actor === currentUser.current) {
-        if (error instanceof AdminRequestError && (error.status === 401 || error.status === 403)) { setAccess("denied"); setData(null); setNotices([]); }
+        if (error instanceof AdminRequestError && (error.status === 401 || error.status === 403)) { setAccess("denied"); setData(null); clear(); }
         else notify({ title: (error as Error).message, error: true });
       }
       return null;
     }
-    finally { mutationLock.current = false; setBusy(false); }
+    finally { mutationLock.current = false; endMutation(); setBusy(false); }
   }
 
   if (!client) return <main className="auth-shell"><section className="auth-card"><Brand /><h1>Configuração necessária</h1><p>Configure a conexão pública com o Supabase para abrir o painel.</p></section></main>;
@@ -172,14 +120,13 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   if (access !== "allowed") return <main className="auth-shell"><section className="auth-card"><Brand /><h1>{access === "error" ? "Não foi possível verificar o acesso" : "Acesso restrito"}</h1><p>Esta área é exclusiva da equipe Pier.</p><Link className="button button-secondary" href="/">Voltar ao painel</Link>{access === "error" && <button className="button button-secondary" onClick={() => window.location.reload()}>Tentar novamente</button>}</section></main>;
 
   return <AdminContext.Provider value={{ client, data, loading, busy, loadError, query, setQuery, reload, notify, run, setIslandHost }}>
-    <AdminIsland notices={notices} connection={realtimeStatus} busy={busy} dismiss={dismiss} host={islandHost} />
     <main className="app-shell admin-shell">
       <a className="skip-link" href="#admin-content">Pular para o conteúdo</a>
       <aside className="sidebar has-admin"><Brand /><nav className="workspace-nav" aria-label="Navegação principal">
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
         <Link className="nav-link active" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /></Link>
-      </nav><div className="sidebar-bottom"><div className="avatar" aria-hidden="true">{session.user.email?.slice(0, 1).toUpperCase()}</div><button className="sidebar-signout" onClick={() => { setData(null); setNotices([]); setAccess("checking"); void client.auth.signOut(); }}>Sair</button></div></aside>
+      </nav><div className="sidebar-bottom"><div className="avatar" aria-hidden="true">{session.user.email?.slice(0, 1).toUpperCase()}</div><button className="sidebar-signout" onClick={() => { setData(null); clear(); setAccess("checking"); void client.auth.signOut(); }}>Sair</button></div></aside>
       <section className="main-column"><header className="topbar"><div className="breadcrumb">ADMIN <span>/</span><strong>{sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload()}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
         <div className="content-wrap admin-content" id="admin-content" tabIndex={-1}>
           <nav className="admin-tabs" aria-label="Administração">{sections.map((s) => <Link href={s.href} key={s.key} className={pathname === s.href ? "active" : ""} aria-current={pathname === s.href ? "page" : undefined}>{s.label}</Link>)}</nav>

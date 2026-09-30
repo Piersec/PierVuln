@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import { SiteNotifications } from "@/src/components/site-notifications";
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin", "latin-ext"],
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${plexSans.variable} ${plexMono.variable}`}>{children}</body>
+      <body className={`${plexSans.variable} ${plexMono.variable}`}><SiteNotifications>{children}</SiteNotifications></body>
     </html>
   );
 }
