@@ -30,7 +30,11 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!supabase) { setChecking(false); return; }
     void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setChecking(false); });
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") {
+        window.location.replace("/reset-password?mode=update");
+        return;
+      }
       setSession(nextSession);
       setChecking(false);
     });

@@ -10,16 +10,19 @@ export default function LoginPage() {
   const supabase = getSupabaseBrowserClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [isInvite, setIsInvite] = useState(false);
-  const [hasSession, setHasSession] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
-    setIsInvite(new URLSearchParams(window.location.search).has("invite"));
-    void supabase.auth.getSession().then(({ data }) => setHasSession(Boolean(data.session)));
+    if (new URLSearchParams(window.location.search).has("invite")) {
+      window.location.replace(`/onboarding${window.location.hash}`);
+      return;
+    }
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") window.location.replace("/reset-password?mode=update");
+    });
+    return () => data.subscription.unsubscribe();
   }, [supabase]);
 
   async function onSignIn(event: FormEvent<HTMLFormElement>) {
@@ -33,17 +36,6 @@ export default function LoginPage() {
     setBusy(false);
   }
 
-  async function onSetPassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!supabase) return;
-    setBusy(true);
-    setNotice("");
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) setNotice("Não foi possível salvar a senha. Abra novamente o link de convite ou fale com a equipe.");
-    else window.location.assign("/");
-    setBusy(false);
-  }
-
   if (!supabase) {
     return <main className="auth-shell"><section className="auth-card"><Brand /><h1>Configure o Supabase</h1><p>Defina a URL do projeto e a chave publicável no arquivo <code>.env.local</code>.</p></section></main>;
   }
@@ -53,21 +45,15 @@ export default function LoginPage() {
       <a className="skip-link" href="#login-content">Pular para o formulário</a>
       <section className="auth-card" id="login-content" tabIndex={-1}>
         <Brand />
-        <h1>{isInvite && hasSession ? "Crie sua senha" : "Entrar no painel"}</h1>
-        <p>{isInvite ? "Seu acesso foi enviado pela equipe. Defina uma senha para continuar." : "Entre com o e-mail associado ao seu convite."}</p>
-        {isInvite && hasSession ? (
-          <form onSubmit={onSetPassword} className="form-stack">
-            <label>Nova senha<input type="password" minLength={10} autoComplete="new-password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label>
-            <button className="button button-primary" disabled={busy}>{busy ? "Salvando…" : "Salvar senha"}</button>
-          </form>
-        ) : (
-          <form onSubmit={onSignIn} className="form-stack">
-            <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-            <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-            <button className="button button-primary" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
-          </form>
-        )}
+        <h1>Entrar no painel</h1>
+        <p>Entre com o e-mail associado ao seu convite.</p>
+        <form onSubmit={onSignIn} className="form-stack">
+          <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+          <button className="button button-primary" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
+        </form>
         {notice && <p className="form-notice" role="status">{notice}</p>}
+        <Link href="/reset-password" className="back-link">Esqueci minha senha</Link>
         <Link href="/" className="back-link">Voltar ao painel</Link>
       </section>
       <aside className="auth-rail" aria-label="Sobre o PierVuln">

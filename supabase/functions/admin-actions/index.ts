@@ -99,7 +99,7 @@ Deno.serve(async (request) => {
       const appBaseUrl = Deno.env.get("APP_BASE_URL");
       if (!appBaseUrl || !appBaseUrl.startsWith("https://")) return json(503, { error: "App invite URL is not configured" });
       const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${appBaseUrl.replace(/\/$/, "")}/login?invite=1`,
+        redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding`,
       });
       if (inviteError || !invite.user) return json(409, { error: "Convite não enviado. Confira se o usuário já existe e a configuração de e-mail." });
       const { error: membershipError } = await admin.from("company_memberships").upsert({
