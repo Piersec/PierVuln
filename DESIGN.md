@@ -186,7 +186,7 @@ Cartões usam raio de 15px e dispensam bordas. Botões de ação, filtros e chip
 
 ## Auditoria da referência
 
-O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), inspecionado em 30/09/2026, motivou a faixa lateral mínima e o cabeçalho compacto. As capturas de tela fornecidas pelo usuário em seguida passam a definir a composição principal: fundo quase preto, quatro indicadores pequenos, painéis de gráficos grandes e tabela agrupada em uma única superfície. A biblioteca [HeroUI](https://heroui.com/) informa o caráter dos controles, mas o projeto mantém seu CSS atual e componentes adaptados. Nenhuma métrica ou interação é inferida das imagens.
+O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), inspecionado em 30/09/2026, motivou a faixa lateral mínima e o cabeçalho compacto. As capturas de tela fornecidas pelo usuário em seguida passam a definir a composição principal: fundo quase preto, quatro indicadores pequenos, painéis de gráficos grandes e tabela agrupada em uma única superfície. A tabela de casos, o filtro de severidade e o carregamento usam os componentes Table, Dropdown e Skeleton do [HeroUI v3](https://heroui.com/), com estilos locais que preservam a paleta e os cartões sem borda. Nenhuma métrica ou interação é inferida das imagens.
 
 ## Components
 

@@ -18,11 +18,17 @@
     "test:connector": "tsx --test connector/test/*.test.ts"
   },
   "dependencies": {
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
     "@supabase/supabase-js": "2.117.2",
+    "@tailwindcss/postcss": "^4.3.3",
     "next": "16.3.7",
+    "postcss": "^8.5.28",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "recharts": "3.10.1"
+    "recharts": "3.10.1",
+    "tailwind-variants": "^3.3.1",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@types/node": "24.6.0",
