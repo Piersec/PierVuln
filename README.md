@@ -8,7 +8,7 @@ Painel web multiempresa para acompanhar vulnerabilidades publicadas pelo Wazuh. 
 - Migrações do projeto localizadas em `supabase/migrations/`; os números correspondem ao histórico do projeto remoto.
 - Edge Functions implantadas: `wazuh-ingest` (autenticação própria do conector), `admin-actions` (JWT de usuário obrigatório) e `archive-runner` (segredo próprio de tarefa).
 - As tabelas públicas têm RLS. O endpoint interno do Indexer não é legível pela chave do navegador. Os Advisors de segurança não apontam alertas após a migração `advisor_cleanup`.
-- Nenhuma conexão Wazuh foi cadastrada ainda: faltam endpoints, certificados e credenciais de leitura.
+- A conexão Wazuh compartilhada está cadastrada no Supabase. O conector é um processo separado e precisa ficar ativo em uma máquina que alcance o Indexer.
 
 ## Rodar o painel
 
@@ -66,6 +66,23 @@ docker compose up -d --build
 ```
 
 O coletor usa scroll para ler o snapshot inteiro, envia lotes idempotentes e roda por padrão a cada 300 segundos. Uma falha de página ou contagem diferente registra a leitura como parcial; apenas um snapshot completo pode confirmar ausência e resolver um caso. O prazo de cinco minutos começa quando o dado já está no Indexer; a atualização do feed do Wazuh tem seu próprio intervalo.
+
+### Iniciar automaticamente no Windows
+
+Se o Windows não tiver Docker, instale uma tarefa para iniciar o conector no logon e reiniciá-lo se o processo terminar. Ela usa `connector/.env` e `connector/certs/indexer-ca.pem` locais; mantenha o computador ligado, conectado à rede/VPN do Indexer e com o usuário conectado.
+
+```powershell
+Copy-Item connector/.env.example connector/.env # só se connector/.env ainda não existir
+# Preencha connector/.env e coloque a CA em connector/certs/indexer-ca.pem.
+powershell -NoProfile -ExecutionPolicy Bypass -File connector/install-local-task.ps1
+```
+
+Os registros ficam em `connector/logs/connector.log`. Para parar e remover a tarefa:
+
+```powershell
+Stop-ScheduledTask -TaskName "PierVuln Wazuh Connector"
+Unregister-ScheduledTask -TaskName "PierVuln Wazuh Connector" -Confirm:$false
+```
 
 Para Wazuh compartilhado, associe IDs de agente ou grupos em **Vincular agente / grupo**. O vínculo direto do agente tem precedência. Se grupos de um mesmo agente apontarem para empresas diferentes e não houver vínculo direto, o achado fica sem cliente até a equipe corrigir o mapeamento.
 
