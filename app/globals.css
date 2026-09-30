@@ -143,7 +143,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .table-scroll { width: 100%; overflow-x: auto; }
 .case-table, .case-table .table__content, .case-table .table__header, .case-table .table__body { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .case-table .table__content { border-collapse: collapse; }
-.case-table .table__column { height: 38px; padding: 0 15px; color: var(--muted); font-family: var(--font-body); font-size: 11px; font-weight: 500; }
+.case-table .table__column { height: 38px; padding: 0 15px; border: 0; border-radius: 0; background: var(--surface-raised); color: var(--muted); font-family: var(--font-body); font-size: 11px; font-weight: 500; }
 .case-table .table__column::after { display: none; }
 .case-table .table__cell { padding: 9px 15px; border-top: 1px solid var(--line); border-bottom: 0; background: var(--surface); color: var(--muted-strong); font-size: 12px; }
 .case-table .table__row:hover .table__cell, .case-table .table__row.selected-row .table__cell { background: #222523; }
