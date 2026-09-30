@@ -66,7 +66,7 @@ rounded:
   tight: "4px"
   control: "5px"
   compact: "6px"
-  card: "7px"
+  card: "15px"
   brand: "8px"
   circle: "50%"
 spacing:
@@ -110,7 +110,7 @@ components:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-primary}"
     rounded: "{rounded.card}"
-    padding: "16px"
+    padding: "20px"
 ---
 
 # Design System: PierVuln
@@ -168,20 +168,26 @@ A paleta parte de um campo escuro e usa o ciano para orientar atenção sem pint
 
 ## Layout
 
-Em desktop, a navegação lateral fixa a orientação do produto e o conteúdo ocupa uma coluna fluida. A lista usa tabela compacta com paginação explícita; o Book distribui resumo, gráficos e concentração em painéis de duas colunas. Em telas menores, a navegação continua disponível, a tabela de casos vira cartões empilhados e os gráficos passam para uma coluna. Os resumos apresentam o total da seleção independentemente das 50 linhas da página atual. O espaçamento segue passos curtos e regulares; conteúdo explicativo preserva comprimento confortável.
+Em desktop, a navegação lateral fixa a orientação do produto e o conteúdo ocupa uma coluna fluida. O primeiro bloco usa um bento de 12 colunas: o total ocupa duas linhas, os indicadores críticos e de fluxo ficam próximos e o estado da fonte recebe uma faixa própria. O Book repete a lógica com blocos de larguras diferentes para resumo, critérios, gráficos e concentração por CVE. A lista de casos continua em tabela compacta com paginação explícita.
+
+Em larguras intermediárias, os bentos passam para seis colunas. Em telas pequenas, a leitura vira uma coluna, com os dois indicadores curtos lado a lado quando houver espaço; a tabela de casos vira cartões empilhados e os gráficos passam para uma coluna. Os resumos apresentam o total da seleção independentemente das 50 linhas da página atual.
 
 ## Elevation & Depth
 
-O sistema é plano: planos de fundo e bordas de contraste suficiente separam as superfícies. Sombras são evitadas em repouso; o painel lateral de detalhes se distingue por uma camada de fundo escurecida. Foco e seleção usam contorno visível, sem depender de brilho difuso.
+O sistema usa planos de fundo e bordas para separar as superfícies. O bloco principal de exposição recebe um degradê curto e anéis de leitura que remetem a uma varredura; o Spotlight Card acompanha o ponteiro somente nesse bloco. Sombras são evitadas em repouso; o painel lateral de detalhes se distingue por uma camada de fundo escurecida. Foco e seleção usam contorno visível.
 
 ### Named Rules
 **The Border First Rule.** Use tom de superfície e divisórias para organizar conteúdo; reserve sobreposição escura para o diálogo de detalhes.
 
 ## Shapes
 
-Controles têm cantos discretos e consistentes; cartões e painéis são levemente mais arredondados. Chips de severidade usam borda e fundo preenchido, enquanto navegação e tabela evitam cápsulas decorativas. Campos, botões e seletores mantêm altura mínima confortável para toque.
+Controles têm cantos discretos e consistentes; cartões bento e painéis usam raio de 15px para marcar regiões de conteúdo. Chips de severidade usam borda e fundo preenchido, enquanto navegação e tabela evitam cápsulas decorativas. Campos, botões e seletores mantêm altura mínima confortável para toque.
 
 ## Components
+
+### Bento tiles
+- **Origem:** `BentoGrid` e `BentoCard` adaptados do [Magic UI Bento Grid](https://magicui.design/docs/components/bento-grid) para o CSS existente; `SpotlightCard` adaptado do [React Bits](https://github.com/DavidHDev/react-bits/blob/main/src/content/Components/SpotlightCard/SpotlightCard.jsx).
+- **Behavior:** largura e altura expressam prioridade real dos dados. O spotlight aparece somente no total de casos e respeita redução de movimento. Os blocos mantêm rótulo, valor e explicação, sem números fictícios.
 
 ### Buttons
 - **Character:** diretos e com rótulos verbais, sem depender de ícones isolados.

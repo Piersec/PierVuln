@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 
 export default function LoginPage() {
   const supabase = getSupabaseBrowserClient();
@@ -69,7 +70,17 @@ export default function LoginPage() {
         <Link href="/" className="back-link">Voltar ao painel</Link>
       </section>
       <aside className="auth-rail" aria-label="Sobre o PierVuln">
-        <div className="auth-rail-content"><span className="auth-rail-label">PIERVULN / OPERAÇÕES</span><h2>Uma leitura clara da exposição.</h2><p>Consulte os achados reportados pelo Wazuh e acompanhe o tratamento com o histórico de cada caso.</p><div className="auth-rail-foot"><span className="status-mark" aria-hidden="true"/>Acesso por convite</div></div>
+        <div className="auth-rail-content">
+          <span className="auth-rail-label">PIERVULN / OPERAÇÕES</span>
+          <h2>Uma leitura clara da exposição.</h2>
+          <p>Consulte os achados reportados pelo Wazuh e acompanhe o tratamento com o histórico de cada caso.</p>
+          <BentoGrid className="auth-bento" aria-label="O que você acompanha no PierVuln">
+            <BentoCard className="auth-feature auth-feature-source"><span>Fonte de dados</span><strong>Wazuh Indexer</strong><small>Estado da última leitura completa sempre visível.</small></BentoCard>
+            <BentoCard className="auth-feature"><span>Tratamento</span><strong>Fluxo de casos</strong><small>Da abertura à validação.</small></BentoCard>
+            <BentoCard className="auth-feature"><span>Registro</span><strong>Histórico</strong><small>Contexto e comentários no mesmo lugar.</small></BentoCard>
+          </BentoGrid>
+          <div className="auth-rail-foot"><span className="status-mark" aria-hidden="true"/>Acesso por convite</div>
+        </div>
       </aside>
     </main>
   );

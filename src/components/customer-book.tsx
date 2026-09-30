@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 
 type Company = { id: string; name: string; slug: string; role: string };
 type BookFinding = {
@@ -251,7 +252,7 @@ export function CustomerBook() {
 
   if (!supabase) return <BookConfigurationRequired />;
   if (!authReady || (session && !contextReady)) return <main className="loading-screen"><Brand /><div className="spinner"/><p>Preparando o Book dos Clientes…</p></main>;
-  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><div className="welcome-stat"><span className="stat-dot" aria-hidden="true"/>Relatório por empresa<span className="stat-value">Exposição atual</span></div><div className="welcome-stat second"><span className="stat-dot green" aria-hidden="true"/>Leitura dos dados<span className="stat-value">Critério explicado</span></div></aside></main>;
+  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><BentoGrid className="welcome-bento" aria-label="Conteúdo do Book"><BentoCard className="welcome-feature welcome-feature-main"><span>Relatório por empresa</span><strong>Exposição atual</strong><small>Uma leitura vinculada aos dados do cliente.</small></BentoCard><BentoCard className="welcome-feature"><span>Criticidade</span><strong>Severidade</strong><small>Distribuição dos achados ativos.</small></BentoCard><BentoCard className="welcome-feature"><span>Prioridade</span><strong>Tempo de exposição</strong><small>Foco nos casos que persistem.</small></BentoCard></BentoGrid></aside></main>;
 
   return (
     <main className="app-shell book-shell">
@@ -286,19 +287,19 @@ export function CustomerBook() {
           {error && <div className="book-alert" role="alert"><span>{error}</span><button onClick={() => setRefreshKey((value) => value + 1)}>Tentar novamente</button></div>}
 
           {!contextError && <>
-            <section className="book-overview" aria-label="Resumo e critério do relatório">
-              <div className="book-total"><span>Vulnerabilidades ativas</span><strong>{displayCount(metrics.total)}</strong><small>{selectedCompanyName ?? (selectedCompany ? "Empresa selecionada" : "Visão consolidada")}</small></div>
-              <div className="book-context"><span>CONTEXTO DA EXPOSIÇÃO</span><p>O volume representa os achados que o Wazuh ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></div>
-              <div className="book-reading"><span>CRITÉRIO DE LEITURA</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></div>
-            </section>
+            <BentoGrid className="book-overview" aria-label="Resumo e critério do relatório">
+              <BentoCard className="book-total"><span>Vulnerabilidades ativas</span><strong>{displayCount(metrics.total)}</strong><small>{selectedCompanyName ?? (selectedCompany ? "Empresa selecionada" : "Visão consolidada")}</small></BentoCard>
+              <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que o Wazuh ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
+              <BentoCard className="book-reading"><span>Critério de leitura</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></BentoCard>
+            </BentoGrid>
 
-            <section className="book-highlights" aria-label="Indicadores de exposição">
-              <article className="book-month-highlight"><span className="book-section-tag">VULNERABILIDADES ATIVAS POR DETECÇÃO</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong>{displayCount(metrics.previousMonth)}</strong></div><div><small>Mês vigente</small><strong>{displayCount(metrics.currentMonth)}</strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></article>
-              <article className="book-highlight-stat"><span className="book-section-tag">NÍVEL CRÍTICO / ALTO</span><strong>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"}</strong><p>{displayCount(metrics.criticalHigh)} vulnerabilidades ativas críticas ou altas.</p></article>
-              <article className="book-highlight-stat"><span className="book-section-tag">EXPOSIÇÃO PROLONGADA</span><strong>{displayCount(metrics.prolonged)} <small>+90 dias</small></strong><p>Achados ativos detectados há mais de 90 dias.</p></article>
-            </section>
+            <BentoGrid className="book-highlights" aria-label="Indicadores de exposição">
+              <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong>{displayCount(metrics.previousMonth)}</strong></div><div><small>Mês vigente</small><strong>{displayCount(metrics.currentMonth)}</strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Nível crítico / alto</span><strong>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"}</strong><p>{displayCount(metrics.criticalHigh)} vulnerabilidades ativas críticas ou altas.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong>{displayCount(metrics.prolonged)} <small>+90 dias</small></strong><p>Achados ativos detectados há mais de 90 dias.</p></BentoCard>
+            </BentoGrid>
 
-            <section className="book-chart-grid" aria-label="Distribuição e evolução das vulnerabilidades">
+            <BentoGrid className="book-chart-grid" aria-label="Distribuição e evolução das vulnerabilidades">
               <article className="book-chart-section">
                 <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Criticidade dos achados</h2></div><small>{displayCount(metrics.total)} ativas</small></div>
                 <div className="book-chart" role="img" aria-label={`Distribuição por severidade: ${metrics.severity.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
@@ -334,9 +335,9 @@ export function CustomerBook() {
                 </div>
                 <p className="book-chart-note">Achados atualmente ativos agrupados pela data de primeira detecção — não é um snapshot mensal histórico.</p>
               </article>
-            </section>
+            </BentoGrid>
 
-            <section className="book-detail-grid" aria-label="Tempo de exposição e concentração por CVE">
+            <BentoGrid className="book-detail-grid" aria-label="Tempo de exposição e concentração por CVE">
               <article className="book-chart-section book-age-section">
                 <div className="book-section-heading"><div><span className="book-section-tag">FAIXA DE TEMPO DA EXPOSIÇÃO</span><h2>Há quanto tempo continuam ativas</h2></div></div>
                 <div className="book-age-chart" role="img" aria-label={`Faixas de exposição: ${metrics.ages.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
@@ -361,13 +362,13 @@ export function CustomerBook() {
                 </tbody></table></div>
                 <p className="book-table-note">Ordenado pelo número de hosts distintos afetados; o total conta apenas os achados ativos.</p>
               </article>
-            </section>
+            </BentoGrid>
 
-            <section className="book-footer-row" aria-label="Ativos e inventário técnico">
+            <BentoGrid className="book-footer-row" aria-label="Ativos e inventário técnico">
               <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong>{displayCount(metrics.affectedHosts)}</strong><small>Agentes distintos com vulnerabilidades ativas</small></div>
               <div className="book-foot-stat"><span>CVEs ÚNICOS</span><strong>{displayCount(metrics.uniqueCves)}</strong><small>Identificadores diferentes no total ativo</small></div>
               <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/">Explorar inventário técnico</Link></div>
-            </section>
+            </BentoGrid>
           </>}
           <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte Wazuh" : "fontes Wazuh"}</span></footer>
         </div>
