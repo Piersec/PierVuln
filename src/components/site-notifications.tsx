@@ -5,6 +5,7 @@ import { SiteIsland } from "@/src/components/site-island";
 import { NotificationInbox, NotificationLauncher } from "@/src/components/notification-inbox";
 import { changeNotice, enqueueNotice, parseAdminChange, type AdminNotice, type NoticeInput } from "@/src/lib/admin-notifications";
 import { MAX_INBOX_NOTICES, noticeKind, parseInbox, parseMutedKinds, toInboxNotice, type InboxNotice } from "@/src/lib/notification-inbox";
+import { notificationType, parseDisabledNotificationTypes, type NotificationType } from "@/src/lib/notification-types";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { visibleText } from "@/src/lib/visible-text";
 import { usePathname } from "next/navigation";
@@ -16,6 +17,8 @@ type Notifications = {
   beginMutation: () => void;
   endMutation: (entityId?: string) => void;
   revision: number;
+  disabledNotificationTypes: NotificationType[];
+  setNotificationTypeEnabled: (type: NotificationType, enabled: boolean) => Promise<void>;
 };
 const Context = createContext<Notifications | null>(null);
 const storageKey = (owner: string, part: "history" | "muted") => `piervuln:notifications:v1:${owner}:${part}`;
@@ -40,6 +43,7 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<AdminNotice[]>([]);
   const [history, setHistory] = useState<InboxNotice[]>([]);
   const [mutedKinds, setMutedKinds] = useState<string[]>([]);
+  const [disabledNotificationTypes, setDisabledNotificationTypes] = useState<NotificationType[]>([]);
   const [ownerKey, setOwnerKey] = useState("guest");
   const [storageReady, setStorageReady] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -54,6 +58,7 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
   const owner = useRef("guest");
   const authenticated = useRef(false);
   const muted = useRef(new Set(mutedKinds));
+  const disabled = useRef(new Set<NotificationType>());
 
   useEffect(() => { setStorageReady(true); }, []);
   useEffect(() => {
@@ -67,6 +72,7 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
 
   const notify = useCallback((notice: NoticeInput) => {
     if (!authenticated.current || isAuthRoute(pathname)) return;
+    if (disabled.current.has(notificationType(notice))) return;
     if (notice.secret) setSecret(notice.secret);
     const incoming: AdminNotice = { ...notice, title: visibleText(notice.title), detail: notice.detail ? visibleText(notice.detail) : undefined, secret: undefined, id: crypto.randomUUID() };
     setHistory((items) => [toInboxNotice(incoming), ...items].slice(0, MAX_INBOX_NOTICES));
@@ -86,8 +92,22 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
     const preferences = next === "guest" ? [] : readMuted(next);
     muted.current = new Set(preferences);
     setMutedKinds(preferences);
+    disabled.current = new Set();
+    setDisabledNotificationTypes([]);
     setOwnerKey(next);
   }, [clear]);
+  const setNotificationTypeEnabled = useCallback(async (type: NotificationType, enabled: boolean) => {
+    const id = owner.current;
+    if (!client || id === "guest" || !authenticated.current) throw new Error("Sua sessão precisa estar ativa para alterar notificações.");
+    const next = new Set(disabled.current);
+    if (enabled) next.delete(type); else next.add(type);
+    const { data, error } = await client.from("user_profiles")
+      .update({ disabled_notification_types: [...next] }).eq("id", id).select("id").single();
+    if (error || !data || owner.current !== id) throw new Error("Não foi possível salvar as notificações. Tente novamente.");
+    disabled.current = next;
+    setDisabledNotificationTypes([...next]);
+    if (!enabled) setNotices((queue) => queue.filter((notice) => notificationType(notice) !== type));
+  }, [client]);
   const markRead = useCallback((id: string) => setHistory((items) => items.map((item) => item.id === id ? { ...item, read: true } : item)), []);
   const openInbox = useCallback((id?: string) => {
     setSelectedNoticeId(id ?? null);
@@ -155,10 +175,18 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
       if (!id) { authenticated.current = false; setAuthenticatedId(null); return; }
       const { data, error } = await client!.rpc("current_user_context");
       if (mounted && version === generation) {
-        const valid = !error && data?.user_id === id;
+        const contextValid = !error && data?.user_id === id;
+        const preferences = contextValid
+          ? await client!.from("user_profiles").select("disabled_notification_types").eq("id", id).single()
+          : null;
+        if (!mounted || version !== generation) return;
+        const valid = contextValid && !preferences?.error && !!preferences?.data;
+        const categories = parseDisabledNotificationTypes(preferences?.data?.disabled_notification_types);
+        disabled.current = new Set(categories);
+        setDisabledNotificationTypes(categories);
         authenticated.current = valid;
         setAuthenticatedId(valid ? id : null);
-        setAdminId(!error && data?.is_internal_admin === true ? id : null);
+        setAdminId(valid && data?.is_internal_admin === true ? id : null);
         if (!valid || data?.is_internal_admin !== true) clear();
       }
     }
@@ -215,7 +243,7 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
     return () => { mounted = false; timers.forEach(clearTimeout); void client.removeChannel(channel); };
   }, [adminId, client, notify]);
 
-  return <Context.Provider value={{ notify, clear, setIslandHost, beginMutation, endMutation, revision }}>
+  return <Context.Provider value={{ notify, clear, setIslandHost, beginMutation, endMutation, revision, disabledNotificationTypes, setNotificationTypeEnabled }}>
     {children}
     {authenticatedId && !isAuthRoute(pathname) && <SiteIsland notices={notices} dismiss={dismiss} host={host} openInbox={openInbox} inboxOpen={inboxOpen} />}
     {storageReady && authenticatedId && !isAuthRoute(pathname) && <><NotificationLauncher unread={history.filter((item) => !item.read).length} open={() => openInbox()} />
