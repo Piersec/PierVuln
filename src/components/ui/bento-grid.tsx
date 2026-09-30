@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { SpotlightCard } from "./spotlight-card";
 
 type BentoGridProps = HTMLAttributes<HTMLElement> & { children: ReactNode };
 type BentoCardProps = HTMLAttributes<HTMLElement> & { children: ReactNode };
@@ -9,5 +10,5 @@ export function BentoGrid({ children, className = "", ...props }: BentoGridProps
 }
 
 export function BentoCard({ children, className = "", ...props }: BentoCardProps) {
-  return <article className={`bento-card ${className}`.trim()} {...props}>{children}</article>;
+  return <SpotlightCard className={className} {...props}>{children}</SpotlightCard>;
 }

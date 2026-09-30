@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SpotlightCard } from "@/src/components/ui/spotlight-card";
 import { useLiveData } from "@/src/lib/use-live-data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSiteNotifications } from "@/src/components/site-notifications";
@@ -318,7 +319,7 @@ export function CustomerBook() {
             </BentoGrid>
 
             <BentoGrid className="book-chart-grid" aria-label="Distribuição e evolução das vulnerabilidades">
-              <article className="book-chart-section">
+              <SpotlightCard className="book-chart-section">
                 <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Criticidade dos achados</h2></div><small>{displayCount(metrics.total)} ativas</small></div>
                 <div className="book-chart" role="img" aria-label={`Distribuição por severidade: ${metrics.severity.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -335,8 +336,8 @@ export function CustomerBook() {
                   </ResponsiveContainer>
                 </div>
                 {metrics.otherSeverity > 0 && <p className="book-chart-note">{displayCount(metrics.otherSeverity)} informativas ou sem severidade classificada também entram no total.</p>}
-              </article>
-              <article className="book-chart-section">
+              </SpotlightCard>
+              <SpotlightCard className="book-chart-section">
                 <div className="book-section-heading"><div><span className="book-section-tag">EVOLUÇÃO TEMPORAL</span><h2>Primeira detecção</h2></div><small>Últimos 6 meses</small></div>
                 <div className="book-chart" role="img" aria-label="Vulnerabilidades ainda ativas, agrupadas pelo mês de primeira detecção nos últimos seis meses">
                   <ResponsiveContainer width="100%" height="100%">
@@ -352,7 +353,7 @@ export function CustomerBook() {
                   </ResponsiveContainer>
                 </div>
                 <p className="book-chart-note">Achados atualmente ativos agrupados pela data de primeira detecção — não é um snapshot mensal histórico.</p>
-              </article>
+              </SpotlightCard>
             </BentoGrid>
 
             <BentoGrid className="book-highlights" aria-label="Contexto do relatório">
@@ -362,7 +363,7 @@ export function CustomerBook() {
             </BentoGrid>
 
             <BentoGrid className="book-detail-grid" aria-label="Tempo de exposição e concentração por CVE">
-              <article className="book-chart-section book-age-section">
+              <SpotlightCard className="book-chart-section book-age-section">
                 <div className="book-section-heading"><div><span className="book-section-tag">FAIXA DE TEMPO DA EXPOSIÇÃO</span><h2>Há quanto tempo continuam ativas</h2></div></div>
                 <div className="book-age-chart" role="img" aria-label={`Faixas de exposição: ${metrics.ages.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -378,14 +379,14 @@ export function CustomerBook() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </article>
-              <article className="book-top-table" id="concentracao">
+              </SpotlightCard>
+              <SpotlightCard className="book-top-table" id="concentracao">
                 <div className="book-section-heading"><div><span className="book-section-tag">CONCENTRAÇÃO POR VULNERABILIDADE</span><h2>Top 3 por ativos afetados</h2></div></div>
                 <div className="book-table-scroll"><table><thead><tr><th>CVE</th><th>DETECÇÃO INICIAL</th><th>VOLUME</th></tr></thead><tbody>
                   {metrics.top.length ? metrics.top.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{formatMonth(item.firstDetected)}</td><td><strong>{displayCount(item.hosts)}</strong><span>{item.hosts === 1 ? "host afetado" : "hosts afetados"}</span></td></tr>) : <tr><td colSpan={3} className="book-table-empty">Nenhuma vulnerabilidade ativa nesta seleção.</td></tr>}
                 </tbody></table></div>
                 <p className="book-table-note">Ordenado pelo número de hosts distintos afetados; o total conta apenas os achados ativos.</p>
-              </article>
+              </SpotlightCard>
             </BentoGrid>
 
             <BentoGrid className="book-footer-row" aria-label="Ativos e inventário técnico">

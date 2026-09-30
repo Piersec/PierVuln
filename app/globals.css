@@ -195,8 +195,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .overview-bento { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
 .overview-bento > .bento-card { display: flex; min-height: 130px; flex-direction: column; padding: 15px 16px; }
 .overview-total { background: var(--surface); }
-.spotlight-card::before { position: absolute; inset: 0; z-index: 1; background: radial-gradient(circle at var(--spotlight-x, 58%) var(--spotlight-y, 45%), var(--spotlight-color, rgb(97 223 87 / 8%)), transparent 65%); content: ""; opacity: 0; pointer-events: none; transition: opacity .28s ease; }
-.spotlight-card:hover::before, .spotlight-card:focus-within::before { opacity: 1; }
+.spotlight-card { position: relative; isolation: isolate; }
+.spotlight-card::before { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: radial-gradient(circle at var(--spotlight-x, 58%) var(--spotlight-y, 45%), var(--spotlight-color, rgb(97 223 87 / 8%)), transparent 65%); content: ""; opacity: 0; pointer-events: none; transition: opacity .28s ease; }
+@media (hover: hover) and (pointer: fine) { .spotlight-card:hover::before, .spotlight-card:focus-within::before { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .spotlight-card::before { display: none; transition: none; } }
 .overview-total > * { position: relative; z-index: 2; }
 .tile-label { color: var(--muted); font-family: var(--font-body); font-size: 13px; font-weight: 500; letter-spacing: 0; }
 .overview-bento strong { margin-top: auto; color: var(--ink); font-family: var(--font-body); font-size: clamp(27px, 2.3vw, 34px); font-weight: 650; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }

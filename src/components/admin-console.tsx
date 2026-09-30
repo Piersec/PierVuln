@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { trackSpotlight } from "@/src/components/ui/spotlight-card";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
@@ -187,9 +188,9 @@ export function AdminSection({ section }: { section: Section }) {
     </div>
     {section === "dashboard" && <>
       <div className="admin-metrics">
-        <Link className="admin-metric" href="/admin/tenants"><span>Empresas</span><strong>{data.stats.active_companies + data.stats.inactive_companies}</strong><small>{data.stats.active_companies} ativas · {data.stats.inactive_companies} inativas</small></Link>
-        <Link className="admin-metric" href="/admin/users"><span>Usuários vinculados</span><strong>{data.stats.users}</strong><small>Equipe Pier e clientes</small></Link>
-        <Link className="admin-metric" href="/admin/integrations"><span>Conexões Wazuh</span><strong>{data.stats.connections}</strong><small>{data.stats.active_connections} ativas · {data.stats.connections - data.stats.active_connections} inativas</small></Link>
+        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/tenants"><span>Empresas</span><strong>{data.stats.active_companies + data.stats.inactive_companies}</strong><small>{data.stats.active_companies} ativas · {data.stats.inactive_companies} inativas</small></Link>
+        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/users"><span>Usuários vinculados</span><strong>{data.stats.users}</strong><small>Equipe Pier e clientes</small></Link>
+        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/integrations"><span>Conexões Wazuh</span><strong>{data.stats.connections}</strong><small>{data.stats.active_connections} ativas · {data.stats.connections - data.stats.active_connections} inativas</small></Link>
       </div>
       <section className="panel admin-list-panel"><div className="panel-heading"><h2>Última sincronização por conexão</h2><Link className="button button-secondary" href="/admin/integrations">Gerenciar integrações</Link></div>
         <DataTable headings={["Conexão", "Empresa", "Estado", "Última execução", "Documentos"]} empty={!data.connections.length}>

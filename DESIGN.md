@@ -192,7 +192,7 @@ O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), ins
 
 ### Bento tiles
 - **Origem:** `BentoGrid` e `BentoCard` adaptados do [Magic UI Bento Grid](https://magicui.design/docs/components/bento-grid) para o CSS existente; `SpotlightCard` adaptado do [React Bits](https://github.com/DavidHDev/react-bits/blob/main/src/content/Components/SpotlightCard/SpotlightCard.jsx).
-- **Behavior:** quatro indicadores equivalentes abrem dashboard e Book. O spotlight aparece somente no total de casos e respeita redução de movimento. Os blocos mantêm rótulo, valor e explicação, sem números fictícios e sem borda.
+- **Behavior:** quatro indicadores equivalentes abrem dashboard e Book. O spotlight verde acompanha o mouse nos cards do painel, do Book e nos indicadores administrativos, como feedback suave da área apontada pelo usuário. O efeito só aparece na interação, não bloqueia controles e fica desativado em telas de toque e com redução de movimento. Os blocos mantêm rótulo, valor e explicação, sem números fictícios e sem borda.
 
 ### Buttons
 - **Character:** diretos e com rótulos verbais, sem depender de ícones isolados.
