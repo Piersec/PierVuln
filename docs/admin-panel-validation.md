@@ -2,7 +2,7 @@
 
 Data: 30/09/2026. Ambiente publicado: https://piervuln.vercel.app.
 
-O painel contém visão geral, empresas, integrações Wazuh, usuários e auditoria. Empresa e conexão podem ser desativadas e restauradas com histórico preservado. A listagem de usuários do Auth passa pela Edge Function protegida. A equipe Pier mantém acesso administrativo interno.
+O painel contém visão geral, empresas, integrações, usuários e auditoria. Empresa e conexão podem ser desativadas e restauradas com histórico preservado. A listagem de usuários do Auth passa pela Edge Function protegida. A equipe Pier mantém acesso administrativo interno.
 
 Após a correção de escopo solicitada durante a execução, o Dynamic Island é um toast geral do site. Não existe pílula em repouso nem indicador permanente de conexão. Sucessos desaparecem em 5 segundos e erros em 9 segundos; foco e leitura com o mouse pausam a contagem. É possível expandir, recolher ou dispensar. O segredo de uma nova conexão aparece em um diálogo separado para cópia.
 
@@ -61,5 +61,5 @@ Escopo: componentes e telas novos dos planos. Direção: `DESIGN.md`, referênci
 | C-2 / C-4 | Revisão e testes seguros realizados; limites de validação de produção discriminados acima. |
 | R-05 / R-11 | PASS: composição operacional, diferentes raios para tabelas, campos, diálogo e toast solicitado. |
 | R-15 / R-16 | PASS: ações nomeadas por tarefa; sem linguagem promocional. |
-| R-20 / R-21 | PASS: conteúdo Wazuh e identidade escura do projeto preservados. |
+| R-20 / R-21 | PASS: conteúdo da fonte de dados e identidade escura do projeto preservados. |
 | R-29 / R-30 / R-31 | PASS: paleta existente, inspiração Apple limitada ao toast pedido; tabelas agrupam registros, diálogo concentra edição e notificações aparecem sob demanda. |

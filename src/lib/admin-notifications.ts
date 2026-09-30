@@ -1,10 +1,12 @@
+import { visibleText } from "./visible-text";
+
 export type AdminNotice = { id: string; title: string; detail?: string; error?: boolean; secret?: string; key?: string; source?: "action" | "realtime" };
 export type NoticeInput = Omit<AdminNotice, "id">;
 export type AdminChange = { id: string; table: string; operation: "INSERT" | "UPDATE" | "DELETE"; entity_id: string; label: string; status?: string; is_active?: boolean; connection_id?: string };
 const entityLabels: Record<string, string> = {
   companies: "Empresa", user_profiles: "Usuário", company_memberships: "Vínculo de usuário",
-  internal_admins: "Equipe Pier", wazuh_connections: "Conexão Wazuh", wazuh_agent_mappings: "Vínculo de agente ou grupo",
-  archive_manifests: "Arquivo", sync_runs: "Sincronização Wazuh",
+  internal_admins: "Equipe Pier", wazuh_connections: "Conexão", wazuh_agent_mappings: "Vínculo de agente ou grupo",
+  archive_manifests: "Arquivo", sync_runs: "Sincronização da fonte",
 };
 const stateLabels: Record<string, string> = { running: "em execução", succeeded: "concluída", failed: "falhou", partial: "parcial", pending: "pendente", verified: "verificado", database_purged: "arquivado", expired: "expirado" };
 
@@ -22,9 +24,9 @@ export function changeNotice(change: AdminChange): NoticeInput {
   const entity = entityLabels[change.table];
   const feminine = ["companies", "wazuh_connections", "internal_admins"].includes(change.table);
   const operation = change.operation === "INSERT" ? feminine ? "criada" : "criado" : change.operation === "DELETE" ? feminine ? "removida" : "removido" : feminine ? "atualizada" : "atualizado";
-  const state = change.status ? stateLabels[change.status] ?? change.status : operation;
+  const state = visibleText(change.status ? stateLabels[change.status] ?? change.status : operation);
   const active = change.is_active === undefined ? "" : change.is_active ? feminine ? "Ativa" : "Ativo" : feminine ? "Inativa" : "Inativo";
-  return { title: `${entity}: ${state}.`, detail: [change.label, active].filter(Boolean).join(" · ") || "Alteração recebida do banco de dados.", error: change.status === "failed" || change.status === "partial",
+  return { title: `${entity}: ${state}.`, detail: [visibleText(change.label), active].filter(Boolean).join(" · ") || "Alteração recebida do banco de dados.", error: change.status === "failed" || change.status === "partial",
     key: `${change.table}:${change.entity_id}`, source: "realtime" };
 }
 

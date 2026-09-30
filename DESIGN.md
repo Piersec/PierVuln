@@ -1,6 +1,6 @@
 ---
 name: PierVuln
-description: Registro técnico de exposição Wazuh com contexto, histórico e fluxo de tratamento.
+description: Registro técnico de exposição a vulnerabilidades com contexto, histórico e fluxo de tratamento.
 colors:
   canvas: "#090a0b"
   surface: "#191a1c"

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { SiteIsland } from "@/src/components/site-island";
 import { changeNotice, enqueueNotice, parseAdminChange, type AdminNotice, type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { visibleText } from "@/src/lib/visible-text";
 import { usePathname } from "next/navigation";
 
 type Notifications = {
@@ -34,7 +35,7 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
   const recentLocal = useRef(new Map<string, number>());
   const notify = useCallback((notice: NoticeInput) => {
     if (notice.secret) setSecret(notice.secret);
-    setNotices((queue) => enqueueNotice(queue, { ...notice, secret: undefined, id: crypto.randomUUID() }));
+    setNotices((queue) => enqueueNotice(queue, { ...notice, title: visibleText(notice.title), detail: notice.detail ? visibleText(notice.detail) : undefined, secret: undefined, id: crypto.randomUUID() }));
   }, []);
   const clear = useCallback(() => { setNotices([]); setSecret(null); }, []);
   const dismiss = useCallback((id: string) => setNotices((queue) => queue.filter((notice) => notice.id !== id)), []);

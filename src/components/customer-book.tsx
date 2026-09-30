@@ -24,6 +24,7 @@ import {
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { visibleText } from "@/src/lib/visible-text";
 
 type Company = { id: string; name: string; slug: string; role: string };
 type BookFinding = {
@@ -204,7 +205,7 @@ export function CustomerBook() {
       .from("wazuh_connections")
       .select("id,tenant_id,mode")
       .eq("is_active", true);
-    if (connectionError) { notify({ title: "Não foi possível consultar as fontes Wazuh.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
+    if (connectionError) { notify({ title: "Não foi possível consultar as fontes de dados.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
     let connections = connectionRows ?? [];
     if (companyId && internal) {
       const { data: mappingRows, error: mappingError } = await client
@@ -212,7 +213,7 @@ export function CustomerBook() {
         .select("connection_id")
         .eq("tenant_id", companyId)
         .eq("is_active", true);
-      if (mappingError) { notify({ title: "Não foi possível consultar os vínculos Wazuh.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
+      if (mappingError) { notify({ title: "Não foi possível consultar os vínculos de agentes e grupos.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
       const mappedIds = new Set((mappingRows ?? []).map((row) => row.connection_id));
       connections = connections.filter((connection) =>
         connection.tenant_id === companyId || (connection.mode === "shared" && mappedIds.has(connection.id))
@@ -296,7 +297,7 @@ export function CustomerBook() {
         <header className="topbar book-topbar">
           <div className="breadcrumb">PierVuln <span>/</span> <strong>Book dos Clientes</strong></div>
           <div className="topbar-actions">
-            {isInternal ? <select aria-label="Empresa do relatório" value={selectedCompany} onChange={(event) => setSelectedCompany(event.target.value)}><option value="">Todas as empresas</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select> : <span className="book-company-chip">{selectedCompanyName ?? "Minha empresa"}</span>}
+            {isInternal ? <select aria-label="Empresa do relatório" value={selectedCompany} onChange={(event) => setSelectedCompany(event.target.value)}><option value="">Todas as empresas</option>{companies.map((company) => <option key={company.id} value={company.id}>{visibleText(company.name)}</option>)}</select> : <span className="book-company-chip">{visibleText(selectedCompanyName ?? "Minha empresa")}</span>}
             <button className="book-feedback" onClick={refresh} disabled={loading}>{loading ? "Atualizando…" : "Atualizar"}</button>
           </div>
         </header>
@@ -304,7 +305,7 @@ export function CustomerBook() {
         <div className="book-content" id="book-overview" tabIndex={-1}>
           <div className="book-heading">
             <div><h1>Book dos Clientes</h1><p>Exposição atual, criticidade e tempo de permanência das vulnerabilidades.</p></div>
-            <div className={`book-source-state ${isStale ? "book-source-stale" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : "Leitura completa") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Wazuh: ${formatDate(latestSync.finishedAt)}` : "Nenhum snapshot completo disponível"} · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
+            <div className={`book-source-state ${isStale ? "book-source-stale" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : "Leitura completa") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Leitura completa em ${formatDate(latestSync.finishedAt)}` : "Nenhum snapshot completo disponível"} · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
           </div>
 
           {contextError && <div className="book-alert" role="alert">{contextError}</div>}
@@ -358,7 +359,7 @@ export function CustomerBook() {
 
             <BentoGrid className="book-highlights" aria-label="Contexto do relatório">
               <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong>{displayCount(metrics.previousMonth)}</strong></div><div><small>Mês vigente</small><strong>{displayCount(metrics.currentMonth)}</strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
-              <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que o Wazuh ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
+              <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que a fonte ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
               <BentoCard className="book-reading"><span>Critério de leitura</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></BentoCard>
             </BentoGrid>
 
@@ -395,7 +396,7 @@ export function CustomerBook() {
               <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/">Explorar inventário técnico</Link></div>
             </BentoGrid>
           </>}
-          <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte Wazuh" : "fontes Wazuh"}</span></footer>
+          <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte ativa" : "fontes de dados"}</span></footer>
         </div>
       </section>
       <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/admin">Administração</Link>}</nav>

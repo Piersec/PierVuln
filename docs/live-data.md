@@ -10,11 +10,11 @@ Uma consulta automática a cada 30 segundos recupera eventos perdidos. Voltar à
 recuperar a conexão ou reconectar o canal também provoca uma consulta. A idade da
 última leitura completa é recalculada a cada 15 segundos.
 
-O Wazuh Indexer é consultado pelo conector em ciclos de 60 segundos, com páginas
+O indexador é consultado pelo conector em ciclos de 60 segundos, com páginas
 de 500 documentos. Se um snapshot demorar mais de um minuto, o seguinte começa
 quando ele termina; nunca existem dois snapshots simultâneos nesse processo.
 O tempo real do painel começa quando os dados chegam ao Supabase. A coleta do
-Indexer continua sendo periódica e depende da disponibilidade da rede e do Wazuh.
+A consulta ao indexador é periódica e depende da disponibilidade da rede e do serviço de origem.
 
 O horário exibido corresponde à conclusão de um snapshot completo, nunca à mera
 abertura do painel. Falhas antes da primeira página também são registradas em

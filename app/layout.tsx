@@ -19,7 +19,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "PierVuln · Gestão de vulnerabilidades",
-  description: "Painel seguro de vulnerabilidades sincronizadas do Wazuh.",
+  description: "Painel seguro de vulnerabilidades sincronizadas da fonte de dados.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
