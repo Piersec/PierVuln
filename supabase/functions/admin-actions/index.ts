@@ -71,6 +71,75 @@ Deno.serve(async (request) => {
   const action = input.action;
 
   try {
+    if (action === "panel_data") {
+      const { data, error } = await admin.rpc("admin_panel_data", {
+        p_search: text(input.search, 160) ?? "", p_scope: text(input.scope, 36) ?? "",
+        p_page: Math.max(0, Math.floor(Number(input.page) || 0)),
+      });
+      if (error) throw error;
+      for (const connection of data.connections ?? []) {
+        try {
+          const endpoint = new URL(connection.endpoint_url);
+          endpoint.username = ""; endpoint.password = "";
+          connection.endpoint_url = endpoint.toString();
+        } catch { connection.endpoint_url = "Endpoint indisponível"; }
+      }
+      return json(200, data);
+    }
+
+    if (action === "update_company" || action === "update_connection") {
+      const id = text(input.id, 36);
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return json(400, { error: "Identificador inválido." });
+      const changes: Record<string, unknown> = {};
+      if (input.name !== undefined) {
+        const name = text(input.name, 160);
+        if (!name || name.length < 2) return json(400, { error: "Informe um nome com pelo menos dois caracteres." });
+        changes.name = name;
+      }
+      if (input.isActive !== undefined) {
+        if (typeof input.isActive !== "boolean") return json(400, { error: "Estado inválido." });
+        changes.is_active = input.isActive;
+      }
+      if (action === "update_connection" && input.endpointUrl !== undefined) {
+        try {
+          const endpoint = new URL(String(input.endpointUrl));
+          if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password) throw new Error();
+          changes.endpoint_url = endpoint.toString();
+        } catch { return json(400, { error: "Informe uma URL HTTPS sem credenciais." }); }
+      }
+      if (!Object.keys(changes).length) return json(400, { error: "Nenhuma alteração informada." });
+      const { data, error } = await admin.from(action === "update_company" ? "companies" : "wazuh_connections")
+        .update(changes).eq("id", id).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return json(404, { error: "Registro não encontrado." });
+      return json(200, { updated: true, entityId: id });
+    }
+
+    if (action === "update_membership") {
+      const id = text(input.id, 36);
+      const role = text(input.role, 20);
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id) || !role || !["owner", "admin", "analyst", "viewer"].includes(role)
+        || typeof input.isActive !== "boolean") return json(400, { error: "Vínculo ou perfil inválido." });
+      const { data, error } = await admin.from("company_memberships").update({ role, is_active: input.isActive })
+        .eq("id", id).select("id,user_id").maybeSingle();
+      if (error) throw error;
+      if (!data) return json(404, { error: "Vínculo não encontrado." });
+      return json(200, { updated: true, entityId: data.user_id });
+    }
+
+    if (action === "resend_invite") {
+      const id = text(input.id, 36);
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return json(400, { error: "Usuário inválido." });
+      const { data, error } = await admin.auth.admin.getUserById(id);
+      if (error || !data.user?.email) return json(404, { error: "Usuário não encontrado." });
+      if (data.user.email_confirmed_at || !data.user.invited_at) return json(409, { error: "Este usuário não tem convite pendente." });
+      const appBaseUrl = Deno.env.get("APP_BASE_URL");
+      if (!appBaseUrl?.startsWith("https://")) return json(503, { error: "URL do convite não configurada." });
+      const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(data.user.email, { redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding` });
+      if (inviteError) return json(409, { error: "Não foi possível reenviar o convite. Confira a configuração de e-mail e tente novamente." });
+      return json(200, { invited: true, entityId: id });
+    }
+
     if (action === "create_company") {
       const name = text(input.name, 160);
       if (!name || name.length < 2) return json(400, { error: "Company name is required" });
@@ -98,10 +167,12 @@ Deno.serve(async (request) => {
       if (companyError || !company) return json(404, { error: "Company not found" });
       const appBaseUrl = Deno.env.get("APP_BASE_URL");
       if (!appBaseUrl || !appBaseUrl.startsWith("https://")) return json(503, { error: "App invite URL is not configured" });
-      const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding`,
-      });
-      if (inviteError || !invite.user) return json(409, { error: "Convite não enviado. Confira se o usuário já existe e a configuração de e-mail." });
+      const { data: existing, error: lookupError } = await admin.rpc("admin_lookup_user", { p_email: email });
+      if (lookupError) throw lookupError;
+      const { data: invite, error: inviteError } = existing?.email_confirmed
+        ? { data: { user: { id: String(existing.id) } }, error: null }
+        : await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding` });
+      if (inviteError || !invite.user) return json(409, { error: "Convite não enviado. Confira a configuração de e-mail." });
       const { error: membershipError } = await admin.from("company_memberships").upsert({
         company_id: tenantId,
         user_id: invite.user.id,
@@ -110,10 +181,9 @@ Deno.serve(async (request) => {
         is_active: true,
       }, { onConflict: "company_id,user_id" });
       if (membershipError) {
-        await admin.auth.admin.deleteUser(invite.user.id).catch(() => undefined);
         throw membershipError;
       }
-      return json(201, { invited: true });
+      return json(201, { invited: !existing?.email_confirmed, entityId: invite.user.id });
     }
 
     if (action === "invite_pier_user") {
@@ -124,10 +194,14 @@ Deno.serve(async (request) => {
       }
       const appBaseUrl = Deno.env.get("APP_BASE_URL");
       if (!appBaseUrl || !appBaseUrl.startsWith("https://")) return json(503, { error: "App invite URL is not configured" });
-      const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: fullName },
-        redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding`,
-      });
+      const { data: existing, error: lookupError } = await admin.rpc("admin_lookup_user", { p_email: email });
+      if (lookupError) throw lookupError;
+      const { data: invite, error: inviteError } = existing?.email_confirmed
+        ? { data: { user: { id: String(existing.id) } }, error: null }
+        : await admin.auth.admin.inviteUserByEmail(email, {
+          data: { full_name: fullName },
+          redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding`,
+        });
       if (inviteError || !invite.user) {
         const needsSmtp = inviteError?.message.toLowerCase().includes("email address not authorized");
         return json(needsSmtp ? 503 : 409, {
@@ -141,10 +215,9 @@ Deno.serve(async (request) => {
         p_created_by: userData.user.id,
       });
       if (accessError) {
-        await admin.auth.admin.deleteUser(invite.user.id).catch(() => undefined);
         throw accessError;
       }
-      return json(201, { invited: true });
+      return json(201, { invited: !existing?.email_confirmed, entityId: invite.user.id });
     }
 
     if (action === "create_connection") {
@@ -155,6 +228,10 @@ Deno.serve(async (request) => {
       if (!name || name.length < 2 || !endpointUrl || !endpointUrl.startsWith("https://")) {
         return json(400, { error: "Connection name and HTTPS Indexer URL are required" });
       }
+      try {
+        const endpoint = new URL(endpointUrl);
+        if (endpoint.username || endpoint.password) throw new Error();
+      } catch { return json(400, { error: "Informe uma URL HTTPS sem credenciais." }); }
       if (mode !== "dedicated" && mode !== "shared") return json(400, { error: "Invalid connection mode" });
       if ((mode === "dedicated" && (!tenantId || !/^[0-9a-f-]{36}$/i.test(tenantId))) || (mode === "shared" && tenantId)) {
         return json(400, { error: "Tenant assignment does not match connection mode" });
@@ -196,7 +273,7 @@ Deno.serve(async (request) => {
         created_by: userData.user.id,
       }, { onConflict: "connection_id,match_type,match_value" }).select("id").single();
       if (error) throw error;
-      return json(200, { mappingId: data.id });
+      return json(200, { mappingId: data.id, entityId: data.id });
     }
 
     if (action === "disable_agent_mapping") {

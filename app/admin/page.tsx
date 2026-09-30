@@ -1,5 +1,5 @@
-import { VulnerabilityDashboard } from "@/src/components/vulnerability-dashboard";
+import { AdminSection } from "@/src/components/admin-console";
 
 export default function AdminPage() {
-  return <VulnerabilityDashboard view="admin" />;
+  return <AdminSection section="dashboard" />;
 }
