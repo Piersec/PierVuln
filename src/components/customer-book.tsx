@@ -59,10 +59,10 @@ type SyncSummary = { finishedAt: string | null; connections: number };
 
 const pageSize = 1000;
 const severityColors: Record<string, string> = {
-  Critical: "#ff667d",
-  High: "#ffad62",
-  Medium: "#0ba9c1",
-  Low: "#51d9e9",
+  Critical: "#fb7580",
+  High: "#ffc078",
+  Medium: "#8dbdff",
+  Low: "#a7acb6",
 };
 const severityOrder = ["Critical", "High", "Medium", "Low"];
 const dayMs = 24 * 60 * 60 * 1000;
@@ -288,16 +288,11 @@ export function CustomerBook() {
           {error && <div className="book-alert" role="alert"><span>{error}</span><button onClick={() => setRefreshKey((value) => value + 1)}>Tentar novamente</button></div>}
 
           {!contextError && <>
-            <BentoGrid className="book-overview" aria-label="Resumo e critério do relatório">
+            <BentoGrid className="book-overview" aria-label="Indicadores de exposição">
               <BentoCard className="book-total"><span>Vulnerabilidades ativas</span><strong>{displayCount(metrics.total)}</strong><small>{selectedCompanyName ?? (selectedCompany ? "Empresa selecionada" : "Visão consolidada")}</small></BentoCard>
-              <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que o Wazuh ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
-              <BentoCard className="book-reading"><span>Critério de leitura</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></BentoCard>
-            </BentoGrid>
-
-            <BentoGrid className="book-highlights" aria-label="Indicadores de exposição">
-              <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong>{displayCount(metrics.previousMonth)}</strong></div><div><small>Mês vigente</small><strong>{displayCount(metrics.currentMonth)}</strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Nível crítico / alto</span><strong>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"}</strong><p>{displayCount(metrics.criticalHigh)} vulnerabilidades ativas críticas ou altas.</p></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong>{displayCount(metrics.prolonged)} <small>+90 dias</small></strong><p>Achados ativos detectados há mais de 90 dias.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Críticas e altas</span><strong>{displayCount(metrics.criticalHigh)}</strong><p>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"} do total ativo.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong>{displayCount(metrics.prolonged)}</strong><p>Achados ativos há mais de 90 dias.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Hosts afetados</span><strong>{displayCount(metrics.affectedHosts)}</strong><p>Agentes distintos com vulnerabilidades ativas.</p></BentoCard>
             </BentoGrid>
 
             <BentoGrid className="book-chart-grid" aria-label="Distribuição e evolução das vulnerabilidades">
@@ -306,13 +301,13 @@ export function CustomerBook() {
                 <div className="book-chart" role="img" aria-label={`Distribuição por severidade: ${metrics.severity.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.severity} margin={{ top: 26, right: 12, bottom: 2, left: -16 }}>
-                      <CartesianGrid vertical={false} stroke="rgba(186, 210, 229, .16)" />
-                      <XAxis dataKey="name" axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#c6d7e5", fontSize: 12 }} />
-                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 12 }} tickFormatter={shortCount} />
-                      <Tooltip cursor={{ fill: "rgba(100, 210, 220, .08)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#d7e7f1" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
+                      <CartesianGrid vertical={false} stroke="rgba(255, 255, 255, .09)" />
+                      <XAxis dataKey="name" axisLine={{ stroke: "rgba(255, 255, 255, .12)" }} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} />
+                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} tickFormatter={shortCount} />
+                      <Tooltip cursor={{ fill: "rgba(97, 223, 87, .07)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
                       <Bar dataKey="count" name="Vulnerabilidades" radius={[5, 5, 0, 0]} isAnimationActive={false}>
                         {metrics.severity.map((item) => <Cell key={item.name} fill={item.color} />)}
-                        <LabelList dataKey="count" position="top" fill="#e8f4f8" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
+                        <LabelList dataKey="count" position="top" fill="#f6f7f7" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -324,12 +319,12 @@ export function CustomerBook() {
                 <div className="book-chart" role="img" aria-label="Vulnerabilidades ainda ativas, agrupadas pelo mês de primeira detecção nos últimos seis meses">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={metrics.months} margin={{ top: 26, right: 12, bottom: 2, left: -16 }}>
-                      <CartesianGrid vertical={false} stroke="rgba(186, 210, 229, .16)" />
-                      <XAxis dataKey="month" axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#c6d7e5", fontSize: 12 }} />
-                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 12 }} tickFormatter={shortCount} />
-                      <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#d7e7f1" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades ativas"]} />
-                      <Line type="monotone" dataKey="count" name="Vulnerabilidades ativas" stroke="#54dbe5" strokeWidth={3} dot={{ r: 3, fill: "#54dbe5", stroke: "#062844", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#062844", stroke: "#77eff0", strokeWidth: 2 }} isAnimationActive={false}>
-                        <LabelList dataKey="count" position="top" fill="#e8f4f8" fontSize={11} formatter={(value: unknown) => shortCount(Number(value))} />
+                      <CartesianGrid vertical={false} stroke="rgba(255, 255, 255, .09)" />
+                      <XAxis dataKey="month" axisLine={{ stroke: "rgba(255, 255, 255, .12)" }} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} />
+                      <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} tickFormatter={shortCount} />
+                      <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades ativas"]} />
+                      <Line type="monotone" dataKey="count" name="Vulnerabilidades ativas" stroke="#61df57" strokeWidth={3} dot={{ r: 3, fill: "#61df57", stroke: "#191a1c", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#191a1c", stroke: "#82ed79", strokeWidth: 2 }} isAnimationActive={false}>
+                        <LabelList dataKey="count" position="top" fill="#f6f7f7" fontSize={11} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Line>
                     </LineChart>
                   </ResponsiveContainer>
@@ -338,19 +333,25 @@ export function CustomerBook() {
               </article>
             </BentoGrid>
 
+            <BentoGrid className="book-highlights" aria-label="Contexto do relatório">
+              <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong>{displayCount(metrics.previousMonth)}</strong></div><div><small>Mês vigente</small><strong>{displayCount(metrics.currentMonth)}</strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
+              <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que o Wazuh ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
+              <BentoCard className="book-reading"><span>Critério de leitura</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></BentoCard>
+            </BentoGrid>
+
             <BentoGrid className="book-detail-grid" aria-label="Tempo de exposição e concentração por CVE">
               <article className="book-chart-section book-age-section">
                 <div className="book-section-heading"><div><span className="book-section-tag">FAIXA DE TEMPO DA EXPOSIÇÃO</span><h2>Há quanto tempo continuam ativas</h2></div></div>
                 <div className="book-age-chart" role="img" aria-label={`Faixas de exposição: ${metrics.ages.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.ages} layout="vertical" margin={{ top: 8, right: 40, bottom: 4, left: 10 }}>
-                      <CartesianGrid horizontal={false} stroke="rgba(186, 210, 229, .13)" />
-                      <XAxis type="number" allowDecimals={false} axisLine={{ stroke: "rgba(186, 210, 229, .2)" }} tickLine={false} tick={{ fill: "#a7bfd1", fontSize: 12 }} tickFormatter={shortCount} />
-                      <YAxis type="category" dataKey="name" width={88} axisLine={false} tickLine={false} tick={{ fill: "#d5e1eb", fontSize: 12 }} />
-                      <Tooltip cursor={{ fill: "rgba(100, 210, 220, .08)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#d7e7f1" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
+                      <CartesianGrid horizontal={false} stroke="rgba(255, 255, 255, .09)" />
+                      <XAxis type="number" allowDecimals={false} axisLine={{ stroke: "rgba(255, 255, 255, .12)" }} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} tickFormatter={shortCount} />
+                      <YAxis type="category" dataKey="name" width={88} axisLine={false} tickLine={false} tick={{ fill: "#d4d7da", fontSize: 12 }} />
+                      <Tooltip cursor={{ fill: "rgba(97, 223, 87, .07)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
                       <Bar dataKey="count" name="Vulnerabilidades" radius={[0, 5, 5, 0]} isAnimationActive={false}>
-                        {metrics.ages.map((item, index) => <Cell key={item.name} fill={["#48b7c9", "#207ea8", "#0871a8", "#1199b8"][index]} />)}
-                        <LabelList dataKey="count" position="right" fill="#e8f4f8" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
+                        {metrics.ages.map((item, index) => <Cell key={item.name} fill={["#61df57", "#55c84e", "#489f42", "#3b8237"][index]} />)}
+                        <LabelList dataKey="count" position="right" fill="#f6f7f7" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -499,10 +500,10 @@ function formatMonth(value: string) {
 }
 
 const tooltipStyle = {
-  border: "1px solid rgba(91, 220, 230, .35)",
-  borderRadius: 8,
-  backgroundColor: "#073653",
-  color: "#e8f3fa",
+  border: "0",
+  borderRadius: 12,
+  backgroundColor: "#252628",
+  color: "#f6f7f7",
   fontSize: 13,
 };
 

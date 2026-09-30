@@ -8,7 +8,7 @@ type SpotlightCardProps = HTMLAttributes<HTMLElement> & {
 };
 
 // Adapted from React Bits Spotlight Card; the light follows the pointer only on this feature tile.
-export function SpotlightCard({ children, className = "", spotlightColor = "rgb(87 220 229 / 16%)", ...props }: SpotlightCardProps) {
+export function SpotlightCard({ children, className = "", spotlightColor = "rgb(97 223 87 / 8%)", ...props }: SpotlightCardProps) {
   const cardRef = useRef<HTMLElement>(null);
 
   function handleMouseMove(event: MouseEvent<HTMLElement>) {

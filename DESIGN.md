@@ -2,24 +2,24 @@
 name: PierVuln
 description: Registro técnico de exposição Wazuh com contexto, histórico e fluxo de tratamento.
 colors:
-  canvas: "#081923"
-  surface: "#0d2330"
-  surface-raised: "#102b3b"
-  surface-inset: "#07151e"
-  line: "#607f90"
-  line-strong: "#6f91a2"
-  text-primary: "#f0f6f8"
-  text-muted: "#b6c8d1"
-  primary: "#57dce5"
-  primary-strong: "#86f1f2"
-  primary-ink: "#06222d"
-  nav-current: "#123747"
-  positive: "#78dfb5"
+  canvas: "#090a0b"
+  surface: "#191a1c"
+  surface-raised: "#252628"
+  surface-inset: "#121315"
+  line: "#35373a"
+  line-strong: "#4b4e52"
+  text-primary: "#f6f7f7"
+  text-muted: "#a4a8ae"
+  primary: "#61df57"
+  primary-strong: "#82ed79"
+  primary-ink: "#0a1209"
+  nav-current: "#262a26"
+  positive: "#61df57"
   caution: "#ffce78"
-  critical: "#ff8190"
+  critical: "#fb7580"
   high: "#ffc078"
-  medium: "#62dce7"
-  low: "#a0caff"
+  medium: "#8dbdff"
+  low: "#a7acb6"
 typography:
   display:
     fontFamily: "IBM Plex Sans, Arial, sans-serif"
@@ -64,10 +64,11 @@ typography:
     lineHeight: 1.5
 rounded:
   tight: "4px"
-  control: "5px"
+  control: "12px"
   compact: "6px"
-  card: "12px"
+  card: "15px"
   brand: "8px"
+  pill: "999px"
   circle: "50%"
 spacing:
   xs: "4px"
@@ -79,27 +80,27 @@ components:
   button-primary:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.primary-ink}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.pill}"
     padding: "0 17px"
-    height: "46px"
+    height: "42px"
   button-secondary:
     backgroundColor: "{colors.surface-raised}"
     textColor: "{colors.text-primary}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.pill}"
     padding: "0 13px"
-    height: "44px"
+    height: "42px"
   field:
     backgroundColor: "{colors.surface-inset}"
     textColor: "{colors.text-primary}"
     rounded: "{rounded.control}"
     padding: "0 12px"
-    height: "44px"
+    height: "42px"
   nav-current:
     backgroundColor: "{colors.nav-current}"
     textColor: "{colors.primary-strong}"
     rounded: "{rounded.control}"
     padding: "0 12px"
-    height: "46px"
+    height: "48px"
   severity-critical:
     backgroundColor: "{colors.surface-raised}"
     textColor: "{colors.critical}"
@@ -121,7 +122,7 @@ components:
 
 PierVuln trata cada achado como um item verificável: a interface mostra o estado da fonte, a identidade do caso e o andamento do tratamento sem confundir leitura atual com histórico mensal. O painel de vulnerabilidades funciona como uma fila operacional; o Book transforma a mesma leitura em comparações que ajudam a priorizar correções.
 
-O sistema usa superfícies azul-marinho, texto claro e um acento ciano reservado a navegação, foco e dados em destaque. A hierarquia vem de tipografia, bordas e espaçamento; estados críticos, altos, médios e baixos mantêm cores próprias e rótulos textuais. **Key Characteristics:**
+O sistema usa fundo quase preto, cartões em cinza carvão e verde reservado a ações, foco e tendência positiva. A hierarquia vem de tipografia, contraste entre superfícies e espaçamento; estados críticos, altos, médios e baixos mantêm cores próprias e rótulos textuais. **Key Characteristics:**
 
 - Totais globais permanecem separados da paginação da tabela.
 - O estado recente ou desatualizado da fonte fica visível antes dos casos.
@@ -130,11 +131,11 @@ O sistema usa superfícies azul-marinho, texto claro e um acento ciano reservado
 
 ## Colors
 
-A paleta parte de um campo escuro e usa o ciano para orientar atenção sem pintar toda a interface como alerta.
+A paleta parte do preto e do carvão da referência visual, com verde luminoso para orientar a ação.
 
 ### Primary
-- **Ciano de leitura** (`colors.primary`): ações principais, destaques do relatório e navegação ativa.
-- **Ciano luminoso** (`colors.primary-strong`): foco visível, links técnicos e rótulos selecionados.
+- **Verde de ação** (`colors.primary`): ações principais, gráficos de tendência e navegação ativa.
+- **Verde luminoso** (`colors.primary-strong`): foco visível, links técnicos e rótulos selecionados.
 
 ### Neutral
 - **Campo profundo** (`colors.canvas`): fundo global do produto.
@@ -143,10 +144,10 @@ A paleta parte de um campo escuro e usa o ciano para orientar atenção sem pint
 - **Superfície de entrada** (`colors.surface-inset`): campos editáveis e filtros.
 - **Texto principal** (`colors.text-primary`): títulos, valores e conteúdo prioritário.
 - **Texto auxiliar** (`colors.text-muted`): explicações, metadados e estados secundários.
-- **Divisória** (`colors.line`): separação de linhas e regiões sem sombras.
+- **Divisória** (`colors.line`): separação interna de linhas e campos; cartões não usam contorno.
 
 ### Named Rules
-**The Signal Rule.** Ciano indica ação ou dado em foco; a severidade usa sua própria cor e sempre conserva o rótulo textual.
+**The Signal Rule.** Verde indica ação ou dado em foco; a severidade usa sua própria cor e sempre conserva o rótulo textual.
 
 ## Typography
 
@@ -154,7 +155,7 @@ A paleta parte de um campo escuro e usa o ciano para orientar atenção sem pint
 - **Body Font:** IBM Plex Sans (com Arial como fallback)
 - **Label/Mono Font:** IBM Plex Mono (com Consolas como fallback)
 
-**Character:** A sans-serif mantém leitura confortável nos casos e nos textos do relatório; a monoespaçada distingue CVEs, totais e metadados técnicos.
+**Character:** A sans-serif mantém leitura confortável nos casos, nos totais e nos textos do relatório; a monoespaçada distingue CVEs e metadados técnicos.
 
 ### Hierarchy
 - **Display** (700, variável conforme viewport, entre 28px e 38px, line-height 1.13): títulos de página.
@@ -164,58 +165,58 @@ A paleta parte de um campo escuro e usa o ciano para orientar atenção sem pint
 - **Label** (500, 11–13px, line-height 1.4): dados monoespaçados e rótulos concisos; não reduzir texto essencial abaixo de 12px.
 
 ### Named Rules
-**The Readable Number Rule.** Use IBM Plex Mono para identificadores e contagens; mantenha unidades e rótulos em texto normal ao lado do valor.
+**The Readable Number Rule.** Use números tabulares nos indicadores e IBM Plex Mono para identificadores técnicos; mantenha unidades e rótulos ao lado do valor.
 
 ## Layout
 
-Em desktop, uma faixa lateral de 72px mantém a navegação por ícones acessíveis e libera largura para o painel. O cabeçalho reúne contexto e ações. O primeiro bloco do dashboard ocupa as 12 colunas: título discreto no alto, número central e ação no rodapé. Logo abaixo, três módulos compactos ocupam larguras diferentes para severidade, andamento e saúde da fonte. O Book segue a mesma hierarquia: total em largura inteira, contexto em dois módulos e gráficos em colunas assimétricas. A lista de casos continua em tabela compacta com paginação explícita.
+Em desktop, uma faixa lateral de 72px mantém a navegação por ícones acessíveis e libera largura para o painel. O cabeçalho reúne contexto e ações. O dashboard começa com quatro indicadores compactos de largura igual; a lista de casos ocupa um painel próprio abaixo. O Book repete os quatro indicadores e coloca dois gráficos grandes lado a lado na segunda linha. A tabela continua compacta e com paginação explícita.
 
-Em larguras intermediárias, os bentos passam para seis colunas. Em telas pequenas, a leitura vira uma coluna, com os dois indicadores curtos lado a lado quando houver espaço; a tabela de casos vira cartões empilhados e os gráficos passam para uma coluna. Os resumos apresentam o total da seleção independentemente das 50 linhas da página atual.
+Em larguras intermediárias e pequenas, os quatro indicadores passam para duas colunas. A tabela de casos vira cartões empilhados e os gráficos passam para uma coluna. Os resumos apresentam o total da seleção independentemente das 50 linhas da página atual.
 
 ## Elevation & Depth
 
-O sistema usa planos de fundo e bordas para separar as superfícies. O bloco principal de exposição recebe um degradê curto e anéis de leitura que remetem a uma varredura; o Spotlight Card acompanha o ponteiro somente nesse bloco. Sombras são evitadas em repouso; o painel lateral de detalhes se distingue por uma camada de fundo escurecida. Foco e seleção usam contorno visível.
+Os cartões se separam do fundo somente pela diferença de superfície; não têm bordas nem sombras em repouso. O Spotlight Card acompanha o ponteiro discretamente no primeiro indicador. O painel lateral de detalhes se distingue por uma camada de fundo escurecida. Controles em foco mantêm contorno visível.
 
 ### Named Rules
-**The Border First Rule.** Use tom de superfície e divisórias para organizar conteúdo; reserve sobreposição escura para o diálogo de detalhes.
+**The Borderless Card Rule.** Use contraste de superfície e espaçamento para organizar os cartões; reserve linhas para tabela, campos e separações internas.
 
 ## Shapes
 
-Controles têm cantos discretos e consistentes; cartões bento e painéis usam raio de 12px para marcar regiões de conteúdo. Chips de severidade usam borda e fundo preenchido, enquanto navegação e tabela evitam cápsulas decorativas. Campos, botões e seletores mantêm altura mínima confortável para toque.
+Cartões usam raio de 15px e dispensam bordas. Botões de ação, filtros e chips usam formato de cápsula; campos e painéis de tabela têm raio moderado. Campos, botões e seletores mantêm altura mínima confortável para toque.
 
 ## Auditoria da referência
 
-O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), inspecionado em 30/09/2026, usa uma barra lateral mínima, cabeçalho sem competição com o conteúdo, ferramentas agrupadas à direita, um módulo principal de largura inteira e widgets subsequentes de proporções diferentes. Os cartões têm raio moderado, separação estreita e cabeçalhos compactos. O PierVuln adota essa estrutura e mantém sua paleta, tipografia, informações, permissões e ações próprias. A referência não determina métricas novas nem interações de arrastar widgets.
+O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), inspecionado em 30/09/2026, motivou a faixa lateral mínima e o cabeçalho compacto. As capturas de tela fornecidas pelo usuário em seguida passam a definir a composição principal: fundo quase preto, quatro indicadores pequenos, painéis de gráficos grandes e tabela agrupada em uma única superfície. A biblioteca [HeroUI](https://heroui.com/) informa o caráter dos controles, mas o projeto mantém seu CSS atual e componentes adaptados. Nenhuma métrica ou interação é inferida das imagens.
 
 ## Components
 
 ### Bento tiles
 - **Origem:** `BentoGrid` e `BentoCard` adaptados do [Magic UI Bento Grid](https://magicui.design/docs/components/bento-grid) para o CSS existente; `SpotlightCard` adaptado do [React Bits](https://github.com/DavidHDev/react-bits/blob/main/src/content/Components/SpotlightCard/SpotlightCard.jsx).
-- **Behavior:** largura e altura expressam prioridade real dos dados. O spotlight aparece somente no total de casos e respeita redução de movimento. Os blocos mantêm rótulo, valor e explicação, sem números fictícios.
+- **Behavior:** quatro indicadores equivalentes abrem dashboard e Book. O spotlight aparece somente no total de casos e respeita redução de movimento. Os blocos mantêm rótulo, valor e explicação, sem números fictícios e sem borda.
 
 ### Buttons
 - **Character:** diretos e com rótulos verbais, sem depender de ícones isolados.
-- **Shape:** canto curto (5px).
-- **Primary:** fundo ciano, texto azul-escuro e altura de 46px.
-- **Secondary:** superfície elevada, borda visível e altura mínima de 44px.
-- **Hover / Focus:** o hover reforça o contraste; o foco usa anel externo ciano e permanece perceptível no tema escuro.
+- **Shape:** cápsula para ações compactas.
+- **Primary:** fundo verde, texto quase preto e altura mínima de 42px.
+- **Secondary:** superfície elevada sem borda.
+- **Hover / Focus:** o hover reforça o contraste; o foco usa anel externo verde e permanece perceptível no tema escuro.
 
 ### Fields and filters
-- **Character:** campos integrados à superfície, mantendo borda clara e valor legível.
-- **Shape:** cantos curtos (5px), altura mínima de 44px e espaçamento interno horizontal.
+- **Character:** campos integrados à superfície, com contraste próprio e valor legível.
+- **Shape:** cantos moderados, altura mínima de 42px e espaçamento interno horizontal.
 - **Behavior:** cada filtro tem nome acessível; foco não depende apenas de mudança de cor.
 
 ### Navigation
 - **Character:** texto direto e item atual claramente delimitado.
-- **Shape:** linhas de 44–46px com borda sutil; a opção ativa mantém cor e fundo distintos.
+- **Shape:** alvos de 44–48px sem borda; a opção ativa mantém cor e fundo distintos.
 - **Behavior:** o painel principal preserva os três destinos internos em viewport móvel; o Book mantém sua navegação acessível junto à conta.
 
 ### Severity chips
-- **Character:** rótulo textual com ponto de cor e borda, para que a cor não seja o único sinal.
+- **Character:** rótulo textual com ponto de cor e fundo, para que a cor não seja o único sinal.
 - **Behavior:** manter a mesma associação semântica de severidade em tabela, detalhes e gráficos.
 
 ### Data panels and charts
-- **Character:** superfícies planas divididas por bordas e títulos explícitos.
+- **Character:** superfícies planas separadas pelo fundo; linhas discretas aparecem apenas dentro das tabelas e gráficos.
 - **Behavior:** todo gráfico inclui descrição acessível, valores visíveis e nota quando o conjunto atual não representa uma série histórica de snapshots.
 
 ## Do's and Don'ts
