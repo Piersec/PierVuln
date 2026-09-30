@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 
@@ -84,8 +85,4 @@ export default function LoginPage() {
       </aside>
     </main>
   );
-}
-
-function Brand() {
-  return <div className="brand"><span className="brand-mark">P</span><span>Pier<span className="brand-light">Vuln</span></span></div>;
 }

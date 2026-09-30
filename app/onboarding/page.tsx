@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@heroui/react";
 import { FormEvent, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { Brand } from "@/src/components/brand";
 import Rays from "@/src/components/light-rays";
 import { SignaturePad } from "@/src/components/ui/signature-pad";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
@@ -68,7 +69,7 @@ export default function OnboardingPage() {
       <a className="skip-link" href="#onboarding-content">Pular para o conteúdo</a>
       <div className="onboarding-rays" aria-hidden="true"><Rays backgroundColor="#090a0b" raysColor={{ mode: "single", color: "#67e260" }} intensity={8} rays={24} reach={20} animation={{ animate: !reduceMotion, speed: 5 }} style={{ zIndex: 0 }} /></div>
       <div className="onboarding-shade" aria-hidden="true" />
-      <header className="onboarding-header"><span className="brand"><span className="brand-mark">P</span><span>Pier<span className="brand-light">Vuln</span></span></span><span className="onboarding-header-note">EQUIPE PIER</span></header>
+      <header className="onboarding-header"><Brand /><span className="onboarding-header-note">EQUIPE PIER</span></header>
       <section className="onboarding-card" id="onboarding-content" tabIndex={-1}>
         {checking ? <p role="status">Abrindo seu convite…</p> : !session ? <><span className="onboarding-kicker">CONVITE</span><h1>Abra o link do seu e-mail.</h1><p>Para iniciar o onboarding, acesse o convite enviado pela equipe Pier.</p><Link className="button button-secondary" href="/login">Ir para o login</Link></> : <>
           <div className="onboarding-progress" aria-label="Etapas do onboarding"><span className="is-current" /><span className={step !== "welcome" ? "is-current" : ""} /><span className={step === "signature" || step === "preparing" ? "is-current" : ""} /><span className={step === "preparing" ? "is-current" : ""} /></div>

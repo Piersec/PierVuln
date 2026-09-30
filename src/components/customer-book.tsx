@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { Brand } from "@/src/components/brand";
 import {
   Bar,
   BarChart,
@@ -252,14 +253,14 @@ export function CustomerBook() {
   }
 
   if (!supabase) return <BookConfigurationRequired />;
-  if (!authReady || (session && !contextReady)) return <main className="loading-screen"><Brand /><div className="spinner"/><p>Preparando o Book dos Clientes…</p></main>;
-  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><BentoGrid className="welcome-bento" aria-label="Conteúdo do Book"><BentoCard className="welcome-feature welcome-feature-main"><span>Relatório por empresa</span><strong>Exposição atual</strong><small>Uma leitura vinculada aos dados do cliente.</small></BentoCard><BentoCard className="welcome-feature"><span>Criticidade</span><strong>Severidade</strong><small>Distribuição dos achados ativos.</small></BentoCard><BentoCard className="welcome-feature"><span>Prioridade</span><strong>Tempo de exposição</strong><small>Foco nos casos que persistem.</small></BentoCard></BentoGrid></aside></main>;
+  if (!authReady || (session && !contextReady)) return <main className="loading-screen"><Brand href="/" /><div className="spinner"/><p>Preparando o Book dos Clientes…</p></main>;
+  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand href="/" /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><BentoGrid className="welcome-bento" aria-label="Conteúdo do Book"><BentoCard className="welcome-feature welcome-feature-main"><span>Relatório por empresa</span><strong>Exposição atual</strong><small>Uma leitura vinculada aos dados do cliente.</small></BentoCard><BentoCard className="welcome-feature"><span>Criticidade</span><strong>Severidade</strong><small>Distribuição dos achados ativos.</small></BentoCard><BentoCard className="welcome-feature"><span>Prioridade</span><strong>Tempo de exposição</strong><small>Foco nos casos que persistem.</small></BentoCard></BentoGrid></aside></main>;
 
   return (
     <main className="app-shell book-shell">
       <a className="skip-link" href="#book-overview">Pular para o conteúdo</a>
       <aside className="sidebar">
-        <Brand />
+        <Brand href="/" />
         <nav className="workspace-nav" aria-label="Navegação principal">
           <div className="nav-caption">WORKSPACE</div>
           <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
@@ -507,10 +508,6 @@ const tooltipStyle = {
   fontSize: 13,
 };
 
-function Brand() {
-  return <Link className="brand" href="/" aria-label="PierVuln — início"><span className="brand-mark">P</span><span>Pier<span className="brand-light">Vuln</span></span></Link>;
-}
-
 function BookConfigurationRequired() {
-  return <main className="welcome-shell"><div className="auth-card"><Brand/><div className="eyebrow">CONFIGURAÇÃO NECESSÁRIA</div><h1>Conecte o projeto Supabase</h1><p>Configure a URL e a chave publicável do projeto PierGV para consultar o relatório.</p></div></main>;
+  return <main className="welcome-shell"><div className="auth-card"><Brand href="/"/><div className="eyebrow">CONFIGURAÇÃO NECESSÁRIA</div><h1>Conecte o projeto Supabase</h1><p>Configure a URL e a chave publicável do projeto PierGV para consultar o relatório.</p></div></main>;
 }
