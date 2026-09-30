@@ -118,7 +118,14 @@ Deno.serve(async (request) => {
         data: { full_name: fullName },
         redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding`,
       });
-      if (inviteError || !invite.user) return json(409, { error: "Convite não enviado. Confira se o usuário já existe e a configuração de e-mail." });
+      if (inviteError || !invite.user) {
+        const needsSmtp = inviteError?.message.toLowerCase().includes("email address not authorized");
+        return json(needsSmtp ? 503 : 409, {
+          error: needsSmtp
+            ? "O Supabase só envia convites para membros do projeto até que um SMTP personalizado seja configurado."
+            : "Convite não enviado. Confira se o usuário já existe e a configuração de e-mail.",
+        });
+      }
       const { error: accessError } = await admin.rpc("add_internal_admin_invite", {
         p_user_id: invite.user.id,
         p_created_by: userData.user.id,
