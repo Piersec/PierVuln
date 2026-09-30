@@ -2,7 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { SiteIsland } from "@/src/components/site-island";
+import { NotificationInbox, NotificationLauncher } from "@/src/components/notification-inbox";
 import { changeNotice, enqueueNotice, parseAdminChange, type AdminNotice, type NoticeInput } from "@/src/lib/admin-notifications";
+import { MAX_INBOX_NOTICES, noticeKind, parseInbox, parseMutedKinds, toInboxNotice, type InboxNotice } from "@/src/lib/notification-inbox";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { visibleText } from "@/src/lib/visible-text";
 import { usePathname } from "next/navigation";
@@ -16,6 +18,16 @@ type Notifications = {
   revision: number;
 };
 const Context = createContext<Notifications | null>(null);
+const storageKey = (owner: string, part: "history" | "muted") => `piervuln:notifications:v1:${owner}:${part}`;
+const isAuthRoute = (path: string) => path === "/login" || path === "/reset-password" || path === "/onboarding";
+function readHistory(owner: string): InboxNotice[] {
+  try { return typeof window === "undefined" ? [] : parseInbox(localStorage.getItem(storageKey(owner, "history"))); }
+  catch { return []; }
+}
+function readMuted(owner: string): string[] {
+  try { return typeof window === "undefined" ? [] : parseMutedKinds(localStorage.getItem(storageKey(owner, "muted"))); }
+  catch { return []; }
+}
 export function useSiteNotifications() {
   const context = useContext(Context);
   if (!context) throw new Error("Site notifications provider required");
@@ -25,20 +37,77 @@ export function useSiteNotifications() {
 export function SiteNotifications({ children }: { children: ReactNode }) {
   const client = getSupabaseBrowserClient();
   const pathname = usePathname();
-  const previousPath = useRef(pathname);
   const [notices, setNotices] = useState<AdminNotice[]>([]);
+  const [history, setHistory] = useState<InboxNotice[]>([]);
+  const [mutedKinds, setMutedKinds] = useState<string[]>([]);
+  const [ownerKey, setOwnerKey] = useState("guest");
+  const [storageReady, setStorageReady] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
   const [host, setIslandHost] = useState<HTMLElement | null>(null);
   const [revision, setRevision] = useState(0);
   const [adminId, setAdminId] = useState<string | null>(null);
+  const [authenticatedId, setAuthenticatedId] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const mutation = useRef(false);
   const recentLocal = useRef(new Map<string, number>());
+  const owner = useRef("guest");
+  const authenticated = useRef(false);
+  const muted = useRef(new Set(mutedKinds));
+
+  useEffect(() => { setStorageReady(true); }, []);
+  useEffect(() => {
+    if (!storageReady || ownerKey === "guest") return;
+    try { localStorage.setItem(storageKey(ownerKey, "history"), JSON.stringify(history)); } catch { /* Storage can be unavailable in private browsing. */ }
+  }, [history, ownerKey, storageReady]);
+  useEffect(() => {
+    if (!storageReady || ownerKey === "guest") return;
+    try { localStorage.setItem(storageKey(ownerKey, "muted"), JSON.stringify(mutedKinds)); } catch { /* Storage can be unavailable in private browsing. */ }
+  }, [mutedKinds, ownerKey, storageReady]);
+
   const notify = useCallback((notice: NoticeInput) => {
+    if (!authenticated.current || isAuthRoute(pathname)) return;
     if (notice.secret) setSecret(notice.secret);
-    setNotices((queue) => enqueueNotice(queue, { ...notice, title: visibleText(notice.title), detail: notice.detail ? visibleText(notice.detail) : undefined, secret: undefined, id: crypto.randomUUID() }));
-  }, []);
+    const incoming: AdminNotice = { ...notice, title: visibleText(notice.title), detail: notice.detail ? visibleText(notice.detail) : undefined, secret: undefined, id: crypto.randomUUID() };
+    setHistory((items) => [toInboxNotice(incoming), ...items].slice(0, MAX_INBOX_NOTICES));
+    if (!muted.current.has(noticeKind(incoming))) setNotices((queue) => enqueueNotice(queue, incoming));
+  }, [pathname]);
   const clear = useCallback(() => { setNotices([]); setSecret(null); }, []);
   const dismiss = useCallback((id: string) => setNotices((queue) => queue.filter((notice) => notice.id !== id)), []);
+  const switchOwner = useCallback((next: string) => {
+    if (owner.current === next) return;
+    owner.current = next;
+    authenticated.current = false;
+    setAuthenticatedId(null);
+    clear();
+    setInboxOpen(false);
+    setSelectedNoticeId(null);
+    setHistory(next === "guest" ? [] : readHistory(next));
+    const preferences = next === "guest" ? [] : readMuted(next);
+    muted.current = new Set(preferences);
+    setMutedKinds(preferences);
+    setOwnerKey(next);
+  }, [clear]);
+  const markRead = useCallback((id: string) => setHistory((items) => items.map((item) => item.id === id ? { ...item, read: true } : item)), []);
+  const openInbox = useCallback((id?: string) => {
+    setSelectedNoticeId(id ?? null);
+    if (id) markRead(id);
+    setInboxOpen(true);
+  }, [markRead]);
+  const removeHistory = useCallback((id: string) => {
+    setHistory((items) => items.filter((item) => item.id !== id));
+    setNotices((queue) => queue.filter((item) => item.id !== id));
+    setSelectedNoticeId((selected) => selected === id ? null : selected);
+  }, []);
+  const clearHistory = useCallback(() => { setHistory([]); setNotices([]); setSelectedNoticeId(null); }, []);
+  const markAllRead = useCallback(() => setHistory((items) => items.map((item) => item.read ? item : { ...item, read: true })), []);
+  const setKindMuted = useCallback((kind: string, selected: boolean) => {
+    const next = new Set(muted.current);
+    if (selected) next.add(kind); else next.delete(kind);
+    muted.current = next;
+    setMutedKinds([...next]);
+    if (selected) setNotices((queue) => queue.filter((item) => noticeKind(item) !== kind));
+  }, []);
   const beginMutation = useCallback(() => { mutation.current = true; }, []);
   const endMutation = useCallback((entityId?: string) => {
     if (entityId) recentLocal.current.set(entityId, Date.now());
@@ -47,11 +116,8 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (previousPath.current === pathname) return;
-    previousPath.current = pathname;
-    const names: Record<string, string> = { "/": "Vulnerabilidades", "/book": "Book dos Clientes", "/admin": "Visão geral administrativa", "/admin/tenants": "Empresas", "/admin/integrations": "Integrações", "/admin/users": "Usuários", "/admin/audit": "Auditoria", "/login": "Login", "/reset-password": "Recuperação de acesso", "/onboarding": "Cadastro" };
-    if (names[pathname]) notify({ title: names[pathname], detail: "Área selecionada.", key: "navigation" });
-  }, [notify, pathname]);
+    if (isAuthRoute(pathname)) { clear(); setInboxOpen(false); }
+  }, [clear, pathname]);
 
   useEffect(() => {
     let lastInvalid = 0;
@@ -85,31 +151,28 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
     let userId: string | null | undefined;
     async function check(id: string | null) {
       const version = ++generation;
-      if (userId !== id) { userId = id; clear(); setAdminId(null); recentLocal.current.clear(); }
-      if (!id) return;
+      if (userId !== id) { userId = id; switchOwner(id ?? "guest"); setAdminId(null); recentLocal.current.clear(); }
+      if (!id) { authenticated.current = false; setAuthenticatedId(null); return; }
       const { data, error } = await client!.rpc("current_user_context");
       if (mounted && version === generation) {
+        const valid = !error && data?.user_id === id;
+        authenticated.current = valid;
+        setAuthenticatedId(valid ? id : null);
         setAdminId(!error && data?.is_internal_admin === true ? id : null);
-        if (error || data?.is_internal_admin !== true) clear();
+        if (!valid || data?.is_internal_admin !== true) clear();
       }
     }
     void client.auth.getSession().then(({ data }) => { if (mounted) void check(data.session?.user.id ?? null); });
-    const { data } = client.auth.onAuthStateChange((event, session) => {
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
       // Auth callbacks finish before RPC calls to avoid the auth client lock.
       setTimeout(() => {
         if (!mounted) return;
         const id = session?.user.id ?? null;
-        const changedUser = userId !== id;
-        void check(id).then(() => {
-          if (!mounted || userId !== id) return;
-          if (event === "SIGNED_IN" && changedUser) notify({ title: "Acesso confirmado.", key: "auth-session" });
-          if (event === "SIGNED_OUT" && changedUser) notify({ title: "Sessão encerrada.", key: "auth-session" });
-          if (event === "PASSWORD_RECOVERY") notify({ title: "Link de recuperação validado.", detail: "Defina sua nova senha para continuar.", key: "auth-recovery" });
-        });
+        void check(id);
       }, 0);
     });
     return () => { mounted = false; generation++; data.subscription.unsubscribe(); };
-  }, [client, clear, notify]);
+  }, [client, clear, switchOwner]);
 
   useEffect(() => {
     if (!client || !adminId) return;
@@ -154,8 +217,10 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
 
   return <Context.Provider value={{ notify, clear, setIslandHost, beginMutation, endMutation, revision }}>
     {children}
-    <SiteIsland notices={notices} dismiss={dismiss} host={host} />
-    {secret && adminId && <ConnectorSecret secret={secret} close={() => setSecret(null)} />}
+    {authenticatedId && !isAuthRoute(pathname) && <SiteIsland notices={notices} dismiss={dismiss} host={host} openInbox={openInbox} inboxOpen={inboxOpen} />}
+    {storageReady && authenticatedId && !isAuthRoute(pathname) && <><NotificationLauncher unread={history.filter((item) => !item.read).length} open={() => openInbox()} />
+      <NotificationInbox open={inboxOpen} close={() => setInboxOpen(false)} notices={history} selectedId={selectedNoticeId} mutedKinds={mutedKinds} markRead={markRead} markAllRead={markAllRead} remove={removeHistory} clearAll={clearHistory} setKindMuted={setKindMuted} /></>}
+    {secret && adminId && !isAuthRoute(pathname) && <ConnectorSecret secret={secret} close={() => setSecret(null)} />}
   </Context.Provider>;
 }
 

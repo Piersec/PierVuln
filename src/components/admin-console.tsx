@@ -8,7 +8,7 @@ import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { useSiteNotifications } from "@/src/components/site-notifications";
-import { useErrorNotice, useFilterNotice } from "@/src/lib/use-filter-notice";
+import { useErrorNotice } from "@/src/lib/use-filter-notice";
 import { type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { AdminRequestError, adminDate, archiveLabels, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership } from "@/src/lib/admin";
@@ -221,10 +221,6 @@ export function AdminSection({ section }: { section: Section }) {
       void client.removeChannel(channel);
     };
   }, [client, connectionIds, section]);
-  useFilterNotice(`admin-selection:${section}`, [search || query.search ? `Busca: ${search || query.search}` : "Sem busca", status ? `Status: ${status === "true" ? "Ativas" : status === "false" ? "Inativas" : archiveLabels[status] ?? status}` : "Todos os status", data?.companies.find((c) => c.id === (companyFilter || query.scope))?.name ?? (query.scope === "pier" ? "Equipe Pier" : "Todas as empresas"), `Página ${query.page + 1}`].join(" · "), !!data);
-  useEffect(() => {
-    if (editor) notify({ title: "Formulário aberto.", detail: editor.kind === "invite" ? "Convite de usuário" : editor.kind === "company" ? "Empresa" : editor.kind === "connection" ? "Integração de vulnerabilidades" : editor.kind === "mapping" ? "Vínculo de agente ou grupo" : editor.kind === "membership" ? "Vínculo com empresa" : "Alteração de status", key: "admin-editor" });
-  }, [editor, notify]);
   if (!data) return null;
   const companyName = (id: string | null) => visibleText(data.companies.find((c) => c.id === id)?.name ?? "Compartilhada");
   const matches = (value: string) => value.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR"));
@@ -337,7 +333,7 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
   const [mode, setMode] = useState(editor.kind === "connection" ? editor.connection?.mode ?? "dedicated" : "dedicated");
   function cancel() {
     if (busy) return;
-    close(); notify({ title: "Formulário fechado.", key: "admin-editor" });
+    close();
   }
   useEffect(() => {
     dialog.current?.showModal(); setIslandHost(dialog.current);

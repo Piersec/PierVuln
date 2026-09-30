@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { useSiteNotifications } from "@/src/components/site-notifications";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
@@ -11,12 +10,10 @@ import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 export default function LoginPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
-  const { notify } = useSiteNotifications();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  useEffect(() => { if (notice) notify({ title: notice, error: true }); }, [notice, notify]);
 
   useEffect(() => {
     if (!supabase) return;

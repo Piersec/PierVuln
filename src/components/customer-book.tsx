@@ -5,7 +5,7 @@ import { SpotlightCard } from "@/src/components/ui/spotlight-card";
 import { useLiveData } from "@/src/lib/use-live-data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSiteNotifications } from "@/src/components/site-notifications";
-import { useErrorNotice, useFilterNotice } from "@/src/lib/use-filter-notice";
+import { useErrorNotice } from "@/src/lib/use-filter-notice";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import {
@@ -92,7 +92,6 @@ export function CustomerBook() {
   const refreshRequested = useRef(false);
   const live = useLiveData(supabase, contextReady ? session?.user.id : undefined, loading);
   useErrorNotice(error || contextError, "book-feedback");
-  useFilterNotice("book-selection", companies.find((company) => company.id === selectedCompany)?.name ?? "Todas as empresas", contextReady && !!session);
 
   function refresh() {
     refreshRequested.current = true;
