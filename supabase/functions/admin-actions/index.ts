@@ -106,6 +106,30 @@ Deno.serve(async (request) => {
       return json(201, { invited: true });
     }
 
+    if (action === "invite_pier_user") {
+      const fullName = text(input.fullName, 160);
+      const email = text(input.email, 320)?.toLowerCase();
+      if (!fullName || !/^\S+\s+\S+/.test(fullName) || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return json(400, { error: "Nome completo e e-mail válido são obrigatórios" });
+      }
+      const appBaseUrl = Deno.env.get("APP_BASE_URL");
+      if (!appBaseUrl || !appBaseUrl.startsWith("https://")) return json(503, { error: "App invite URL is not configured" });
+      const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+        data: { full_name: fullName },
+        redirectTo: `${appBaseUrl.replace(/\/$/, "")}/onboarding`,
+      });
+      if (inviteError || !invite.user) return json(409, { error: "Convite não enviado. Confira se o usuário já existe e a configuração de e-mail." });
+      const { error: accessError } = await admin.rpc("add_internal_admin_invite", {
+        p_user_id: invite.user.id,
+        p_created_by: userData.user.id,
+      });
+      if (accessError) {
+        await admin.auth.admin.deleteUser(invite.user.id).catch(() => undefined);
+        throw accessError;
+      }
+      return json(201, { invited: true });
+    }
+
     if (action === "create_connection") {
       const name = text(input.name, 160);
       const endpointUrl = text(input.endpointUrl, 2048);

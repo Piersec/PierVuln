@@ -264,7 +264,7 @@ export function CustomerBook() {
           <div className="nav-caption">WORKSPACE</div>
           <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
           <Link className="nav-link active" href="/book" aria-current="page" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
-          {isInternal && <Link className="nav-link" href="/#admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}
+          {isInternal && <Link className="nav-link" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}
         </nav>
         <div className="sidebar-bottom"><div className="avatar">{session.user.email?.slice(0, 1).toUpperCase() ?? "U"}</div><div className="user-info"><strong>{session.user.email}</strong><span>{isInternal ? "Equipe Pier" : selectedCompanyName ?? "Cliente"}</span></div><button className="book-signout" onClick={() => void signOut()}>Sair</button></div>
       </aside>
@@ -375,7 +375,7 @@ export function CustomerBook() {
           <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte Wazuh" : "fontes Wazuh"}</span></footer>
         </div>
       </section>
-      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/#admin">Administração</Link>}</nav>
+      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/admin">Administração</Link>}</nav>
     </main>
   );
 }
