@@ -41,7 +41,17 @@ async function sha256(value: string) {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return json(204, {});
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "authorization, apikey, content-type, x-client-info",
+        "access-control-allow-methods": "POST, OPTIONS",
+        "cache-control": "no-store",
+      },
+    });
+  }
   if (request.method !== "POST") return json(405, { error: "Method not allowed" });
   const jwt = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!jwt) return json(401, { error: "Authentication required" });
