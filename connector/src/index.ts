@@ -20,8 +20,8 @@ function readConfig(): ConnectorConfig & { indexerUrl: string; username: string;
     publishableKey: required("SUPABASE_PUBLISHABLE_KEY"),
     connectionId: required("WAZUH_CONNECTION_ID"),
     ingestToken: required("WAZUH_INGEST_TOKEN"),
-    syncIntervalSeconds: positiveInteger(process.env.SYNC_INTERVAL_SECONDS, 300, "SYNC_INTERVAL_SECONDS"),
-    pageSize: positiveInteger(process.env.INDEXER_PAGE_SIZE, 100, "INDEXER_PAGE_SIZE"),
+    syncIntervalSeconds: positiveInteger(process.env.SYNC_INTERVAL_SECONDS, 60, "SYNC_INTERVAL_SECONDS"),
+    pageSize: positiveInteger(process.env.INDEXER_PAGE_SIZE, 500, "INDEXER_PAGE_SIZE"),
     indexerIndexPattern: process.env.INDEXER_INDEX_PATTERN?.trim() || "wazuh-states-vulnerabilities-*",
   };
   if (!/^https:\/\//i.test(supabaseUrl)) throw new Error("SUPABASE_URL precisa usar HTTPS.");
@@ -45,13 +45,14 @@ async function main() {
     config.indexerIndexPattern,
   );
   const destination = new SupabaseIngestClient(config);
-  const version = await indexer.getVersion();
-  const count = await indexer.countDocuments();
-  const testScroll = await indexer.openScroll(1);
-  if (testScroll.scrollId) await indexer.clearScroll(testScroll.scrollId).catch(() => undefined);
-  console.info(`[connector] Indexer ${version} validado; ${count} documentos no índice.`);
-
-  if (process.argv.includes("--check")) return;
+  if (process.argv.includes("--check")) {
+    const version = await indexer.getVersion();
+    const count = await indexer.countDocuments();
+    const testScroll = await indexer.openScroll(1);
+    if (testScroll.scrollId) await indexer.clearScroll(testScroll.scrollId).catch(() => undefined);
+    console.info(`[connector] Indexer ${version} validado; ${count} documentos no índice.`);
+    return;
+  }
   while (true) {
     const startedAt = Date.now();
     try {

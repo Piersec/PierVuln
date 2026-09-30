@@ -3,6 +3,24 @@ import test from "node:test";
 import { normalizeWazuhDocument, WazuhIndexerClient } from "../src/wazuh.js";
 import { synchronizeSnapshot, type SupabaseIngestClient } from "../src/ingest.js";
 
+test("records a failed run when the Indexer is unreachable before the first page", async () => {
+  const calls: string[] = [];
+  const indexer = {
+    getVersion: async () => { throw new Error("Indexer connection timeout"); },
+  };
+  const destination = {
+    startSync: async () => { calls.push("start"); return "failed-run"; },
+    failSync: async (id: string, message: string) => {
+      assert.equal(id, "failed-run");
+      assert.match(message, /timeout/);
+      calls.push("fail");
+    },
+    finishSync: async () => { calls.push("finish"); },
+  };
+  await assert.rejects(synchronizeSnapshot(indexer as unknown as WazuhIndexerClient, destination as unknown as SupabaseIngestClient, 500), /timeout/);
+  assert.deepEqual(calls, ["start", "fail"]);
+});
+
 test("normalizes Wazuh Indexer fields without depending on the CSV column order", () => {
   const item = normalizeWazuhDocument("indexer-stable-id", {
     agent: { id: "004", name: "linux-prod-04", groups: ["linux", "production"] },

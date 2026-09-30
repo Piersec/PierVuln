@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLiveData } from "@/src/lib/use-live-data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { useErrorNotice, useFilterNotice } from "@/src/lib/use-filter-notice";
@@ -87,6 +88,7 @@ export function CustomerBook() {
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshRequested = useRef(false);
+  const live = useLiveData(supabase, contextReady ? session?.user.id : undefined, loading);
   useErrorNotice(error || contextError, "book-feedback");
   useFilterNotice("book-selection", companies.find((company) => company.id === selectedCompany)?.name ?? "Todas as empresas", contextReady && !!session);
 
@@ -257,11 +259,11 @@ export function CustomerBook() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [contextError, contextReady, isInternal, loadFindings, loadSyncSummary, notify, refreshKey, selectedCompany, session, supabase]);
+  }, [contextError, contextReady, isInternal, live.revision, loadFindings, loadSyncSummary, notify, refreshKey, selectedCompany, session, supabase]);
 
   const metrics = useMemo(() => buildMetrics(findings), [findings]);
   const selectedCompanyName = companies.find((company) => company.id === selectedCompany)?.name;
-  const syncAge = latestSync.finishedAt ? Date.now() - Date.parse(latestSync.finishedAt) : Number.POSITIVE_INFINITY;
+  const syncAge = latestSync.finishedAt ? live.now - Date.parse(latestSync.finishedAt) : Number.POSITIVE_INFINITY;
   const isStale = !Number.isFinite(syncAge) || syncAge > 10 * 60 * 1000;
   const displayCount = (value: number) => value.toLocaleString("pt-BR");
 
@@ -301,7 +303,7 @@ export function CustomerBook() {
         <div className="book-content" id="book-overview" tabIndex={-1}>
           <div className="book-heading">
             <div><h1>Book dos Clientes</h1><p>Exposição atual, criticidade e tempo de permanência das vulnerabilidades.</p></div>
-            <div className={`book-source-state ${isStale ? "book-source-stale" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Leitura desatualizada" : "Leitura completa") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Wazuh: ${formatDate(latestSync.finishedAt)}` : "Nenhum snapshot completo disponível"}</small></div>
+            <div className={`book-source-state ${isStale ? "book-source-stale" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : "Leitura completa") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Wazuh: ${formatDate(latestSync.finishedAt)}` : "Nenhum snapshot completo disponível"} · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
           </div>
 
           {contextError && <div className="book-alert" role="alert">{contextError}</div>}

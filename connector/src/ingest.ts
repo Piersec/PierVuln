@@ -70,12 +70,12 @@ export async function synchronizeSnapshot(
   destination: SupabaseIngestClient,
   pageSize: number,
 ): Promise<{ pages: number; documents: number; changed: number }> {
-  const version = await indexer.getVersion();
-  const runId = await destination.startSync(version);
+  const runId = await destination.startSync("unknown");
   let scrollId: string | null = null;
   let pages = 0;
   let documents = 0;
   try {
+    const version = await indexer.getVersion();
     let page: ScrollPage = await indexer.openScroll(pageSize);
     scrollId = page.scrollId;
     const expectedDocuments = page.total;
