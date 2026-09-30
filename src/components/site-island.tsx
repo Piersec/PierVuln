@@ -8,7 +8,7 @@ export function SiteIsland({ notices, dismiss, host }: { notices: AdminNotice[];
   const current = notices[0];
   const [expanded, setExpanded] = useState(true);
   const [paused, setPaused] = useState(false);
-  useEffect(() => { setExpanded(true); }, [current?.id]);
+  useEffect(() => { setExpanded(true); setPaused(false); }, [current?.id]);
   useEffect(() => {
     if (!current || paused) return;
     const timer = setTimeout(() => dismiss(current.id), current.error ? 9000 : 5000);
