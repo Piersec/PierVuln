@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Emails do PierVuln</title>
+<style>body{margin:0;background:#090a0b;color:#f6f7f7;font:16px/1.6 Arial,sans-serif}main{max-width:960px;margin:auto;padding:32px 16px}h1{font-size:32px;line-height:1.2}p{color:#a4a8ae}nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}a{color:#82ed79}nav a{display:inline-block;background:#252628;padding:10px 14px;border-radius:6px}a:focus-visible,summary:focus-visible{outline:2px solid #82ed79;outline-offset:4px}details{margin-bottom:24px}summary{padding:14px 0;cursor:pointer;font-weight:700}iframe{display:block;width:100%;height:950px;border:0;background:#090a0b}small{display:block;color:#a4a8ae;padding:8px 0;overflow-wrap:anywhere}.source{display:inline-block;padding:10px 0;min-height:24px}@media(max-width:600px){main{padding:24px 8px}h1{font-size:28px}iframe{height:1180px}}</style></head>
+<body><main><h1>Emails do PierVuln</h1><p>13 templates de autenticação e segurança. Os dados nesta prévia são exemplos; os arquivos de envio mantêm as variáveis do Supabase.</p><p>Abra o HTML de envio indicado em cada item e copie seu conteúdo para o painel Supabase. Esta página é apenas uma prévia.</p><nav aria-label="Templates"><a href="#confirm-sign-up">Confirm sign up</a><a href="#invite-user">Invite user</a><a href="#magic-link-or-otp">Magic link or OTP</a><a href="#change-email-address">Change email address</a><a href="#reset-password">Reset password</a><a href="#reauthentication">Reauthentication</a><a href="#password-changed">Password changed</a><a href="#email-address-changed">Email address changed</a><a href="#phone-number-changed">Phone number changed</a><a href="#sign-in-method-linked">Sign-in method linked</a><a href="#sign-in-method-removed">Sign-in method removed</a><a href="#mfa-method-added">MFA method added</a><a href="#mfa-method-removed">MFA method removed</a></nav>
+<details id="confirm-sign-up" open><summary>Confirm sign up</summary><small>Assunto: Confirme seu email | PierVuln</small><a class="source" href="confirm-sign-up.html">Abrir HTML de envio: confirm-sign-up.html</a><iframe sandbox title="Prévia: Confirm sign up" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Confirme seu email | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Confirme seu endereço para concluir o cadastro no PierVuln.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Confirme seu email&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Confirme que este endereço de email é seu para concluir o cadastro e acessar o PierVuln.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:8px 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#61df57&quot; style=&quot;background-color:#61df57;border-radius:999px;text-align:center;mso-padding-alt:14px 26px;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;display:inline-block;padding:14px 26px;border-radius:999px;color:#0a1209;font-size:16px;font-weight:700;line-height:24px;text-decoration:none;mso-padding-alt:0;&quot;&gt;Confirmar email&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Este link é de uso único. Se estiver expirado, solicite um novo link no PierVuln.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 8px;color:#a4a8ae;font-size:13px;line-height:21px;&quot;&gt;Se o botão não abrir, copie e cole este endereço no navegador:&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:13px;line-height:21px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;color:#82ed79;text-decoration:underline;word-break:break-all;&quot;&gt;https://example.com/preview-confirmation&lt;/a&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Não foi você?&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Se você não criou uma conta no PierVuln, ignore este email.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Mensagem de acesso à sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="invite-user" open><summary>Invite user</summary><small>Assunto: Você foi convidado para o PierVuln</small><a class="source" href="invite-user.html">Abrir HTML de envio: invite-user.html</a><iframe sandbox title="Prévia: Invite user" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Você foi convidado para o PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Aceite o convite e configure seu acesso ao PierVuln.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Seu convite para o PierVuln&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Você recebeu um convite para criar uma conta no PierVuln. Aceite o convite para configurar sua senha e acessar o ambiente da sua equipe.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:8px 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#61df57&quot; style=&quot;background-color:#61df57;border-radius:999px;text-align:center;mso-padding-alt:14px 26px;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;display:inline-block;padding:14px 26px;border-radius:999px;color:#0a1209;font-size:16px;font-weight:700;line-height:24px;text-decoration:none;mso-padding-alt:0;&quot;&gt;Aceitar convite&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Este link é de uso único. Se estiver expirado, solicite um novo link no PierVuln.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 8px;color:#a4a8ae;font-size:13px;line-height:21px;&quot;&gt;Se o botão não abrir, copie e cole este endereço no navegador:&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:13px;line-height:21px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;color:#82ed79;text-decoration:underline;word-break:break-all;&quot;&gt;https://example.com/preview-confirmation&lt;/a&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Não foi você?&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Se você não esperava este convite, confirme com o administrador da sua equipe antes de continuar.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Mensagem de acesso à sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="magic-link-or-otp" open><summary>Magic link or OTP</summary><small>Assunto: Seu link de acesso | PierVuln</small><a class="source" href="magic-link-or-otp.html">Abrir HTML de envio: magic-link-or-otp.html</a><iframe sandbox title="Prévia: Magic link or OTP" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Seu link de acesso | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Use este link para entrar na sua conta do PierVuln.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Entre no PierVuln&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Recebemos uma solicitação de acesso à sua conta. Use o botão abaixo para entrar no PierVuln sem digitar sua senha.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:8px 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#61df57&quot; style=&quot;background-color:#61df57;border-radius:999px;text-align:center;mso-padding-alt:14px 26px;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;display:inline-block;padding:14px 26px;border-radius:999px;color:#0a1209;font-size:16px;font-weight:700;line-height:24px;text-decoration:none;mso-padding-alt:0;&quot;&gt;Entrar no PierVuln&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Este link é de uso único. Se estiver expirado, solicite um novo link no PierVuln.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 8px;color:#a4a8ae;font-size:13px;line-height:21px;&quot;&gt;Se o botão não abrir, copie e cole este endereço no navegador:&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:13px;line-height:21px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;color:#82ed79;text-decoration:underline;word-break:break-all;&quot;&gt;https://example.com/preview-confirmation&lt;/a&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Não foi você?&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Se você não solicitou este acesso, ignore este email. Não compartilhe este link.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Mensagem de acesso à sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="change-email-address" open><summary>Change email address</summary><small>Assunto: Confirme a alteração de email | PierVuln</small><a class="source" href="change-email-address.html">Abrir HTML de envio: change-email-address.html</a><iframe sandbox title="Prévia: Change email address" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Confirme a alteração de email | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Verifique a solicitação de alteração do email da sua conta.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Confirme a alteração de email&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Recebemos uma solicitação para alterar o email da sua conta. Confirme a alteração pelo botão abaixo.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Email atual&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;usuario@example.com&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Novo email&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;novo@example.com&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+          &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:8px 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#61df57&quot; style=&quot;background-color:#61df57;border-radius:999px;text-align:center;mso-padding-alt:14px 26px;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;display:inline-block;padding:14px 26px;border-radius:999px;color:#0a1209;font-size:16px;font-weight:700;line-height:24px;text-decoration:none;mso-padding-alt:0;&quot;&gt;Confirmar alteração&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Este link é de uso único. Se estiver expirado, solicite um novo link no PierVuln.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 8px;color:#a4a8ae;font-size:13px;line-height:21px;&quot;&gt;Se o botão não abrir, copie e cole este endereço no navegador:&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:13px;line-height:21px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;color:#82ed79;text-decoration:underline;word-break:break-all;&quot;&gt;https://example.com/preview-confirmation&lt;/a&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Não foi você?&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Se você não solicitou esta alteração, não confirme. Avise o administrador da sua equipe.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Mensagem de acesso à sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="reset-password" open><summary>Reset password</summary><small>Assunto: Redefina sua senha | PierVuln</small><a class="source" href="reset-password.html">Abrir HTML de envio: reset-password.html</a><iframe sandbox title="Prévia: Reset password" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Redefina sua senha | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Use este link para escolher uma nova senha no PierVuln.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Redefina sua senha&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Recebemos uma solicitação para redefinir a senha da sua conta. Use o botão abaixo para escolher uma nova senha.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:8px 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#61df57&quot; style=&quot;background-color:#61df57;border-radius:999px;text-align:center;mso-padding-alt:14px 26px;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;display:inline-block;padding:14px 26px;border-radius:999px;color:#0a1209;font-size:16px;font-weight:700;line-height:24px;text-decoration:none;mso-padding-alt:0;&quot;&gt;Redefinir senha&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Este link é de uso único. Se estiver expirado, solicite um novo link no PierVuln.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 8px;color:#a4a8ae;font-size:13px;line-height:21px;&quot;&gt;Se o botão não abrir, copie e cole este endereço no navegador:&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:13px;line-height:21px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;&lt;a href=&quot;https://example.com/preview-confirmation&quot; style=&quot;color:#82ed79;text-decoration:underline;word-break:break-all;&quot;&gt;https://example.com/preview-confirmation&lt;/a&gt;&lt;/p&gt;
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Não foi você?&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Se você não solicitou a redefinição, ignore este email. Sua senha permanece a mesma.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Mensagem de acesso à sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="reauthentication" open><summary>Reauthentication</summary><small>Assunto: Seu código de verificação | PierVuln</small><a class="source" href="reauthentication.html">Abrir HTML de envio: reauthentication.html</a><iframe sandbox title="Prévia: Reauthentication" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Seu código de verificação | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Use seu código de verificação para continuar no PierVuln.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Confirme sua identidade&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Para continuar com uma operação na sua conta, digite o código abaixo na tela de verificação do PierVuln.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:4px 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:24px 16px;background-color:#121315;border-radius:12px;text-align:center;&quot;&gt;&lt;p style=&quot;margin:0 0 12px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Código de verificação&lt;/p&gt;&lt;p style=&quot;margin:0;color:#61df57;font-family:'IBM Plex Mono',Consolas,monospace;font-size:32px;font-weight:700;line-height:40px;letter-spacing:6px;&quot;&gt;123456&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;O código é de uso único. Se estiver expirado, solicite um novo código na tela de verificação.&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Não foi você?&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Se você não iniciou esta operação, ignore este email e avise o administrador da sua equipe. Não compartilhe o código.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Mensagem de acesso à sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="password-changed" open><summary>Password changed</summary><small>Assunto: Sua senha foi alterada | PierVuln</small><a class="source" href="password-changed.html">Abrir HTML de envio: password-changed.html</a><iframe sandbox title="Prévia: Password changed" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Sua senha foi alterada | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;A senha da sua conta do PierVuln foi alterada.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Sua senha foi alterada&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;A senha de acesso à sua conta do PierVuln foi alterada.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece, solicite a redefinição da senha e avise o administrador da sua equipe.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="email-address-changed" open><summary>Email address changed</summary><small>Assunto: Seu email foi alterado | PierVuln</small><a class="source" href="email-address-changed.html">Abrir HTML de envio: email-address-changed.html</a><iframe sandbox title="Prévia: Email address changed" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Seu email foi alterado | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;O endereço de email da sua conta foi atualizado.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Seu email foi alterado&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;O endereço de email associado à sua conta do PierVuln foi alterado.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Email anterior&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;anterior@example.com&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Email atual&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;usuario@example.com&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece e avise o administrador da sua equipe imediatamente.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="phone-number-changed" open><summary>Phone number changed</summary><small>Assunto: Seu telefone foi alterado | PierVuln</small><a class="source" href="phone-number-changed.html">Abrir HTML de envio: phone-number-changed.html</a><iframe sandbox title="Prévia: Phone number changed" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Seu telefone foi alterado | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;O número de telefone da sua conta foi atualizado.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Seu telefone foi alterado&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;O número de telefone associado à sua conta do PierVuln foi alterado.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Telefone anterior&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;+55 (11) 00000-0001&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Telefone atual&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;+55 (11) 00000-0000&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece e avise o administrador da sua equipe imediatamente.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="sign-in-method-linked" open><summary>Sign-in method linked</summary><small>Assunto: Novo método de acesso vinculado | PierVuln</small><a class="source" href="sign-in-method-linked.html">Abrir HTML de envio: sign-in-method-linked.html</a><iframe sandbox title="Prévia: Sign-in method linked" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Novo método de acesso vinculado | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Um método de acesso foi vinculado à sua conta.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Um método de acesso foi vinculado&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Um método de acesso foi vinculado à sua conta do PierVuln.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Provedor&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;google&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece e avise o administrador da sua equipe imediatamente.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="sign-in-method-removed" open><summary>Sign-in method removed</summary><small>Assunto: Método de acesso removido | PierVuln</small><a class="source" href="sign-in-method-removed.html">Abrir HTML de envio: sign-in-method-removed.html</a><iframe sandbox title="Prévia: Sign-in method removed" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Método de acesso removido | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Um método de acesso foi removido da sua conta.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Um método de acesso foi removido&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Um método de acesso foi removido da sua conta do PierVuln.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Provedor&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;google&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece e avise o administrador da sua equipe imediatamente.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="mfa-method-added" open><summary>MFA method added</summary><small>Assunto: Verificação adicional ativada | PierVuln</small><a class="source" href="mfa-method-added.html">Abrir HTML de envio: mfa-method-added.html</a><iframe sandbox title="Prévia: MFA method added" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Verificação adicional ativada | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Um método de autenticação adicional foi adicionado à sua conta.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Uma verificação adicional foi ativada&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Um método de autenticação multifator (MFA) foi adicionado à sua conta do PierVuln.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Tipo de verificação&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;totp&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece e avise o administrador da sua equipe imediatamente.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<details id="mfa-method-removed" open><summary>MFA method removed</summary><small>Assunto: Verificação adicional removida | PierVuln</small><a class="source" href="mfa-method-removed.html">Abrir HTML de envio: mfa-method-removed.html</a><iframe sandbox title="Prévia: MFA method removed" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;pt-BR&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;meta name=&quot;x-apple-disable-message-reformatting&quot;&gt;
+  &lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;&gt;
+  &lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;&gt;
+  &lt;title&gt;Verificação adicional removida | PierVuln&lt;/title&gt;
+  &lt;!--[if mso]&gt;&lt;style&gt;body,table,td,p,a,h1{font-family:Arial,sans-serif !important;}&lt;/style&gt;&lt;![endif]--&gt;
+  &lt;style&gt;
+    a:focus-visible{outline:2px solid #82ed79;outline-offset:4px;}
+    @media only screen and (max-width:600px){
+      .email-shell{padding:20px 12px !important;}
+      .email-content{padding:28px 22px !important;}
+      .email-title{font-size:27px !important;line-height:34px !important;}
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;width:100%;background-color:#090a0b;color:#f6f7f7;font-family:'IBM Plex Sans',Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;&quot;&gt;
+  &lt;div style=&quot;display:none;font-size:1px;line-height:1px;color:#090a0b;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;Um método de autenticação adicional foi removido da sua conta.&lt;/div&gt;
+  &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#090a0b&quot; style=&quot;width:100%;background-color:#090a0b;&quot;&gt;
+    &lt;tr&gt;&lt;td class=&quot;email-shell&quot; align=&quot;center&quot; style=&quot;padding:40px 16px;&quot;&gt;
+      &lt;!--[if mso]&gt;&lt;table role=&quot;presentation&quot; width=&quot;560&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;![endif]--&gt;
+      &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:560px;table-layout:fixed;&quot;&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:0 8px 24px;&quot;&gt;
+          &lt;p style=&quot;margin:0;color:#f6f7f7;font-size:26px;font-weight:700;line-height:34px;&quot;&gt;Pier&lt;span style=&quot;font-weight:400;&quot;&gt;Vuln&lt;/span&gt;&lt;/p&gt;
+          &lt;p style=&quot;margin:6px 0 0;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Gestão de vulnerabilidades&lt;/p&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td class=&quot;email-content&quot; bgcolor=&quot;#191a1c&quot; style=&quot;padding:36px;background-color:#191a1c;border-radius:15px;&quot;&gt;
+          &lt;h1 class=&quot;email-title&quot; style=&quot;margin:0 0 20px;color:#f6f7f7;font-size:32px;font-weight:700;line-height:40px;letter-spacing:-0.6px;&quot;&gt;Uma verificação adicional foi removida&lt;/h1&gt;
+          &lt;p style=&quot;margin:0 0 20px;color:#a4a8ae;font-size:16px;line-height:26px;&quot;&gt;Um método de autenticação multifator (MFA) foi removido da sua conta do PierVuln.&lt;/p&gt;
+          &lt;p style=&quot;margin:0 0 24px;color:#a4a8ae;font-size:13px;line-height:21px;word-break:break-all;&quot;&gt;Conta: &lt;span style=&quot;color:#f6f7f7;&quot;&gt;usuario@example.com&lt;/span&gt;&lt;/p&gt;
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;margin:0 0 24px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#121315&quot; style=&quot;padding:20px;background-color:#121315;border-radius:12px;&quot;&gt;&lt;p style=&quot;margin:0 0 6px;color:#a4a8ae;font-size:13px;line-height:20px;&quot;&gt;Tipo de verificação&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;color:#f6f7f7;font-size:16px;line-height:24px;word-break:break-all;overflow-wrap:anywhere;&quot;&gt;totp&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+
+          &lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;table-layout:fixed;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding-top:24px;border-top:1px solid #35373a;&quot;&gt;
+            &lt;p style=&quot;margin:0 0 8px;color:#f6f7f7;font-size:14px;font-weight:700;line-height:22px;&quot;&gt;Sobre esta alteração&lt;/p&gt;
+            &lt;p style=&quot;margin:0;color:#a4a8ae;font-size:14px;line-height:23px;&quot;&gt;Não reconhece esta alteração? Acesse o PierVuln pelo endereço que você já conhece e avise o administrador da sua equipe imediatamente.&lt;/p&gt;
+          &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;padding:24px 8px 0;&quot;&gt;&lt;p style=&quot;margin:0;color:#a4a8ae;font-size:12px;line-height:20px;&quot;&gt;PierVuln · Notificação de segurança da sua conta&lt;br&gt;Mensagem automática. Não compartilhe senhas, códigos ou links de acesso.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;!--[if mso]&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;![endif]--&gt;
+    &lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+</main></body></html>
