@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { hasInviteLink } from "@/src/lib/temporary-auth-flow";
-import { HCAPTCHA_SITE_KEY } from "@/src/lib/auth-captcha";
+import { TURNSTILE_SITE_KEY } from "@/src/lib/auth-captcha";
 
 const inviteHashAtLoad = typeof window !== "undefined" && hasInviteLink() ? window.location.hash : "";
 
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const captcha = useRef<HCaptcha>(null);
+  const captcha = useRef<TurnstileInstance>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -50,7 +50,7 @@ export default function LoginPage() {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally {
       setCaptchaToken("");
-      captcha.current?.resetCaptcha();
+      captcha.current?.reset();
       setBusy(false);
     }
   }
@@ -69,7 +69,7 @@ export default function LoginPage() {
         <form onSubmit={onSignIn} className="form-stack">
           <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          <div className="auth-captcha"><HCaptcha ref={captcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setCaptchaToken} onExpire={() => setCaptchaToken("")} onError={() => { setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+          <div className="auth-captcha"><Turnstile ref={captcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark" }} onSuccess={setCaptchaToken} onExpire={() => setCaptchaToken("")} onError={() => { setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
           <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Entrando…" : "Entrar"}</button>
         </form>
         {notice && <p className="form-notice" role="status">{notice}</p>}

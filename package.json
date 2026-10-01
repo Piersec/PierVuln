@@ -18,9 +18,9 @@
     "test:connector": "tsx --test connector/test/*.test.ts"
   },
   "dependencies": {
-    "@hcaptcha/react-hcaptcha": "2.2.0",
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
+    "@marsidev/react-turnstile": "1.6.1",
     "@supabase/supabase-js": "2.117.2",
     "@tailwindcss/postcss": "^4.3.3",
     "lucide-react": "^1.48.0",

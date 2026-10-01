@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button, Switch } from "@heroui/react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
@@ -11,7 +11,7 @@ import { UserAvatar, profileUpdatedEvent } from "@/src/components/user-avatar";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { notificationTypes, type NotificationType } from "@/src/lib/notification-types";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
-import { HCAPTCHA_SITE_KEY } from "@/src/lib/auth-captcha";
+import { TURNSTILE_SITE_KEY } from "@/src/lib/auth-captcha";
 
 type Profile = { display_name: string; avatar_path: string | null };
 const avatarBucket = "profile-avatars";
@@ -44,8 +44,8 @@ export function UserSettings() {
   const { notify, disabledNotificationTypes, setNotificationTypeEnabled } = useSiteNotifications();
   const fileInput = useRef<HTMLInputElement>(null);
   const deleteDialog = useRef<HTMLDialogElement>(null);
-  const passwordCaptcha = useRef<HCaptcha>(null);
-  const deleteCaptcha = useRef<HCaptcha>(null);
+  const passwordCaptcha = useRef<TurnstileInstance>(null);
+  const deleteCaptcha = useRef<TurnstileInstance>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isInternal, setIsInternal] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -176,7 +176,7 @@ export function UserSettings() {
       setPasswordMessage("Senha alterada com sucesso.");
       notify({ title: "Senha da conta alterada.", key: "security" });
     } catch { setPasswordMessage("Não foi possível conectar. Tente novamente."); }
-    finally { setPasswordCaptchaToken(""); passwordCaptcha.current?.resetCaptcha(); setPasswordBusy(false); }
+    finally { setPasswordCaptchaToken(""); passwordCaptcha.current?.reset(); setPasswordBusy(false); }
   }
 
   async function signOut() {
@@ -190,7 +190,7 @@ export function UserSettings() {
     deleteDialog.current?.close();
     setDeleteOpen(false);
     setDeleteEmail(""); setDeletePassword(""); setDeleteMessage("");
-    setDeleteCaptchaToken(""); deleteCaptcha.current?.resetCaptcha();
+    setDeleteCaptchaToken(""); deleteCaptcha.current?.reset();
   }
 
   async function deleteAccount(event: FormEvent<HTMLFormElement>) {
@@ -223,7 +223,7 @@ export function UserSettings() {
       window.location.replace("/login");
     } catch {
       setDeleteMessage("Não foi possível conectar. Tente novamente.");
-    } finally { setDeleteCaptchaToken(""); deleteCaptcha.current?.resetCaptcha(); setDeleteBusy(false); }
+    } finally { setDeleteCaptchaToken(""); deleteCaptcha.current?.reset(); setDeleteBusy(false); }
   }
 
   if (status === "loading") return <main className="loading-screen"><Brand /><div className="spinner" /><p>Preparando configurações…</p></main>;
@@ -272,7 +272,7 @@ export function UserSettings() {
             <label>Nova senha<input type="password" autoComplete="new-password" minLength={12} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
             <label>Confirme a nova senha<input type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label>
             <p>Use ao menos 12 caracteres, com maiúscula, minúscula, número e símbolo.</p>
-            <div className="auth-captcha"><HCaptcha ref={passwordCaptcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setPasswordCaptchaToken} onExpire={() => setPasswordCaptchaToken("")} onError={() => { setPasswordCaptchaToken(""); setPasswordMessage("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+            <div className="auth-captcha"><Turnstile ref={passwordCaptcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark" }} onSuccess={setPasswordCaptchaToken} onExpire={() => setPasswordCaptchaToken("")} onError={() => { setPasswordCaptchaToken(""); setPasswordMessage("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
             <Button type="submit" isDisabled={passwordBusy || !passwordCaptchaToken}>{passwordBusy ? "Salvando…" : "Alterar senha"}</Button>
           </form>
           {passwordMessage && <p className="settings-feedback" role="status">{passwordMessage}</p>}
@@ -294,7 +294,7 @@ export function UserSettings() {
           <label>E-mail de confirmação<input type="email" autoComplete="off" required value={deleteEmail} onChange={(event) => setDeleteEmail(event.target.value)} /></label>
           <label>Senha atual<input type="password" autoComplete="current-password" required value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} /></label>
         </fieldset>
-        {deleteOpen && <div className="auth-captcha"><HCaptcha ref={deleteCaptcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setDeleteCaptchaToken} onExpire={() => setDeleteCaptchaToken("")} onError={() => { setDeleteCaptchaToken(""); setDeleteMessage("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>}
+        {deleteOpen && <div className="auth-captcha"><Turnstile ref={deleteCaptcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark" }} onSuccess={setDeleteCaptchaToken} onExpire={() => setDeleteCaptchaToken("")} onError={() => { setDeleteCaptchaToken(""); setDeleteMessage("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>}
         {deleteMessage && <p className="settings-delete-error" role="alert">{deleteMessage}</p>}
         <div className="admin-dialog-footer"><Button variant="secondary" isDisabled={deleteBusy} onPress={closeDeleteDialog}>Cancelar</Button><Button type="submit" variant="danger" isDisabled={deleteBusy || deleteEmail.trim().toLowerCase() !== user.email?.toLowerCase() || !deletePassword || !deleteCaptchaToken}>{deleteBusy ? "Excluindo…" : "Excluir minha conta"}</Button></div>
       </form>
