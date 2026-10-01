@@ -33,13 +33,15 @@ Deno.serve(async (request) => {
   const user = identity.data.user;
   if (identity.error || !user?.email) return json(401, { error: "Sua sessão não pôde ser validada. Entre novamente." });
 
-  let input: { password?: unknown; confirmation?: unknown };
+  let input: { password?: unknown; confirmation?: unknown; captchaToken?: unknown };
   try { input = await request.json(); }
   catch { return json(400, { error: "Confirmação inválida." }); }
   const password = input.password;
   const confirmation = input.confirmation;
+  const captchaToken = input.captchaToken;
   if (typeof password !== "string" || !password || password.length > 256
-    || typeof confirmation !== "string" || confirmation.trim().toLocaleLowerCase() !== user.email.toLocaleLowerCase()) {
+    || typeof confirmation !== "string" || confirmation.trim().toLocaleLowerCase() !== user.email.toLocaleLowerCase()
+    || typeof captchaToken !== "string" || !captchaToken || captchaToken.length > 4096) {
     return json(400, { error: "Confirme o e-mail e informe sua senha atual." });
   }
 
@@ -54,7 +56,7 @@ Deno.serve(async (request) => {
   }
 
   const passwordClient = createClient(url, publicKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const verifiedPassword = await passwordClient.auth.signInWithPassword({ email: user.email, password });
+  const verifiedPassword = await passwordClient.auth.signInWithPassword({ email: user.email, password, options: { captchaToken } });
   if (verifiedPassword.error || verifiedPassword.data.user?.id !== user.id) return json(403, { error: "A senha atual não confere." });
 
   const guard = await admin.rpc("can_delete_user_account", { p_user_id: user.id });

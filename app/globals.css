@@ -495,6 +495,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .form-stack { display: grid; gap: 16px; }
 .form-stack input { width: 100%; min-height: 48px; margin-top: 3px; }
 .form-stack .button { width: 100%; margin-top: 3px; }
+.auth-captcha { max-width: 100%; overflow-x: auto; }
 .form-notice { margin: 16px 0 0 !important; padding: 11px 13px; border: 1px solid #a45a67; border-radius: 5px; background: #351e28; color: #ffd3d9 !important; font-size: 13px !important; }
 .back-link { align-self: flex-start; display: inline-flex; min-height: 44px; align-items: center; margin-top: 18px; color: var(--accent-strong); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .welcome-shell { display: grid; min-height: 100svh; grid-template-columns: minmax(0, 1fr) minmax(340px, .8fr); background: var(--canvas); }

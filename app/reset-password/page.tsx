@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { clearTemporaryAuthFlow, grantTemporaryAuthFlow, hasTemporaryAuthFlow } from "@/src/lib/temporary-auth-flow";
+import { HCAPTCHA_SITE_KEY } from "@/src/lib/auth-captcha";
 
 type Step = "checking" | "request" | "sent" | "update" | "invalid" | "done";
 
@@ -16,6 +18,8 @@ export default function ResetPasswordPage() {
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captcha = useRef<HCaptcha>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -67,11 +71,13 @@ export default function ResetPasswordPage() {
   async function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || busy) return;
+    if (!captchaToken) { setNotice("Confirme o desafio de segurança para solicitar o link."); return; }
     setBusy(true);
     setNotice("");
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password?mode=update`,
+        captchaToken,
       });
       if (error) {
         setNotice(error.status === 429
@@ -80,7 +86,7 @@ export default function ResetPasswordPage() {
       } else setStep("sent");
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
-    } finally { setBusy(false); }
+    } finally { setCaptchaToken(""); captcha.current?.resetCaptcha(); setBusy(false); }
   }
 
   async function savePassword(event: FormEvent<HTMLFormElement>) {
@@ -130,7 +136,8 @@ export default function ResetPasswordPage() {
             <p>Informe o e-mail da sua conta para receber um link de redefinição de senha.</p>
             <form onSubmit={requestReset} className="form-stack" aria-busy={busy}>
               <label>E-mail<input type="email" autoComplete="email" required disabled={busy} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-              <button className="button button-primary" disabled={busy}>{busy ? "Solicitando…" : "Enviar link de recuperação"}</button>
+              <div className="auth-captcha"><HCaptcha ref={captcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setCaptchaToken} onExpire={() => setCaptchaToken("")} onError={() => { setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+              <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Solicitando…" : "Enviar link de recuperação"}</button>
             </form>
           </>}
           {step === "sent" && <>

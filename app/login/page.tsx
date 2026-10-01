@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { hasInviteLink } from "@/src/lib/temporary-auth-flow";
+import { HCAPTCHA_SITE_KEY } from "@/src/lib/auth-captcha";
 
 const inviteHashAtLoad = typeof window !== "undefined" && hasInviteLink() ? window.location.hash : "";
 
@@ -17,6 +19,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captcha = useRef<HCaptcha>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -33,12 +37,22 @@ export default function LoginPage() {
   async function onSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) return;
+    if (!captchaToken) { setNotice("Confirme o desafio de segurança para entrar."); return; }
     setBusy(true);
     setNotice("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setNotice("Não foi possível entrar. Confira o e-mail e a senha ou peça um novo convite à equipe.");
-    else router.replace("/");
-    setBusy(false);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
+      if (error) setNotice(error.code === "captcha_failed"
+        ? "Não foi possível validar o desafio de segurança. Tente novamente."
+        : "Não foi possível entrar. Confira o e-mail e a senha ou peça um novo convite à equipe.");
+      else router.replace("/");
+    } catch {
+      setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
+    } finally {
+      setCaptchaToken("");
+      captcha.current?.resetCaptcha();
+      setBusy(false);
+    }
   }
 
   if (!supabase) {
@@ -55,7 +69,8 @@ export default function LoginPage() {
         <form onSubmit={onSignIn} className="form-stack">
           <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          <button className="button button-primary" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
+          <div className="auth-captcha"><HCaptcha ref={captcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setCaptchaToken} onExpire={() => setCaptchaToken("")} onError={() => { setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+          <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Entrando…" : "Entrar"}</button>
         </form>
         {notice && <p className="form-notice" role="status">{notice}</p>}
         <Link href="/reset-password" className="back-link">Esqueci minha senha</Link>

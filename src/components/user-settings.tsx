@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button, Switch } from "@heroui/react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
@@ -10,6 +11,7 @@ import { UserAvatar, profileUpdatedEvent } from "@/src/components/user-avatar";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { notificationTypes, type NotificationType } from "@/src/lib/notification-types";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { HCAPTCHA_SITE_KEY } from "@/src/lib/auth-captcha";
 
 type Profile = { display_name: string; avatar_path: string | null };
 const avatarBucket = "profile-avatars";
@@ -42,6 +44,8 @@ export function UserSettings() {
   const { notify, disabledNotificationTypes, setNotificationTypeEnabled } = useSiteNotifications();
   const fileInput = useRef<HTMLInputElement>(null);
   const deleteDialog = useRef<HTMLDialogElement>(null);
+  const passwordCaptcha = useRef<HCaptcha>(null);
+  const deleteCaptcha = useRef<HCaptcha>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isInternal, setIsInternal] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -52,6 +56,7 @@ export function UserSettings() {
   const [preferenceBusy, setPreferenceBusy] = useState<NotificationType | null>(null);
   const [profileMessage, setProfileMessage] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordCaptchaToken, setPasswordCaptchaToken] = useState("");
   const [preferenceMessage, setPreferenceMessage] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -59,7 +64,9 @@ export function UserSettings() {
   const [deleteEmail, setDeleteEmail] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleteCaptchaToken, setDeleteCaptchaToken] = useState("");
 
   useEffect(() => {
     if (!client) { setStatus("error"); return; }
@@ -155,12 +162,13 @@ export function UserSettings() {
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client || !user?.email) return;
+    if (!passwordCaptchaToken) { setPasswordMessage("Confirme o desafio de segurança."); return; }
     if (!strongPassword(newPassword)) { setPasswordMessage("Use ao menos 12 caracteres, com maiúscula, minúscula, número e símbolo."); return; }
     if (newPassword !== confirmPassword) { setPasswordMessage("As novas senhas não coincidem."); return; }
     if (currentPassword === newPassword) { setPasswordMessage("Escolha uma senha diferente da atual."); return; }
     setPasswordBusy(true); setPasswordMessage("");
     try {
-      const verified = await client.auth.signInWithPassword({ email: user.email, password: currentPassword });
+      const verified = await client.auth.signInWithPassword({ email: user.email, password: currentPassword, options: { captchaToken: passwordCaptchaToken } });
       if (verified.error) { setPasswordMessage("A senha atual está incorreta."); return; }
       const changed = await client.auth.updateUser({ password: newPassword });
       if (changed.error) { setPasswordMessage("Não foi possível alterar a senha. Tente novamente ou use a recuperação de acesso."); return; }
@@ -168,7 +176,7 @@ export function UserSettings() {
       setPasswordMessage("Senha alterada com sucesso.");
       notify({ title: "Senha da conta alterada.", key: "security" });
     } catch { setPasswordMessage("Não foi possível conectar. Tente novamente."); }
-    finally { setPasswordBusy(false); }
+    finally { setPasswordCaptchaToken(""); passwordCaptcha.current?.resetCaptcha(); setPasswordBusy(false); }
   }
 
   async function signOut() {
@@ -180,12 +188,15 @@ export function UserSettings() {
   function closeDeleteDialog() {
     if (deleteBusy) return;
     deleteDialog.current?.close();
+    setDeleteOpen(false);
     setDeleteEmail(""); setDeletePassword(""); setDeleteMessage("");
+    setDeleteCaptchaToken(""); deleteCaptcha.current?.resetCaptcha();
   }
 
   async function deleteAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client || !user?.email || deleteBusy) return;
+    if (!deleteCaptchaToken) { setDeleteMessage("Confirme o desafio de segurança."); return; }
     if (deleteEmail.trim().toLowerCase() !== user.email.toLowerCase() || !deletePassword) {
       setDeleteMessage("Digite seu e-mail e sua senha atual para confirmar.");
       return;
@@ -193,7 +204,7 @@ export function UserSettings() {
     setDeleteBusy(true); setDeleteMessage("");
     try {
       const { data, error } = await client.functions.invoke("delete-account", {
-        body: { confirmation: deleteEmail.trim(), password: deletePassword },
+        body: { confirmation: deleteEmail.trim(), password: deletePassword, captchaToken: deleteCaptchaToken },
       });
       if (error || data?.success !== true) {
         let message = typeof data?.error === "string" ? data.error : "Não foi possível excluir a conta. Tente novamente.";
@@ -212,7 +223,7 @@ export function UserSettings() {
       window.location.replace("/login");
     } catch {
       setDeleteMessage("Não foi possível conectar. Tente novamente.");
-    } finally { setDeleteBusy(false); }
+    } finally { setDeleteCaptchaToken(""); deleteCaptcha.current?.resetCaptcha(); setDeleteBusy(false); }
   }
 
   if (status === "loading") return <main className="loading-screen"><Brand /><div className="spinner" /><p>Preparando configurações…</p></main>;
@@ -261,7 +272,8 @@ export function UserSettings() {
             <label>Nova senha<input type="password" autoComplete="new-password" minLength={12} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
             <label>Confirme a nova senha<input type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label>
             <p>Use ao menos 12 caracteres, com maiúscula, minúscula, número e símbolo.</p>
-            <Button type="submit" isDisabled={passwordBusy}>{passwordBusy ? "Salvando…" : "Alterar senha"}</Button>
+            <div className="auth-captcha"><HCaptcha ref={passwordCaptcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setPasswordCaptchaToken} onExpire={() => setPasswordCaptchaToken("")} onError={() => { setPasswordCaptchaToken(""); setPasswordMessage("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+            <Button type="submit" isDisabled={passwordBusy || !passwordCaptchaToken}>{passwordBusy ? "Salvando…" : "Alterar senha"}</Button>
           </form>
           {passwordMessage && <p className="settings-feedback" role="status">{passwordMessage}</p>}
           <div className="settings-mfa"><div><strong>Autenticação multifator</strong><p>Uma segunda etapa de verificação para entrar na conta.</p></div><span>Em breve</span></div>
@@ -269,7 +281,7 @@ export function UserSettings() {
 
         <section className="settings-section settings-danger" aria-labelledby="danger-title">
           <div className="settings-section-heading"><div><span className="settings-index">04 / ZONA DE PERIGO</span><h2 id="danger-title">Zona de perigo</h2><p>Encerrar sua conta é uma ação permanente. Os registros operacionais da empresa precisam ser preservados.</p></div></div>
-          <div className="settings-danger-row"><div><strong>Excluir minha conta</strong><p>Remove seu acesso e seu perfil pessoal. Casos e auditoria da empresa permanecem.</p></div><Button variant="danger-soft" onPress={() => deleteDialog.current?.showModal()}>Excluir conta</Button></div>
+          <div className="settings-danger-row"><div><strong>Excluir minha conta</strong><p>Remove seu acesso e seu perfil pessoal. Casos e auditoria da empresa permanecem.</p></div><Button variant="danger-soft" onPress={() => { setDeleteOpen(true); deleteDialog.current?.showModal(); }}>Excluir conta</Button></div>
         </section>
       </div>
     </section>
@@ -282,8 +294,9 @@ export function UserSettings() {
           <label>E-mail de confirmação<input type="email" autoComplete="off" required value={deleteEmail} onChange={(event) => setDeleteEmail(event.target.value)} /></label>
           <label>Senha atual<input type="password" autoComplete="current-password" required value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} /></label>
         </fieldset>
+        {deleteOpen && <div className="auth-captcha"><HCaptcha ref={deleteCaptcha} sitekey={HCAPTCHA_SITE_KEY} theme="dark" onVerify={setDeleteCaptchaToken} onExpire={() => setDeleteCaptchaToken("")} onError={() => { setDeleteCaptchaToken(""); setDeleteMessage("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>}
         {deleteMessage && <p className="settings-delete-error" role="alert">{deleteMessage}</p>}
-        <div className="admin-dialog-footer"><Button variant="secondary" isDisabled={deleteBusy} onPress={closeDeleteDialog}>Cancelar</Button><Button type="submit" variant="danger" isDisabled={deleteBusy || deleteEmail.trim().toLowerCase() !== user.email?.toLowerCase() || !deletePassword}>{deleteBusy ? "Excluindo…" : "Excluir minha conta"}</Button></div>
+        <div className="admin-dialog-footer"><Button variant="secondary" isDisabled={deleteBusy} onPress={closeDeleteDialog}>Cancelar</Button><Button type="submit" variant="danger" isDisabled={deleteBusy || deleteEmail.trim().toLowerCase() !== user.email?.toLowerCase() || !deletePassword || !deleteCaptchaToken}>{deleteBusy ? "Excluindo…" : "Excluir minha conta"}</Button></div>
       </form>
     </dialog>
   </main>;

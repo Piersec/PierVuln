@@ -18,6 +18,7 @@
     "test:connector": "tsx --test connector/test/*.test.ts"
   },
   "dependencies": {
+    "@hcaptcha/react-hcaptcha": "2.2.0",
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
     "@supabase/supabase-js": "2.117.2",
