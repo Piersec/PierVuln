@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/.next
+**/out
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+**/certs
+**/logs
+connector/oracle/connections
+connector/transfer-config.pvc

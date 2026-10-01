@@ -13,6 +13,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "connector:run": "tsx connector/src/index.ts",
+    "connector:job": "tsx connector/src/index.ts --once",
     "connector:check": "tsx connector/src/index.ts --check",
     "archive:run": "tsx connector/src/archive-scheduler.ts",
     "test:connector": "tsx --test connector/test/*.test.ts"

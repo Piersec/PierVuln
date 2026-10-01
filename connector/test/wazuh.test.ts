@@ -57,14 +57,15 @@ test("finishes a snapshot only after every page is received", async () => {
   let finishCalls = 0;
   const indexer = {
     getVersion: async () => "4.14.0",
-    openScroll: async () => ({ total: 2, scrollId: "s1", version: "4.14.0", hits: [{ _id: "one", _source: {} }] }),
-    nextScroll: async () => {
+    createPointInTime: async () => "pit-1",
+    searchPointInTime: async (_pitId: string, _pageSize: number, searchAfter: unknown[] | null) => {
       nextCall += 1;
-      return nextCall === 1
-        ? { total: -1, scrollId: "s2", version: "", hits: [{ _id: "two", _source: {} }] }
-        : { total: -1, scrollId: null, version: "", hits: [] };
+      if (!searchAfter) return { total: 2, pitId: "pit-1", hits: [{ _id: "one", _source: {}, sortValues: ["004", "CVE-1", "pkg", "1", "amd64"] }] };
+      return nextCall === 2
+        ? { total: 2, pitId: "pit-1", hits: [{ _id: "two", _source: {}, sortValues: ["004", "CVE-2", "pkg", "1", "amd64"] }] }
+        : { total: 2, pitId: "pit-1", hits: [] };
     },
-    clearScroll: async () => undefined,
+    closePointInTime: async () => undefined,
   };
   const destination = {
     startSync: async () => "run-id",
@@ -85,9 +86,11 @@ test("marks incomplete pagination failed and never calls the complete operation"
   let failCalls = 0;
   const indexer = {
     getVersion: async () => "4.14.0",
-    openScroll: async () => ({ total: 2, scrollId: "s1", version: "4.14.0", hits: [{ _id: "one", _source: {} }] }),
-    nextScroll: async () => ({ total: -1, scrollId: null, version: "", hits: [] }),
-    clearScroll: async () => undefined,
+    createPointInTime: async () => "pit-1",
+    searchPointInTime: async (_pitId: string, _pageSize: number, searchAfter: unknown[] | null) => searchAfter
+      ? { total: 2, pitId: "pit-1", hits: [] }
+      : { total: 2, pitId: "pit-1", hits: [{ _id: "one", _source: {}, sortValues: ["004", "CVE-1", "pkg", "1", "amd64"] }] },
+    closePointInTime: async () => undefined,
   };
   const destination = {
     startSync: async () => "run-id",

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { NormalizedFinding, ScrollPage, WazuhIndexerClient } from "./wazuh.js";
+import type { NormalizedFinding, SearchPage, WazuhIndexerClient } from "./wazuh.js";
 
 export type ConnectorConfig = {
   supabaseUrl: string;
@@ -8,6 +8,7 @@ export type ConnectorConfig = {
   ingestToken: string;
   syncIntervalSeconds: number;
   pageSize: number;
+  pageDelayMilliseconds: number;
   indexerIndexPattern: string;
 };
 
@@ -30,7 +31,7 @@ export class SupabaseIngestClient {
   }
 
   async ingestPage(runId: string, pageNumber: number, items: NormalizedFinding[]): Promise<number> {
-    const reply = await this.post(this.ingestUrl, { action: "page", runId, pageNumber, items });
+    const reply = await this.post(this.ingestUrl, { action: "page", runId, pageNumber, items }, true);
     return Number(reply.findingsChanged ?? 0);
   }
 
@@ -45,23 +46,41 @@ export class SupabaseIngestClient {
     await this.post(this.ingestUrl, { action: "fail", runId, error: error.slice(0, 1500) });
   }
 
-  private async post(url: string, payload: Record<string, unknown>): Promise<FunctionReply> {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        apikey: this.config.publishableKey,
-        authorization: `Bearer ${this.config.ingestToken}`,
-        "x-connection-id": this.config.connectionId,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!response.ok) {
+  private async post(url: string, payload: Record<string, unknown>, retrySafe = false): Promise<FunctionReply> {
+    const body = JSON.stringify(payload);
+    const maximumAttempts = retrySafe ? 5 : 1;
+    for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            apikey: this.config.publishableKey,
+            authorization: `Bearer ${this.config.ingestToken}`,
+            "x-connection-id": this.config.connectionId,
+            "content-type": "application/json",
+          },
+          body,
+          signal: AbortSignal.timeout(120_000),
+        });
+      } catch (error) {
+        if (attempt + 1 < maximumAttempts) {
+          await wait(Math.min(250 * 2 ** attempt, 30_000));
+          continue;
+        }
+        throw error;
+      }
+      if (response.ok) return await response.json() as FunctionReply;
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt + 1 >= maximumAttempts) {
+        await response.body?.cancel();
+        throw new Error(`Supabase recusou ${String(payload.action)} com HTTP ${response.status}.`);
+      }
+      const retryAfter = retryAfterMilliseconds(response.headers.get("retry-after"));
       await response.body?.cancel();
-      throw new Error(`Supabase recusou ${String(payload.action)} com HTTP ${response.status}.`);
+      await wait(retryAfter ?? Math.min(250 * 2 ** attempt, 30_000));
     }
-    return await response.json() as FunctionReply;
+    throw new Error(`Supabase recusou ${String(payload.action)} após várias tentativas.`);
   }
 }
 
@@ -69,17 +88,21 @@ export async function synchronizeSnapshot(
   indexer: WazuhIndexerClient,
   destination: SupabaseIngestClient,
   pageSize: number,
+  pageDelayMilliseconds = 250,
 ): Promise<{ pages: number; documents: number; changed: number }> {
   const runId = await destination.startSync("unknown");
-  let scrollId: string | null = null;
+  let pitId: string | null = null;
   let pages = 0;
   let documents = 0;
   try {
     const version = await indexer.getVersion();
-    let page: ScrollPage = await indexer.openScroll(pageSize);
-    scrollId = page.scrollId;
+    pitId = await indexer.createPointInTime();
+    let page: SearchPage = await indexer.searchPointInTime(pitId, pageSize);
+    pitId = page.pitId;
     const expectedDocuments = page.total;
+    if (expectedDocuments === null) throw new Error("O snapshot PIT não devolveu uma contagem exata.");
     let changed = 0;
+    let searchAfter: unknown[] | null = null;
 
     while (true) {
       const items = page.hits.map(normalizeHit);
@@ -88,11 +111,13 @@ export async function synchronizeSnapshot(
         pages += 1;
         documents += items.length;
       }
-      if (!page.scrollId || page.hits.length === 0) break;
-      scrollId = page.scrollId;
-      page = await indexer.nextScroll(scrollId);
-      if (page.scrollId) scrollId = page.scrollId;
       if (documents > expectedDocuments) throw new Error("A paginação trouxe mais documentos que o total informado.");
+      if (page.hits.length === 0 || page.hits.length < pageSize) break;
+
+      searchAfter = page.hits[page.hits.length - 1].sortValues;
+      await wait(pageDelayMilliseconds);
+      page = await indexer.searchPointInTime(pitId, pageSize, searchAfter);
+      pitId = page.pitId;
     }
 
     if (documents !== expectedDocuments) throw new Error("A paginação não recebeu todos os documentos do Indexer.");
@@ -103,8 +128,8 @@ export async function synchronizeSnapshot(
     try { await destination.failSync(runId, message); } catch { /* The next run retires stale records safely. */ }
     throw error;
   } finally {
-    if (scrollId) {
-      try { await indexer.clearScroll(scrollId); } catch { /* Scroll cleanup failure does not change snapshot completeness. */ }
+    if (pitId) {
+      try { await indexer.closePointInTime(pitId); } catch { /* PIT cleanup failure does not change snapshot completeness. */ }
     }
   }
 }
@@ -118,4 +143,16 @@ import { normalizeWazuhDocument } from "./wazuh.js";
 
 export function hashJson(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function retryAfterMilliseconds(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 30_000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.min(Math.max(0, date - Date.now()), 30_000) : null;
 }

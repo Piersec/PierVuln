@@ -96,7 +96,7 @@ export function normalizeWazuhDocument(documentId: string, sourceValue: unknown)
 }
 
 export type WazuhHit = { _id: string; _source: unknown };
-export type ScrollPage = { hits: WazuhHit[]; total: number; scrollId: string | null; version: string };
+export type SearchPage = { hits: Array<WazuhHit & { sortValues: unknown[] }>; total: number | null; pitId: string };
 
 class IndexerHttpError extends Error {
   constructor(readonly status: number, method: string, path: string) {
@@ -110,6 +110,31 @@ const networkErrorCodes = new Set([
   "ENOTFOUND", "EAI_AGAIN", "CERT_HAS_EXPIRED", "SELF_SIGNED_CERT_IN_CHAIN",
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "ERR_TLS_CERT_ALTNAME_INVALID",
 ]);
+
+const retryableNetworkErrorCodes = new Set([
+  "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET",
+  "ETIMEDOUT", "ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH", "EAI_AGAIN",
+]);
+
+const cursorSort = [
+  { "agent.id": { order: "asc" } },
+  { "vulnerability.id": { order: "asc" } },
+  { "package.name": { order: "asc" } },
+  { "package.version": { order: "asc" } },
+  { "package.architecture": { order: "asc" } },
+];
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function retryAfterMilliseconds(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 30_000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.min(Math.max(0, date - Date.now()), 30_000) : null;
+}
 
 function networkFailureReason(error: unknown): string {
   const pending = [error];
@@ -169,31 +194,36 @@ export class WazuhIndexerClient {
     return count;
   }
 
-  async openScroll(pageSize: number, scrollTtl = "2m"): Promise<ScrollPage> {
-    const query = new URLSearchParams({ scroll: scrollTtl });
-    const path = `/${this.indexPattern}/_search?${query.toString()}`;
-    const response = asRecord(await this.requestJson("POST", path, {
+  async createPointInTime(keepAlive = "5m"): Promise<string> {
+    const query = new URLSearchParams({ keep_alive: keepAlive });
+    const response = asRecord(await this.requestJson("POST", `/${this.indexPattern}/_search/point_in_time?${query.toString()}`));
+    const pitId = asString(response.pit_id, 8192);
+    if (!pitId) throw new Error("O Indexer não devolveu o ID do snapshot PIT.");
+    return pitId;
+  }
+
+  async searchPointInTime(
+    pitId: string,
+    pageSize: number,
+    searchAfter: unknown[] | null = null,
+    keepAlive = "5m",
+  ): Promise<SearchPage> {
+    const response = asRecord(await this.requestJson("POST", "/_search", {
       size: pageSize,
-      sort: ["_doc"],
-      track_total_hits: true,
+      pit: { id: pitId, keep_alive: keepAlive },
+      sort: cursorSort,
+      track_total_hits: searchAfter === null,
       query: { match_all: {} },
+      ...(searchAfter ? { search_after: searchAfter } : {}),
     }));
-    return this.parseScrollPage(response, true);
+    return this.parseSearchPage(response, pitId, searchAfter === null);
   }
 
-  async nextScroll(scrollId: string, scrollTtl = "2m"): Promise<ScrollPage> {
-    const response = asRecord(await this.requestJson("POST", "/_search/scroll", {
-      scroll: scrollTtl,
-      scroll_id: scrollId,
-    }));
-    return this.parseScrollPage(response, false);
+  async closePointInTime(pitId: string): Promise<void> {
+    await this.requestJson("DELETE", "/_search/point_in_time", { pit_id: [pitId] });
   }
 
-  async clearScroll(scrollId: string): Promise<void> {
-    await this.requestJson("DELETE", "/_search/scroll", { scroll_id: [scrollId] });
-  }
-
-  private parseScrollPage(result: UnknownRecord, requireExactTotal: boolean): ScrollPage {
+  private parseSearchPage(result: UnknownRecord, requestedPitId: string, requireExactTotal: boolean): SearchPage {
     if (result.timed_out === true) throw new Error("O Indexer encerrou a consulta por timeout.");
     const shards = asRecord(result._shards);
     if (Number(shards.failed ?? 0) > 0) throw new Error("O Indexer devolveu shards com falha.");
@@ -203,44 +233,63 @@ export class WazuhIndexerClient {
       ? totalBlock
       : Number(asRecord(totalBlock).value);
     const relation = typeof totalBlock === "object" ? asRecord(totalBlock).relation : "eq";
-    if ((!Number.isSafeInteger(total) || total < 0 || relation !== "eq") && requireExactTotal) {
+    const hasExactTotal = Number.isSafeInteger(total) && total >= 0 && relation === "eq";
+    if (!hasExactTotal && requireExactTotal) {
       throw new Error("A leitura não trouxe uma contagem exata do Indexer.");
     }
     const rawHits = Array.isArray(hitsBlock.hits) ? hitsBlock.hits : [];
     const hits = rawHits.map((value) => {
       const hit = asRecord(value);
       if (typeof hit._id !== "string" || !hit._id) throw new Error("Documento do Indexer sem _id estável.");
-      return { _id: hit._id, _source: hit._source };
+      if (!Array.isArray(hit.sort) || hit.sort.length !== cursorSort.length) {
+        throw new Error("Documento do Indexer sem cursor estável para search_after.");
+      }
+      return { _id: hit._id, _source: hit._source, sortValues: hit.sort };
     });
+    const pitId = asString(result.pit_id, 8192) ?? requestedPitId;
     return {
       hits,
-      total: Number.isSafeInteger(total) && total >= 0 ? total : -1,
-      scrollId: asString(result._scroll_id, 8192),
-      version: asString(atPath(result, "_version"), 160) ?? "",
+      total: hasExactTotal ? total : null,
+      pitId,
     };
   }
 
   private async requestJson(method: string, path: string, body?: unknown): Promise<unknown> {
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl}${path}`, {
-        method,
-        headers: {
-          authorization: this.authorization,
-          accept: "application/json",
-          ...(body === undefined ? {} : { "content-type": "application/json" }),
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
-    } catch (error) {
-      throw new Error(`Conexão com o Indexer falhou (${networkFailureReason(error)}) em ${method} ${path.split("?")[0]}.`);
-    }
-    if (!response.ok) {
+    const maximumAttempts = 5;
+    for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+      let response: Response;
+      try {
+        response = await fetch(`${this.baseUrl}${path}`, {
+          method,
+          headers: {
+            authorization: this.authorization,
+            accept: "application/json",
+            ...(body === undefined ? {} : { "content-type": "application/json" }),
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        });
+      } catch (error) {
+        const reason = networkFailureReason(error);
+        if (attempt + 1 < maximumAttempts && retryableNetworkErrorCodes.has(reason)) {
+          await wait(Math.min(250 * 2 ** attempt, 30_000));
+          continue;
+        }
+        throw new Error(`Conexão com o Indexer falhou (${reason}) em ${method} ${path.split("?")[0]}.`);
+      }
+      if (response.ok) {
+        if (response.status === 204) return {};
+        return response.json();
+      }
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt + 1 >= maximumAttempts) {
+        await response.body?.cancel();
+        throw new IndexerHttpError(response.status, method, path.split("?")[0]);
+      }
+      const retryAfter = retryAfterMilliseconds(response.headers.get("retry-after"));
       await response.body?.cancel();
-      throw new IndexerHttpError(response.status, method, path.split("?")[0]);
+      await wait(retryAfter ?? Math.min(250 * 2 ** attempt, 30_000));
     }
-    if (response.status === 204) return {};
-    return response.json();
+    throw new Error("A chamada ao Indexer excedeu o limite de tentativas.");
   }
 }
