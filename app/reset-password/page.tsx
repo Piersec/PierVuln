@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { clearTemporaryAuthFlow, grantTemporaryAuthFlow, hasTemporaryAuthFlow } from "@/src/lib/temporary-auth-flow";
 
 type Step = "checking" | "request" | "sent" | "update" | "invalid" | "done";
 
@@ -25,8 +26,12 @@ export default function ResetPasswordPage() {
     const updating = params.get("mode") === "update" || hash.get("type") === "recovery";
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active || invalid) return;
-      if (event === "PASSWORD_RECOVERY" && session) setStep("update");
-      if (event === "SIGNED_OUT") setStep((current) => current === "update" ? "invalid" : current);
+      if (event === "PASSWORD_RECOVERY" && session) {
+        if (!grantTemporaryAuthFlow("recovery", session.user.id)) { setStep("invalid"); return; }
+        window.history.replaceState(null, "", "/reset-password?mode=update");
+        setStep("update");
+      }
+      if (event === "SIGNED_OUT") { clearTemporaryAuthFlow(); setStep((current) => current === "update" ? "invalid" : current); }
     });
 
     async function initialize() {
@@ -38,7 +43,7 @@ export default function ResetPasswordPage() {
       if (!updating) { if (active) setStep("request"); return; }
       try {
         const { data, error } = await supabase!.auth.getUser();
-        if (active) setStep(!error && data.user ? "update" : "invalid");
+        if (active) setStep(!error && data.user && hasTemporaryAuthFlow("recovery", data.user.id) ? "update" : "invalid");
       } catch {
         if (active) setStep("invalid");
       }
@@ -46,6 +51,18 @@ export default function ResetPasswordPage() {
     void initialize();
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase || step !== "update") return;
+    const timer = window.setInterval(() => {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (!data.session || !hasTemporaryAuthFlow("recovery", data.session.user.id)) {
+          clearTemporaryAuthFlow(); setStep("invalid");
+        }
+      });
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [step, supabase]);
 
   async function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,6 +86,10 @@ export default function ResetPasswordPage() {
   async function savePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || busy || step !== "update") return;
+    const identity = await supabase.auth.getUser();
+    if (identity.error || !identity.data.user || !hasTemporaryAuthFlow("recovery", identity.data.user.id)) {
+      clearTemporaryAuthFlow(); setStep("invalid"); return;
+    }
     if (password.length < 12 || !/[a-z]/.test(password) || !/[A-Z]/.test(password)
       || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
       setNotice("Use ao menos 12 caracteres, com maiúscula, minúscula, número e símbolo.");
@@ -89,6 +110,7 @@ export default function ResetPasswordPage() {
       setPassword("");
       setConfirmation("");
       setStep("done");
+      clearTemporaryAuthFlow();
       window.history.replaceState(null, "", "/reset-password");
       await supabase.auth.signOut({ scope: "local" });
     } catch {

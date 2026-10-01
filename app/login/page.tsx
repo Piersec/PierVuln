@@ -6,6 +6,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { Brand } from "@/src/components/brand";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
+import { hasInviteLink } from "@/src/lib/temporary-auth-flow";
+
+const inviteHashAtLoad = typeof window !== "undefined" && hasInviteLink() ? window.location.hash : "";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +21,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!supabase) return;
     if (new URLSearchParams(window.location.search).has("invite")) {
-      window.location.replace(`/onboarding${window.location.hash}`);
+      window.location.replace(`/onboarding${inviteHashAtLoad || window.location.hash}`);
       return;
     }
     const { data } = supabase.auth.onAuthStateChange((event) => {
