@@ -10,6 +10,12 @@ Uma consulta automática a cada 30 segundos recupera eventos perdidos. Voltar à
 recuperar a conexão ou reconectar o canal também provoca uma consulta. A idade da
 última leitura completa é recalculada a cada 15 segundos.
 
+Os cards do cenário e os totais do Kanban acompanham o mesmo sinal de atualização
+da lista. Os botões Atualizar e Atualizar cenário também consultam esses dados.
+As consultas em segundo plano mantêm o quadro montado e preservam os filtros de
+cada coluna. Se uma leitura falhar, os últimos dados válidos continuam visíveis
+até a próxima tentativa automática.
+
 O indexador é consultado pelo conector em ciclos de 60 segundos, com páginas
 de 500 documentos. Se um snapshot demorar mais de um minuto, o seguinte começa
 quando ele termina; nunca existem dois snapshots simultâneos nesse processo.
