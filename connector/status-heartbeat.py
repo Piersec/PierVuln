@@ -27,7 +27,7 @@ def environment():
 
 
 def command(*args):
-    return subprocess.run(args, capture_output=True, text=True, timeout=8, check=False)
+    return subprocess.run(args, capture_output=True, text=True, timeout=12, check=False)
 
 
 def memory_percent():
