@@ -176,6 +176,7 @@ export function CollectionStatus() {
       <Brand />
       <nav className="workspace-nav" aria-label="Navegação principal">
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
+        <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
         <Link className="nav-link active" href="/status" aria-current="page" aria-label="Status" title="Status"><NavSymbol kind="status" /><span className="nav-label">Status</span></Link>
         {isInternal && <Link className="nav-link" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}

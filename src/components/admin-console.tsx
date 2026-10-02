@@ -147,6 +147,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
       <a className="skip-link" href="#admin-content">Pular para o conteúdo</a>
       <aside className="sidebar has-admin"><Brand /><nav className="workspace-nav" aria-label="Navegação principal">
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
+        <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
         <Link className="nav-link" href="/status" aria-label="Status" title="Status"><NavSymbol kind="status" /></Link>
         <Link className="nav-link active" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /></Link>
