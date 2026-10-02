@@ -19,6 +19,25 @@ function nonNegativeInteger(value: string | undefined, fallback: number, name: s
   return parsed;
 }
 
+function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 function readConfig(): ConnectorConfig & { indexerUrl: string; username: string; password: string } {
   const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
   const config: ConnectorConfig = {
@@ -46,6 +65,13 @@ function readConfig(): ConnectorConfig & { indexerUrl: string; username: string;
 
 async function main() {
   const config = readConfig();
+  const shutdown = new AbortController();
+  const requestShutdown = (signal: NodeJS.Signals) => {
+    console.info(`[connector] Recebido ${signal}; encerrando esta execução com segurança.`);
+    shutdown.abort(new Error(`Execução interrompida por ${signal}.`));
+  };
+  process.once("SIGTERM", () => requestShutdown("SIGTERM"));
+  process.once("SIGINT", () => requestShutdown("SIGINT"));
   const indexer = new WazuhIndexerClient(
     config.indexerUrl,
     config.username,
@@ -54,11 +80,11 @@ async function main() {
   );
   const destination = new SupabaseIngestClient(config);
   if (process.argv.includes("--check")) {
-    const version = await indexer.getVersion();
-    const count = await indexer.countDocuments();
-    const pitId = await indexer.createPointInTime();
+    const version = await indexer.getVersion(shutdown.signal);
+    const count = await indexer.countDocuments(shutdown.signal);
+    const pitId = await indexer.createPointInTime("5m", shutdown.signal);
     try {
-      await indexer.searchPointInTime(pitId, 1);
+      await indexer.searchPointInTime(pitId, 1, null, "5m", shutdown.signal);
     } finally {
       await indexer.closePointInTime(pitId).catch(() => undefined);
     }
@@ -67,21 +93,23 @@ async function main() {
   }
   const once = process.argv.includes("--once");
   if (once) {
-    const result = await synchronizeSnapshot(indexer, destination, config.pageSize, config.pageDelayMilliseconds);
+    const result = await synchronizeSnapshot(indexer, destination, config.pageSize, config.pageDelayMilliseconds, shutdown.signal);
     console.info(`[connector] Snapshot completo: ${result.documents} documentos em ${result.pages} páginas.`);
     return;
   }
-  while (true) {
+  while (!shutdown.signal.aborted) {
     const startedAt = Date.now();
     try {
-      const result = await synchronizeSnapshot(indexer, destination, config.pageSize, config.pageDelayMilliseconds);
+      const result = await synchronizeSnapshot(indexer, destination, config.pageSize, config.pageDelayMilliseconds, shutdown.signal);
       console.info(`[connector] Leitura completa: ${result.documents} documentos em ${result.pages} páginas.`);
     } catch (error) {
-      console.error(`[connector] Sincronização parcial/falha: ${safeMessage(error)}`);
+      if (!shutdown.signal.aborted) console.error(`[connector] Sincronização parcial/falha: ${safeMessage(error)}`);
     }
 
+    if (shutdown.signal.aborted) break;
+
     const elapsed = Date.now() - startedAt;
-    await new Promise((resolve) => setTimeout(resolve, Math.max(0, config.syncIntervalSeconds * 1000 - elapsed)));
+    await wait(Math.max(0, config.syncIntervalSeconds * 1000 - elapsed), shutdown.signal);
   }
 }
 

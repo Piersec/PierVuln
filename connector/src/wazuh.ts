@@ -172,9 +172,9 @@ export class WazuhIndexerClient {
     this.authorization = `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`;
   }
 
-  async getVersion(): Promise<string> {
+  async getVersion(signal?: AbortSignal): Promise<string> {
     try {
-      const info = await this.requestJson("GET", "/");
+      const info = await this.requestJson("GET", "/", undefined, signal);
       const version = asString(atPath(asRecord(info), "version.number"), 160);
       if (!version) throw new Error("O Indexer respondeu sem a versão esperada.");
       return version;
@@ -187,16 +187,16 @@ export class WazuhIndexerClient {
     }
   }
 
-  async countDocuments(): Promise<number> {
-    const result = asRecord(await this.requestJson("GET", `/${this.indexPattern}/_count`));
+  async countDocuments(signal?: AbortSignal): Promise<number> {
+    const result = asRecord(await this.requestJson("GET", `/${this.indexPattern}/_count`, undefined, signal));
     const count = Number(result.count);
     if (!Number.isSafeInteger(count) || count < 0) throw new Error("O Indexer devolveu uma contagem inválida.");
     return count;
   }
 
-  async createPointInTime(keepAlive = "5m"): Promise<string> {
+  async createPointInTime(keepAlive = "5m", signal?: AbortSignal): Promise<string> {
     const query = new URLSearchParams({ keep_alive: keepAlive });
-    const response = asRecord(await this.requestJson("POST", `/${this.indexPattern}/_search/point_in_time?${query.toString()}`));
+    const response = asRecord(await this.requestJson("POST", `/${this.indexPattern}/_search/point_in_time?${query.toString()}`, undefined, signal));
     const pitId = asString(response.pit_id, 8192);
     if (!pitId) throw new Error("O Indexer não devolveu o ID do snapshot PIT.");
     return pitId;
@@ -207,6 +207,7 @@ export class WazuhIndexerClient {
     pageSize: number,
     searchAfter: unknown[] | null = null,
     keepAlive = "5m",
+    signal?: AbortSignal,
   ): Promise<SearchPage> {
     const response = asRecord(await this.requestJson("POST", "/_search", {
       size: pageSize,
@@ -215,7 +216,7 @@ export class WazuhIndexerClient {
       track_total_hits: searchAfter === null,
       query: { match_all: {} },
       ...(searchAfter ? { search_after: searchAfter } : {}),
-    }));
+    }, signal));
     return this.parseSearchPage(response, pitId, searchAfter === null);
   }
 
@@ -254,9 +255,10 @@ export class WazuhIndexerClient {
     };
   }
 
-  private async requestJson(method: string, path: string, body?: unknown): Promise<unknown> {
+  private async requestJson(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> {
     const maximumAttempts = 5;
     for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+      if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
       let response: Response;
       try {
         response = await fetch(`${this.baseUrl}${path}`, {
@@ -267,9 +269,12 @@ export class WazuhIndexerClient {
             ...(body === undefined ? {} : { "content-type": "application/json" }),
           },
           body: body === undefined ? undefined : JSON.stringify(body),
-          signal: AbortSignal.timeout(this.timeoutMs),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)])
+            : AbortSignal.timeout(this.timeoutMs),
         });
       } catch (error) {
+        if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
         const reason = networkFailureReason(error);
         if (attempt + 1 < maximumAttempts && retryableNetworkErrorCodes.has(reason)) {
           await wait(Math.min(250 * 2 ** attempt, 30_000));

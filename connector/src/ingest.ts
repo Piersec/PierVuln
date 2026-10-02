@@ -30,8 +30,8 @@ export class SupabaseIngestClient {
     return reply.runId;
   }
 
-  async ingestPage(runId: string, pageNumber: number, items: NormalizedFinding[]): Promise<number> {
-    const reply = await this.post(this.ingestUrl, { action: "page", runId, pageNumber, items }, true);
+  async ingestPage(runId: string, pageNumber: number, items: NormalizedFinding[], signal?: AbortSignal): Promise<number> {
+    const reply = await this.post(this.ingestUrl, { action: "page", runId, pageNumber, items }, true, signal);
     return Number(reply.findingsChanged ?? 0);
   }
 
@@ -46,10 +46,11 @@ export class SupabaseIngestClient {
     await this.post(this.ingestUrl, { action: "fail", runId, error: error.slice(0, 1500) });
   }
 
-  private async post(url: string, payload: Record<string, unknown>, retrySafe = false): Promise<FunctionReply> {
+  private async post(url: string, payload: Record<string, unknown>, retrySafe = false, signal?: AbortSignal): Promise<FunctionReply> {
     const body = JSON.stringify(payload);
     const maximumAttempts = retrySafe ? 5 : 1;
     for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+      if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
       let response: Response;
       try {
         response = await fetch(url, {
@@ -61,11 +62,14 @@ export class SupabaseIngestClient {
             "content-type": "application/json",
           },
           body,
-          signal: AbortSignal.timeout(120_000),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
+            : AbortSignal.timeout(120_000),
         });
       } catch (error) {
+        if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
         if (attempt + 1 < maximumAttempts) {
-          await wait(Math.min(250 * 2 ** attempt, 30_000));
+          await wait(Math.min(250 * 2 ** attempt, 30_000), signal);
           continue;
         }
         throw error;
@@ -78,7 +82,7 @@ export class SupabaseIngestClient {
       }
       const retryAfter = retryAfterMilliseconds(response.headers.get("retry-after"));
       await response.body?.cancel();
-      await wait(retryAfter ?? Math.min(250 * 2 ** attempt, 30_000));
+      await wait(retryAfter ?? Math.min(250 * 2 ** attempt, 30_000), signal);
     }
     throw new Error(`Supabase recusou ${String(payload.action)} após várias tentativas.`);
   }
@@ -89,15 +93,16 @@ export async function synchronizeSnapshot(
   destination: SupabaseIngestClient,
   pageSize: number,
   pageDelayMilliseconds = 250,
+  signal?: AbortSignal,
 ): Promise<{ pages: number; documents: number; changed: number }> {
   const runId = await destination.startSync("unknown");
   let pitId: string | null = null;
   let pages = 0;
   let documents = 0;
   try {
-    const version = await indexer.getVersion();
-    pitId = await indexer.createPointInTime();
-    let page: SearchPage = await indexer.searchPointInTime(pitId, pageSize);
+    const version = await indexer.getVersion(signal);
+    pitId = await indexer.createPointInTime("5m", signal);
+    let page: SearchPage = await indexer.searchPointInTime(pitId, pageSize, null, "5m", signal);
     pitId = page.pitId;
     const expectedDocuments = page.total;
     if (expectedDocuments === null) throw new Error("O snapshot PIT não devolveu uma contagem exata.");
@@ -107,7 +112,7 @@ export async function synchronizeSnapshot(
     while (true) {
       const items = page.hits.map(normalizeHit);
       if (items.length > 0 || pages === 0) {
-        changed += await destination.ingestPage(runId, pages, items);
+        changed += await destination.ingestPage(runId, pages, items, signal);
         pages += 1;
         documents += items.length;
       }
@@ -115,12 +120,13 @@ export async function synchronizeSnapshot(
       if (page.hits.length === 0 || page.hits.length < pageSize) break;
 
       searchAfter = page.hits[page.hits.length - 1].sortValues;
-      await wait(pageDelayMilliseconds);
-      page = await indexer.searchPointInTime(pitId, pageSize, searchAfter);
+      await wait(pageDelayMilliseconds, signal);
+      page = await indexer.searchPointInTime(pitId, pageSize, searchAfter, "5m", signal);
       pitId = page.pitId;
     }
 
     if (documents !== expectedDocuments) throw new Error("A paginação não recebeu todos os documentos do Indexer.");
+    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
     await destination.finishSync(runId, pages, expectedDocuments, version);
     return { pages, documents, changed };
   } catch (error) {
@@ -145,8 +151,23 @@ export function hashJson(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+function wait(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida."));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(signal?.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida."));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function retryAfterMilliseconds(value: string | null): number | null {

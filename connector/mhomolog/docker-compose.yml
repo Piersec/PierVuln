@@ -1,0 +1,24 @@
+services:
+  wazuh-connector:
+    image: piervuln-wazuh-sync:mhomolog
+    build:
+      context: ../..
+      dockerfile: connector/Dockerfile
+    network_mode: host
+    mem_limit: 512m
+    init: true
+    stop_grace_period: 3m
+    command: ["pnpm", "connector:job"]
+    env_file:
+      - ${CONNECTOR_ENV_FILE:-../.env}
+    environment:
+      NODE_EXTRA_CA_CERTS: ${WAZUH_INDEXER_CA_FILE:-/etc/wazuh/certs/indexer-ca.pem}
+    volumes:
+      - ../certs:/etc/wazuh/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
