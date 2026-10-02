@@ -4,7 +4,6 @@ umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONNECTIONS_DIR="$SCRIPT_DIR/connections"
-COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 CRON_FILE="/etc/cron.d/piervuln-mhomolog-sync"
 LOG_FILE="/var/log/piervuln-mhomolog-sync.log"
 SYNC_EVERY_MINUTES="${SYNC_EVERY_MINUTES:-60}"
@@ -47,12 +46,7 @@ for env_file in "${env_files[@]}"; do
 done
 
 first_env_file="${env_files[0]}"
-CONNECTOR_ENV_FILE="$first_env_file" docker compose \
-  --project-name piervuln-mhomolog-sync \
-  --project-directory "$SCRIPT_DIR" \
-  --env-file "$first_env_file" \
-  --file "$COMPOSE_FILE" \
-  build wazuh-connector
+bash "$SCRIPT_DIR/prepare-image.sh" "$first_env_file"
 
 touch "$LOG_FILE"
 chmod 600 "$LOG_FILE"

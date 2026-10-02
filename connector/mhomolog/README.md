@@ -2,6 +2,18 @@
 
 Este perfil roda o conector como job Docker de execução única, usa a rede do host para alcançar os Indexers internos e limita o container a 512 MB. Ele não inicia nem altera uma VPN. Use-o quando a VM já tiver rota de rede autorizada até os Indexers.
 
+Clone o repositório no host Linux (o clone serve como fonte da imagem; não inicia o app web):
+
+```bash
+cd ~
+git clone --depth 1 --branch master https://github.com/Piersec/PierVuln.git PierVuln
+cd ~/PierVuln
+```
+
+Antes de cada execução, o host consulta `origin/master`; se houver um avanço simples, atualiza o clone e reconstrói a imagem uma vez para o novo commit. Sem commit novo, não há rebuild. O cron roda como `root`, mas o `git fetch`/`merge` usa o usuário dono do clone para aproveitar a configuração de acesso Git desse usuário. Se o repositório for privado, configure uma chave de deploy somente leitura ou outra autenticação Git não interativa para esse usuário. Não coloque token na URL do repositório.
+
+Se a consulta ao GitHub falhar, o runner registra o aviso e continua com o commit local e a imagem correspondente. Se o clone tiver alterações locais, ele não faz o pull; se a branch não for `master`, o runner para para evitar atualizar a branch errada. `.env` e certificados ficam fora do Git.
+
 ## Preparar conexões
 
 Crie uma pasta e um `.env` privado para cada conexão Wazuh cadastrada no PierVuln. O host processa os arquivos em sequência:

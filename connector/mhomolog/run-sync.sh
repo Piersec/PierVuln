@@ -41,6 +41,9 @@ if [[ "${#env_files[@]}" -eq 0 ]]; then
   exit 1
 fi
 
+first_env_file="${env_files[0]}"
+bash "$SCRIPT_DIR/prepare-image.sh" "$first_env_file"
+
 failed=0
 for env_file in "${env_files[@]}"; do
   if [[ -e "$PAUSE_FILE" ]]; then
