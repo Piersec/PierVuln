@@ -1,0 +1,11 @@
+[Unit]
+Description=Send PierVuln connector VM status every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=piervuln-status.service
+
+[Install]
+WantedBy=timers.target

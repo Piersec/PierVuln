@@ -19,10 +19,13 @@ type SyncRun = {
   pages_received: number;
 };
 type Source = { connection: Connection; latest: SyncRun | null; lastSuccess: SyncRun | null };
+type Heartbeat = { connection_id: string; observed_at: string; vpn_active: boolean; indexer_reachable: boolean; connector_active: boolean; uptime_seconds: number; load_percent: number; memory_percent: number; disk_percent: number; indexer_latency_ms: number | null };
+type Probe = { api: boolean; database: boolean; databaseLatencyMs?: number };
 type Health = "healthy" | "running" | "warning" | "paused" | "empty";
 
 const staleAfterMs = 2 * 60 * 60 * 1000;
 const runningAfterMs = 10 * 60 * 1000;
+const heartbeatAfterMs = 3 * 60 * 1000;
 
 function sourceHealth(source: Source, now: number): Health {
   if (!source.connection.is_active) return "paused";
@@ -58,6 +61,10 @@ export function CollectionStatus() {
   const [authReady, setAuthReady] = useState(false);
   const [isInternal, setIsInternal] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
+  const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
+  const [probe, setProbe] = useState<Probe | null>(null);
+  const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
+  const [databaseReadable, setDatabaseReadable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -69,6 +76,16 @@ export function CollectionStatus() {
     const currentRequest = ++requestId.current;
     if (showRefresh) setRefreshing(true);
     setError("");
+    const probeStarted = performance.now();
+    const [probeResult, heartbeatsResult] = await Promise.all([
+      client.functions.invoke("connector-status", { method: "GET" }),
+      client.from("connector_status_heartbeats").select("connection_id,observed_at,vpn_active,indexer_reachable,connector_active,uptime_seconds,load_percent,memory_percent,disk_percent,indexer_latency_ms"),
+    ]);
+    if (currentRequest !== requestId.current) return;
+    setApiLatencyMs(probeResult.error ? null : Math.round(performance.now() - probeStarted));
+    setProbe(probeResult.error ? null : probeResult.data as Probe);
+    setHeartbeats(heartbeatsResult.error ? [] : heartbeatsResult.data ?? []);
+    setDatabaseReadable(!heartbeatsResult.error);
 
     const { data: connections, error: connectionsError } = await client.from("wazuh_connections")
       .select("id,name,is_active").order("name");
@@ -131,9 +148,23 @@ export function CollectionStatus() {
   const healthyCount = sources.filter((source) => ["healthy", "running"].includes(sourceHealth(source, now))).length;
   const allHealthy = sources.length > 0 && healthyCount === sources.length;
   const overall = sources.length === 0 ? "Sem conexões" : allHealthy ? "Todas as conexões saudáveis" : "Conexões requerem atenção";
-  const overallTone = sources.length === 0 ? "empty" : allHealthy ? "healthy" : "warning";
-  const latestComplete = sources.map((source) => source.lastSuccess).filter((run): run is SyncRun => Boolean(run))
-    .sort((a, b) => Date.parse(b.finished_at ?? b.started_at) - Date.parse(a.finished_at ?? a.started_at))[0];
+  const activeSources = sources.filter((source) => source.connection.is_active);
+  const activeHeartbeats = activeSources.map((source) => heartbeats.find((item) => item.connection_id === source.connection.id));
+  const allFresh = activeSources.length > 0 && activeHeartbeats.every((item) => item && now - Date.parse(item.observed_at) < heartbeatAfterMs);
+  const vpnHealthy = allFresh && activeHeartbeats.every((item) => item?.vpn_active && item.indexer_reachable);
+  const vmHealthy = allFresh && activeHeartbeats.every((item) => item?.connector_active);
+  const performanceHealthy = allFresh && apiLatencyMs !== null && apiLatencyMs < 2000 &&
+    (probe?.databaseLatencyMs ?? Infinity) < 1000 && activeHeartbeats.every((item) => item &&
+      item.load_percent < 150 && item.memory_percent < 90 && item.disk_percent < 90 &&
+      item.indexer_latency_ms !== null && item.indexer_latency_ms < 5000);
+  const checks = [
+    { name: "API", healthy: probe?.api === true, detail: probe?.api ? `Resposta em ${apiLatencyMs ?? "—"} ms` : "Sem resposta da função de status" },
+    { name: "VPN", healthy: vpnHealthy, detail: !allFresh ? "Sem sinal recente da VM" : vpnHealthy ? "Túnel ativo e Indexer acessível" : "Túnel ou Indexer indisponível" },
+    { name: "VM", healthy: vmHealthy, detail: !allFresh ? "Sem sinal nos últimos 3 minutos" : vmHealthy ? "Conector em execução" : "Conector parado" },
+    { name: "Banco de dados", healthy: probe?.database === true && databaseReadable, detail: probe?.database && databaseReadable ? `Consulta em ${probe.databaseLatencyMs ?? "—"} ms` : "Consulta indisponível" },
+    { name: "Performance", healthy: performanceHealthy, detail: !allFresh ? "Sem métricas recentes" : `API ${apiLatencyMs ?? "—"} ms · banco ${probe?.databaseLatencyMs ?? "—"} ms` },
+  ];
+  const infrastructureHealthy = checks.every((check) => check.healthy);
 
   if (!client) return <main className="auth-shell"><section className="auth-card"><Brand /><h1>Configuração necessária</h1><p>O projeto Supabase não está configurado neste ambiente.</p></section></main>;
   if (!authReady) return <main className="loading-screen"><Brand /><div className="spinner" /><p>Verificando acesso…</p></main>;
@@ -155,14 +186,15 @@ export function CollectionStatus() {
     <section className="main-column" id="status-content" tabIndex={-1}>
       <header className="topbar"><div className="breadcrumb">PierVuln <span>/</span> <strong>Status</strong></div><div className="topbar-actions"><span className="status-checked">Consultado: {formatDate(checkedAt)}</span><button className="button button-secondary refresh-button" disabled={refreshing} onClick={() => void load(true).catch(() => { setError("Não foi possível atualizar o status."); setRefreshing(false); })}>{refreshing ? "Atualizando…" : "Atualizar"}</button></div></header>
       <div className="content-wrap status-page">
-        <div className="page-heading"><div><span className="page-kicker">FONTE DE DADOS / WAZUH</span><h1>Status da coleta</h1><p>Acompanhe as leituras completas que alimentam o PierVuln.</p></div></div>
+        <div className="page-heading"><div><span className="page-kicker">INFRAESTRUTURA / WAZUH</span><h1>Status do sistema</h1><p>API, VPN, VM, banco de dados e desempenho, com sinais atualizados a cada minuto.</p></div></div>
         {error && <p className="status-error" role="alert">{error}</p>}
         {loading ? <div className="admin-loading" role="status"><div className="spinner" />Consultando sincronizações…</div> : <>
-          <section className={`status-overview status-${overallTone}`} aria-label="Resumo da coleta">
-            <div><span className="status-overview-kicker">ESTADO GERAL</span><div className="status-overview-title"><span className="status-overview-dot" aria-hidden="true" /><h2>{overall}</h2></div><p>Baseado nas sincronizações registradas. Não representa um teste instantâneo da VPN.</p></div>
-            <div className="status-overview-facts"><div><span>Conexões saudáveis</span><strong>{healthyCount} / {sources.length}</strong></div><div><span>Última leitura completa</span><strong>{formatDate(latestComplete?.finished_at)}</strong></div></div>
+          <section className={`status-overview status-${infrastructureHealthy && allHealthy ? "healthy" : "warning"}`} aria-label="Resumo do sistema">
+            <div><span className="status-overview-kicker">ESTADO GERAL</span><div className="status-overview-title"><span className="status-overview-dot" aria-hidden="true" /><h2>{infrastructureHealthy && allHealthy ? "Sistema saudável" : "Sistema requer atenção"}</h2></div><p>Os cinco sinais abaixo usam consultas reais e o último sinal enviado pela VM. A coleta é acompanhada separadamente.</p></div>
+            <div className="status-overview-facts"><div><span>Serviços saudáveis</span><strong>{checks.filter((check) => check.healthy).length} / 5</strong></div><div><span>Último sinal da VM</span><strong>{formatDate(activeHeartbeats.filter((item): item is Heartbeat => Boolean(item)).sort((a, b) => Date.parse(b.observed_at) - Date.parse(a.observed_at))[0]?.observed_at)}</strong></div></div>
           </section>
-          <div className="status-section-heading"><h2>Fontes</h2><span>{sources.length} {sources.length === 1 ? "fonte visível" : "fontes visíveis"}</span></div>
+          <div className="status-checks">{checks.map((check) => <article className="status-check" key={check.name}><div className="status-check-top"><h2>{check.name}</h2><span className={`status-pill status-${check.healthy ? "healthy" : "warning"}`}><span aria-hidden="true" />{check.healthy ? "Saudável" : "Atenção"}</span></div><p>{check.detail}</p>{check.name === "Performance" && allFresh && <div className="status-check-metrics">{activeHeartbeats.filter((item): item is Heartbeat => Boolean(item)).map((item) => <span key={item.connection_id}>Carga {item.load_percent}% · memória {item.memory_percent}% · disco {item.disk_percent}% · Indexer {item.indexer_latency_ms ?? "—"} ms</span>)}</div>}</article>)}</div>
+          <div className="status-section-heading"><h2>Coleta Wazuh</h2><span>{overall} · {healthyCount} / {sources.length}</span></div>
           {sources.length === 0 ? <section className="status-empty"><h3>Nenhuma fonte disponível</h3><p>Não há uma conexão do Wazuh vinculada à sua conta.</p></section> : <div className="status-source-list">{sources.map((source) => {
             const health = sourceHealth(source, now);
             const complete = source.lastSuccess;

@@ -1,0 +1,9 @@
+[Unit]
+Description=Send PierVuln connector VM status
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=mhomolog
+ExecStart=/usr/bin/python3 /opt/piervuln/status-heartbeat.py

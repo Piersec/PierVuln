@@ -7,6 +7,9 @@ project_id = "PierVuln"
 [functions.wazuh-worker-config]
 verify_jwt = false
 
+[functions.connector-status]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

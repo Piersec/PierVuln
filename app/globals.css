@@ -929,7 +929,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .settings-danger-row { align-items: flex-start; flex-direction: column; }
 }
 
-/* Collection status */
+/* System status */
 .status-page { max-width: 1180px; }
 .status-checked { color: var(--muted); font-family: var(--font-code); font-size: 11px; white-space: nowrap; }
 .status-error { margin: 0 0 18px; padding: 13px 16px; border: 1px solid rgb(255 141 154 / 40%); border-radius: 9px; color: var(--danger); }
@@ -947,6 +947,12 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .status-overview-facts > div { display: grid; gap: 7px; padding-left: 17px; border-left: 1px solid var(--line-strong); }
 .status-overview-facts span, .status-source-facts span { color: var(--muted); font-size: 12px; }
 .status-overview-facts strong { font-size: 18px; font-weight: 600; line-height: 1.3; }
+.status-checks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 36px; }
+.status-check { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+.status-check-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.status-check h2 { margin: 2px 0 0; font-size: 17px; }
+.status-check p { margin: 17px 0 0; color: var(--muted); font-size: 13px; }
+.status-check-metrics { display: grid; gap: 5px; margin-top: 12px; color: var(--muted-strong); font-family: var(--font-code); font-size: 11px; }
 .status-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .status-section-heading h2 { margin: 0; font-size: 20px; }
 .status-section-heading span { color: var(--muted); font-size: 12px; }
@@ -967,9 +973,11 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .status-empty p { margin: 0; color: var(--muted); }
 @media (max-width: 900px) {
   .status-overview { grid-template-columns: 1fr; }
+  .status-checks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .status-source-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
+  .status-checks { grid-template-columns: 1fr; }
   .status-overview-facts { grid-template-columns: 1fr; gap: 14px; }
   .status-source { padding: 18px; }
   .status-source-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
