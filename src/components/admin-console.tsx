@@ -148,6 +148,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
       <aside className="sidebar has-admin"><Brand /><nav className="workspace-nav" aria-label="Navegação principal">
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
+        <Link className="nav-link" href="/status" aria-label="Status" title="Status"><NavSymbol kind="status" /></Link>
         <Link className="nav-link active" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /></Link>
         <Link className="nav-link" href="/settings" aria-label="Configurações" title="Configurações"><NavSymbol kind="settings" /></Link>
       </nav><div className="sidebar-bottom"><UserAvatar userId={session.user.id} fallback={session.user.email ?? "U"} /><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>

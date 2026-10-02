@@ -238,6 +238,7 @@ export function UserSettings() {
         <div className="nav-caption">WORKSPACE</div>
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
+        <Link className="nav-link" href="/status" aria-label="Status" title="Status"><NavSymbol kind="status" /><span className="nav-label">Status</span></Link>
         {isInternal && <Link className="nav-link" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}
         <Link className="nav-link active" href="/settings" aria-current="page" aria-label="Configurações" title="Configurações"><NavSymbol kind="settings" /><span className="nav-label">Configurações</span></Link>
       </nav>
