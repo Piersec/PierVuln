@@ -7,7 +7,7 @@ type SpotlightCardProps = HTMLAttributes<HTMLElement> & {
   spotlightColor?: string;
 };
 
-export function trackSpotlight(event: MouseEvent<HTMLElement>, spotlightColor = "rgb(97 223 87 / 8%)") {
+export function trackSpotlight(event: MouseEvent<HTMLElement>, spotlightColor = "rgb(72 233 255 / 8%)") {
   if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const card = event.currentTarget;
   const rect = card.getBoundingClientRect();

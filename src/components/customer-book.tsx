@@ -66,10 +66,10 @@ type SyncSummary = { finishedAt: string | null; connections: number };
 
 const pageSize = 1000;
 const severityColors: Record<string, string> = {
-  Critical: "#fb7580",
-  High: "#ffc078",
-  Medium: "#8dbdff",
-  Low: "#a7acb6",
+  Critical: "#a90839",
+  High: "#ef3438",
+  Medium: "#f28b25",
+  Low: "#e5bf21",
 };
 const severityOrder = ["Critical", "High", "Medium", "Low"];
 const dayMs = 24 * 60 * 60 * 1000;
@@ -331,7 +331,7 @@ export function CustomerBook() {
                       <CartesianGrid vertical={false} stroke="rgba(255, 255, 255, .09)" />
                       <XAxis dataKey="name" axisLine={{ stroke: "rgba(255, 255, 255, .12)" }} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} />
                       <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} tickFormatter={shortCount} />
-                      <Tooltip cursor={{ fill: "rgba(97, 223, 87, .07)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
+                      <Tooltip cursor={{ fill: "rgba(72, 233, 255, .07)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
                       <Bar dataKey="count" name="Vulnerabilidades" radius={[5, 5, 0, 0]} isAnimationActive={false}>
                         {metrics.severity.map((item) => <Cell key={item.name} fill={item.color} />)}
                         <LabelList dataKey="count" position="top" fill="#f6f7f7" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
@@ -350,7 +350,7 @@ export function CustomerBook() {
                       <XAxis dataKey="month" axisLine={{ stroke: "rgba(255, 255, 255, .12)" }} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} />
                       <YAxis allowDecimals={false} width={54} axisLine={false} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} tickFormatter={shortCount} />
                       <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades ativas"]} />
-                      <Line type="monotone" dataKey="count" name="Vulnerabilidades ativas" stroke="#61df57" strokeWidth={3} dot={{ r: 3, fill: "#61df57", stroke: "#191a1c", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#191a1c", stroke: "#82ed79", strokeWidth: 2 }} isAnimationActive={false}>
+                      <Line type="monotone" dataKey="count" name="Vulnerabilidades ativas" stroke="#48e9ff" strokeWidth={3} dot={{ r: 3, fill: "#48e9ff", stroke: "#191a1c", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#191a1c", stroke: "#78f1ff", strokeWidth: 2 }} isAnimationActive={false}>
                         <LabelList dataKey="count" position="top" fill="#f6f7f7" fontSize={11} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Line>
                     </LineChart>
@@ -375,9 +375,9 @@ export function CustomerBook() {
                       <CartesianGrid horizontal={false} stroke="rgba(255, 255, 255, .09)" />
                       <XAxis type="number" allowDecimals={false} axisLine={{ stroke: "rgba(255, 255, 255, .12)" }} tickLine={false} tick={{ fill: "#a4a8ae", fontSize: 12 }} tickFormatter={shortCount} />
                       <YAxis type="category" dataKey="name" width={88} axisLine={false} tickLine={false} tick={{ fill: "#d4d7da", fontSize: 12 }} />
-                      <Tooltip cursor={{ fill: "rgba(97, 223, 87, .07)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
+                      <Tooltip cursor={{ fill: "rgba(72, 233, 255, .07)" }} contentStyle={tooltipStyle} labelStyle={{ color: "#f6f7f7" }} formatter={(value) => [displayCount(Number(value)), "Vulnerabilidades"]} />
                       <Bar dataKey="count" name="Vulnerabilidades" radius={[0, 5, 5, 0]} isAnimationActive={false}>
-                        {metrics.ages.map((item, index) => <Cell key={item.name} fill={["#61df57", "#55c84e", "#489f42", "#3b8237"][index]} />)}
+                        {metrics.ages.map((item, index) => <Cell key={item.name} fill={["#48e9ff", "#3abdd0", "#2c91a1", "#206973"][index]} />)}
                         <LabelList dataKey="count" position="right" fill="#f6f7f7" fontSize={12} formatter={(value: unknown) => shortCount(Number(value))} />
                       </Bar>
                     </BarChart>
