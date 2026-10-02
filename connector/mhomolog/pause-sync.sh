@@ -11,6 +11,16 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 install -o root -g root -m 0600 /dev/null "$PAUSE_FILE"
+if [[ -e "$LOCK_FILE" ]]; then
+  exec 9>"$LOCK_FILE"
+  if ! flock -w 200 9; then
+    echo "A execução não terminou dentro do limite; a pausa segue ativa." >&2
+    exit 1
+  fi
+  flock -u 9
+  exec 9>&-
+fi
+
 mapfile -t containers < <(docker ps \
   --filter label=com.docker.compose.project=piervuln-mhomolog-sync \
   --filter label=com.docker.compose.service=wazuh-connector \
@@ -20,12 +30,4 @@ if [[ "${#containers[@]}" -gt 0 ]]; then
   docker stop --time 180 "${containers[@]}"
 fi
 
-if [[ -e "$LOCK_FILE" ]]; then
-  exec 9>"$LOCK_FILE"
-  if ! flock -w 200 9; then
-    echo "A execução não terminou dentro do limite; a pausa segue ativa." >&2
-    exit 1
-  fi
-fi
-
-echo "Sincronização pausada. Retome com sudo bash $SCRIPT_DIR/resume-sync.sh."
+echo "Worker pausado. Retome com sudo bash $SCRIPT_DIR/resume-sync.sh."

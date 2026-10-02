@@ -7,14 +7,18 @@ services:
     network_mode: host
     mem_limit: 512m
     init: true
+    restart: unless-stopped
     stop_grace_period: 3m
-    command: ["pnpm", "connector:job"]
-    env_file:
-      - ${CONNECTOR_ENV_FILE:-../.env}
+    command: ["pnpm", "connector:daemon"]
     environment:
-      NODE_EXTRA_CA_CERTS: ${WAZUH_INDEXER_CA_FILE:-/etc/wazuh/certs/indexer-ca.pem}
+      SUPABASE_URL: ${SUPABASE_URL:?Defina SUPABASE_URL no ambiente do worker}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Defina SUPABASE_PUBLISHABLE_KEY no ambiente do worker}
+      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-3600}
+      CONNECTOR_CONNECTIONS_DIR: /run/piervuln/connections
+      NODE_EXTRA_CA_CERTS: /etc/wazuh/certs/indexers-ca-bundle.pem
     volumes:
-      - ../certs:/etc/wazuh/certs:ro
+      - /opt/piervuln/config/connections:/run/piervuln/connections:ro
+      - /opt/piervuln/config/indexers-ca-bundle.pem:/etc/wazuh/certs/indexers-ca-bundle.pem:ro
     read_only: true
     tmpfs:
       - /tmp
@@ -22,3 +26,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

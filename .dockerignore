@@ -9,5 +9,8 @@
 **/.env.*
 **/certs
 **/logs
+/src
+/public
+/supabase
 connector/oracle/connections
 connector/transfer-config.pvc

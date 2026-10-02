@@ -6,15 +6,15 @@ COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 BRANCH="${PIERVULN_GIT_BRANCH:-master}"
 BUILD_MARKER="/var/lib/piervuln-mhomolog-sync-image-commit"
-ENV_FILE="${1:?Informe o caminho do .env da conexão para o build.}"
+ENV_FILE="$SCRIPT_DIR/.env"
 
 if [[ "${EUID}" -ne 0 ]]; then
-  echo "Execute como root: sudo bash $0 <arquivo.env>" >&2
+  echo "Execute como root: sudo bash $0" >&2
   exit 1
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Arquivo de conexão não encontrado: $ENV_FILE" >&2
+  echo "Arquivo de ambiente global não encontrado: $ENV_FILE" >&2
   exit 1
 fi
 
@@ -97,13 +97,29 @@ if [[ "$SOURCE_COMMIT" == "$BUILT_COMMIT" ]]; then
   exit 0
 fi
 
+if [[ -n "$BUILT_COMMIT" ]] && run_repo_git merge-base --is-ancestor "$BUILT_COMMIT" "$SOURCE_COMMIT"; then
+  if run_repo_git diff --quiet "$BUILT_COMMIT" "$SOURCE_COMMIT" -- \
+    package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json next.config.ts next-env.d.ts \
+    connector/Dockerfile connector/src; then
+    echo "[$(date --iso-8601=seconds)] O commit $SOURCE_SHORT_COMMIT não alterou o worker; sem rebuild."
+    install -d -m 0755 "$(dirname -- "$BUILD_MARKER")"
+    marker_temp="$(mktemp "${BUILD_MARKER}.XXXXXX")"
+    trap 'rm -f "$marker_temp"' EXIT
+    printf '%s\n' "$SOURCE_COMMIT" > "$marker_temp"
+    chmod 0644 "$marker_temp"
+    mv -f "$marker_temp" "$BUILD_MARKER"
+    trap - EXIT
+    exit 0
+  fi
+fi
+
 if [[ "$WORKTREE_DIRTY" -eq 1 ]]; then
   echo "Clone com alterações locais e sem imagem para o commit atual; não vou construir código não commitado." >&2
   exit 1
 fi
 
 echo "[$(date --iso-8601=seconds)] Construindo a imagem para o commit $SOURCE_SHORT_COMMIT."
-if ! CONNECTOR_ENV_FILE="$ENV_FILE" docker compose \
+if ! docker compose \
   --project-name piervuln-mhomolog-sync \
   --project-directory "$SCRIPT_DIR" \
   --env-file "$ENV_FILE" \
