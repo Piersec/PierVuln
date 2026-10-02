@@ -78,6 +78,7 @@ export function CustomerBook() {
   const supabase = getSupabaseBrowserClient();
   const { notify } = useSiteNotifications();
   const [session, setSession] = useState<Session | null>(null);
+  const userId = session?.user.id;
   const [authReady, setAuthReady] = useState(false);
   const [contextReady, setContextReady] = useState(false);
   const [contextError, setContextError] = useState("");
@@ -91,6 +92,7 @@ export function CustomerBook() {
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshRequested = useRef(false);
+  const loadedScopeRef = useRef<string | null>(null);
   const live = useLiveData(supabase, contextReady ? session?.user.id : undefined, loading);
   useErrorNotice(error || contextError, "book-feedback");
 
@@ -127,7 +129,7 @@ export function CustomerBook() {
   }, [supabase]);
 
   useEffect(() => {
-    if (!supabase || !session) {
+    if (!supabase || !userId) {
       setContextReady(false);
       return;
     }
@@ -165,7 +167,7 @@ export function CustomerBook() {
       }
     })();
     return () => { active = false; };
-  }, [session, supabase]);
+  }, [userId, supabase]);
 
   const loadFindings = useCallback(async (client: SupabaseClient, companyId: string) => {
     const selection = "id,wazuh_findings!inner(id,vulnerability_id,severity,agent_id,agent_name,first_detected_at,last_seen_at,source_state)";
@@ -235,16 +237,18 @@ export function CustomerBook() {
   }, [notify]);
 
   useEffect(() => {
-    if (!supabase || !session || !contextReady || contextError || (!isInternal && !selectedCompany)) return;
+    if (!supabase || !userId || !contextReady || contextError || (!isInternal && !selectedCompany)) return;
     let active = true;
-    setLoading(true);
+    const scope = `${userId}:${selectedCompany}:${isInternal}`;
+    if (loadedScopeRef.current !== scope || refreshRequested.current) setLoading(true);
     setError("");
     void Promise.all([
       loadFindings(supabase, selectedCompany),
       loadSyncSummary(supabase, selectedCompany, isInternal),
     ]).then(([nextFindings, nextSync]) => {
       if (!active) return;
-      setFindings(nextFindings);
+      loadedScopeRef.current = scope;
+      setFindings((current) => JSON.stringify(current) === JSON.stringify(nextFindings) ? current : nextFindings);
       setLatestSync(nextSync);
       setLoadedAt(new Date().toISOString());
       if (refreshRequested.current) {
@@ -261,7 +265,7 @@ export function CustomerBook() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [contextError, contextReady, isInternal, live.revision, loadFindings, loadSyncSummary, notify, refreshKey, selectedCompany, session, supabase]);
+  }, [contextError, contextReady, isInternal, live.revision, loadFindings, loadSyncSummary, notify, refreshKey, selectedCompany, userId, supabase]);
 
   const metrics = useMemo(() => buildMetrics(findings), [findings]);
   const selectedCompanyName = companies.find((company) => company.id === selectedCompany)?.name;
