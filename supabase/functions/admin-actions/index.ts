@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { encryptWazuhConfig, type WazuhConnectionCredentials } from "../_shared/wazuh-config-secrets.ts";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,9 +36,41 @@ function randomToken() {
   return [...data].map((part) => part.toString(16).padStart(2, "0")).join("");
 }
 
+function secret(value: unknown, max: number): string | null {
+  if (typeof value !== "string" || value.length > max || !value.trim()) return null;
+  return value;
+}
+
 async function sha256(value: string) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(bytes)].map((part) => part.toString(16).padStart(2, "0")).join("");
+}
+
+async function storeConnectionConfig(connectionId: string, credentials: WazuhConnectionCredentials) {
+  const encrypted = await encryptWazuhConfig(credentials);
+  const { error } = await admin.rpc("store_wazuh_connection_secret", {
+    p_connection_id: connectionId,
+    p_nonce: encrypted.nonce,
+    p_ciphertext: encrypted.ciphertext,
+    p_token_sha256: await sha256(credentials.ingestToken),
+  });
+  if (error) throw error;
+}
+
+function readIndexerCredentials(input: Record<string, unknown>, ingestToken: string): WazuhConnectionCredentials | null {
+  const indexerUsername = text(input.indexerUsername, 256);
+  const indexerPassword = secret(input.indexerPassword, 4096);
+  if (input.caCertificate !== undefined && input.caCertificate !== null && typeof input.caCertificate !== "string") return null;
+  const caCertificate = typeof input.caCertificate === "string" && input.caCertificate.trim()
+    ? input.caCertificate
+    : null;
+  if (!indexerUsername || !indexerPassword || (typeof input.caCertificate === "string" && input.caCertificate.length > 65536)) {
+    return null;
+  }
+  if (caCertificate && (!caCertificate.includes("-----BEGIN CERTIFICATE-----") || !caCertificate.includes("-----END CERTIFICATE-----"))) {
+    return null;
+  }
+  return { indexerUsername, indexerPassword, ingestToken, caCertificate };
 }
 
 Deno.serve(async (request) => {
@@ -229,9 +262,11 @@ Deno.serve(async (request) => {
       const endpointUrl = text(input.endpointUrl, 2048);
       const mode = text(input.mode, 20);
       const tenantId = text(input.tenantId, 36);
+      const credentials = readIndexerCredentials(input, "pending");
       if (!name || name.length < 2 || !endpointUrl || !endpointUrl.startsWith("https://")) {
         return json(400, { error: "Connection name and HTTPS Indexer URL are required" });
       }
+      if (!credentials) return json(400, { error: "Informe usuário e senha válidos do Indexer e um certificado CA em PEM, se necessário." });
       try {
         const endpoint = new URL(endpointUrl);
         if (endpoint.username || endpoint.password) throw new Error();
@@ -241,6 +276,7 @@ Deno.serve(async (request) => {
         return json(400, { error: "Tenant assignment does not match connection mode" });
       }
       const ingestToken = randomToken();
+      credentials.ingestToken = ingestToken;
       const { data: connectionId, error } = await admin.rpc("create_wazuh_connection", {
         p_tenant_id: tenantId || null,
         p_name: name,
@@ -250,7 +286,27 @@ Deno.serve(async (request) => {
         p_token_sha256: await sha256(ingestToken),
       });
       if (error) throw error;
-      return json(201, { connectionId, ingestToken });
+      try {
+        await storeConnectionConfig(String(connectionId), credentials);
+      } catch (storeError) {
+        await admin.from("wazuh_connections").delete().eq("id", connectionId);
+        throw storeError;
+      }
+      return json(201, { connectionId, configured: true });
+    }
+
+    if (action === "configure_connection") {
+      const connectionId = text(input.connectionId, 36);
+      if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId)) return json(400, { error: "Selecione uma conexão válida." });
+      const ingestToken = randomToken();
+      const credentials = readIndexerCredentials(input, ingestToken);
+      if (!credentials) return json(400, { error: "Informe usuário e senha válidos do Indexer e um certificado CA em PEM, se necessário." });
+      const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
+        .select("id").eq("id", connectionId).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection) return json(404, { error: "Fonte não encontrada." });
+      await storeConnectionConfig(connectionId, credentials);
+      return json(200, { connectionId, configured: true, tokenRotated: true });
     }
 
     if (action === "set_agent_mapping") {

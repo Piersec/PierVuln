@@ -3,8 +3,6 @@ set -Eeuo pipefail
 umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CONNECTIONS_DIR="/opt/piervuln/config/connections"
-CA_BUNDLE="/opt/piervuln/config/indexers-ca-bundle.pem"
 CRON_FILE="/etc/cron.d/piervuln-mhomolog-sync"
 LOG_FILE="/var/log/piervuln-mhomolog-sync.log"
 SYNC_EVERY_MINUTES="${SYNC_EVERY_MINUTES:-5}"
@@ -29,30 +27,12 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "Crie $ENV_FILE a partir de worker.env.example e configure o Supabase." >&2
   exit 1
 fi
-if [[ ! -d "$CONNECTIONS_DIR" ]]; then
-  echo "Pasta de conexões não encontrada: $CONNECTIONS_DIR" >&2
-  exit 1
-fi
-if [[ ! -f "$CA_BUNDLE" ]]; then
-  echo "Bundle de CAs dos Indexers não encontrado: $CA_BUNDLE" >&2
-  exit 1
-fi
 if ! docker compose version >/dev/null 2>&1; then
   echo "Docker Engine com o plugin Docker Compose não está disponível." >&2
   exit 1
 fi
 
-shopt -s nullglob
-env_files=("$CONNECTIONS_DIR"/*/.env)
-if [[ "${#env_files[@]}" -eq 0 ]]; then
-  echo "Crie ao menos uma configuração em $CONNECTIONS_DIR/<nome>/.env." >&2
-  exit 1
-fi
-
 chmod 600 "$ENV_FILE"
-for env_file in "${env_files[@]}"; do
-  chmod 600 "$env_file"
-done
 
 if ! command -v crontab >/dev/null 2>&1; then
   apt-get update
