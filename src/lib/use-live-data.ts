@@ -52,7 +52,7 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
         }
       });
     const clock = setInterval(() => setNow(Date.now()), 15_000);
-    const fallback = setInterval(request, 30_000);
+    const fallback = setInterval(request, 120_000);
     document.addEventListener("visibilitychange", request);
     window.addEventListener("focus", request);
     window.addEventListener("online", request);

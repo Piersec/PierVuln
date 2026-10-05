@@ -45,7 +45,7 @@ function readConfig(): ConnectorConfig & { indexerUrl: string; username: string;
     publishableKey: required("SUPABASE_PUBLISHABLE_KEY"),
     connectionId: required("WAZUH_CONNECTION_ID"),
     ingestToken: required("WAZUH_INGEST_TOKEN"),
-    syncIntervalSeconds: positiveInteger(process.env.SYNC_INTERVAL_SECONDS, 60, "SYNC_INTERVAL_SECONDS"),
+    syncIntervalSeconds: positiveInteger(process.env.SYNC_INTERVAL_SECONDS, 300, "SYNC_INTERVAL_SECONDS"),
     pageSize: positiveInteger(process.env.INDEXER_PAGE_SIZE, 500, "INDEXER_PAGE_SIZE"),
     pageDelayMilliseconds: nonNegativeInteger(process.env.INDEXER_PAGE_DELAY_MS, 250, "INDEXER_PAGE_DELAY_MS"),
     indexerIndexPattern: process.env.INDEXER_INDEX_PATTERN?.trim() || "wazuh-states-vulnerabilities-*",
@@ -109,7 +109,7 @@ async function main() {
     if (shutdown.signal.aborted) break;
 
     const elapsed = Date.now() - startedAt;
-    await wait(Math.max(0, config.syncIntervalSeconds * 1000 - elapsed), shutdown.signal);
+    await wait(Math.max(60_000, config.syncIntervalSeconds * 1000 - elapsed), shutdown.signal);
   }
 }
 
