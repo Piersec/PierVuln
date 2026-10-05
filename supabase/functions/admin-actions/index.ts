@@ -315,7 +315,9 @@ Deno.serve(async (request) => {
       const matchType = text(input.matchType, 20);
       const matchValue = text(input.matchValue, 256);
       if (!connectionId || !tenantId || !matchValue || !/^[0-9a-f-]{36}$/i.test(connectionId)
-          || !/^[0-9a-f-]{36}$/i.test(tenantId) || !["agent_id", "group"].includes(matchType ?? "")) {
+          || !/^[0-9a-f-]{36}$/i.test(tenantId)
+          || !["agent_id", "group", "agent_name_prefix"].includes(matchType ?? "")
+          || (matchType === "agent_name_prefix" && !/^[A-Za-z0-9._-]+\*$/.test(matchValue ?? ""))) {
         return json(400, { error: "Invalid mapping" });
       }
       const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
