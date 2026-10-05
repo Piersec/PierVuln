@@ -22,6 +22,7 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
   useEffect(() => {
     if (!client || !userId) return;
     let active = true;
+    let subscribedOnce = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     setConnected(false);
     const request = () => {
@@ -45,7 +46,10 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
       .subscribe((status) => {
         if (!active) return;
         setConnected(status === "SUBSCRIBED");
-        if (status === "SUBSCRIBED") request();
+        if (status === "SUBSCRIBED") {
+          if (subscribedOnce) request();
+          subscribedOnce = true;
+        }
       });
     const clock = setInterval(() => setNow(Date.now()), 15_000);
     const fallback = setInterval(request, 30_000);

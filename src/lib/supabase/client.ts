@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { clearTemporaryAuthFlow, grantTemporaryAuthFlow } from "@/src/lib/temporary-auth-flow";
+import { clearOverviewCache } from "@/src/lib/vulnerability-overview";
 
 let browserClient: SupabaseClient | null = null;
 
@@ -19,7 +20,10 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
     if (typeof window !== "undefined") {
       browserClient.auth.onAuthStateChange((event, session) => {
         if (event === "PASSWORD_RECOVERY" && session) grantTemporaryAuthFlow("recovery", session.user.id);
-        if (event === "SIGNED_OUT") clearTemporaryAuthFlow();
+        if (event === "SIGNED_OUT") {
+          clearTemporaryAuthFlow();
+          clearOverviewCache();
+        }
       });
     }
   }
