@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@heroui/react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import Rays from "@/src/components/light-rays";
@@ -26,8 +26,11 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("welcome");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const acceptingInvite = useRef(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
@@ -61,7 +64,7 @@ export default function OnboardingPage() {
         return;
       }
       if (event === "SIGNED_OUT") { clearTemporaryAuthFlow(); setSession(null); setChecking(false); }
-      if (event === "SIGNED_IN" && nextSession) void checkInvite();
+      if (event === "SIGNED_IN" && nextSession && !acceptingInvite.current) void checkInvite();
     });
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReduceMotion(media.matches);
@@ -69,6 +72,46 @@ export default function OnboardingPage() {
     media.addEventListener("change", onMotion);
     return () => { active = false; data.subscription.unsubscribe(); media.removeEventListener("change", onMotion); };
   }, [supabase]);
+
+  async function acceptInvite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || busy || !inviteEmail.trim() || !inviteCode.trim()) return;
+    acceptingInvite.current = true;
+    setBusy(true);
+    setNotice("");
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: inviteEmail.trim(),
+        token: inviteCode.trim(),
+        type: "invite",
+      });
+      if (error || !data.session) {
+        setNotice("Código inválido ou expirado. Peça à equipe Pier para reenviar o convite.");
+        return;
+      }
+      const { data: profile, error: profileError } = await supabase
+        .from("user_profiles").select("onboarding_completed_at").eq("id", data.session.user.id).single();
+      if (profileError || !profile || profile.onboarding_completed_at) {
+        await supabase.auth.signOut({ scope: "local" });
+        setNotice("Este convite não está mais pendente. Fale com a equipe Pier para revisar seu acesso.");
+        return;
+      }
+      if (!grantTemporaryAuthFlow("invite", data.session.user.id)) {
+        await supabase.auth.signOut({ scope: "local" });
+        setNotice("Não foi possível abrir o convite neste navegador. Ative o armazenamento local e tente novamente.");
+        return;
+      }
+      setSession(data.session);
+      setNotice("");
+      window.history.replaceState(null, "", "/onboarding");
+    } catch {
+      setNotice("Não foi possível validar o convite. Verifique sua conexão e tente novamente.");
+    } finally {
+      acceptingInvite.current = false;
+      setBusy(false);
+      setChecking(false);
+    }
+  }
 
   useEffect(() => {
     if (step !== "preparing") return;
@@ -120,7 +163,7 @@ export default function OnboardingPage() {
       <div className="onboarding-shade" aria-hidden="true" />
       <header className="onboarding-header"><Brand /><span className="onboarding-header-note">EQUIPE PIER</span></header>
       <section className="onboarding-card" id="onboarding-content" tabIndex={-1}>
-        {checking ? <p role="status">Abrindo seu convite…</p> : !session ? <><span className="onboarding-kicker">CONVITE</span><h1>Convite indisponível.</h1><p>Esta etapa só abre por um convite válido e pendente. Use o link recebido por e-mail ou peça um novo convite à equipe Pier.</p><Link className="button button-secondary" href="/login">Ir para o login</Link></> : <>
+        {checking ? <p role="status">Abrindo seu convite…</p> : !session ? <><span className="onboarding-kicker">CONVITE</span><h1>Confirme seu convite.</h1><p>Informe o e-mail que recebeu o convite e o código enviado. Assim, filtros de segurança do e-mail não consomem seu acesso antes da hora.</p><form className="onboarding-form" onSubmit={acceptInvite} aria-busy={busy}><label>E-mail<input required type="email" autoComplete="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} /></label><label>Código do convite<input required type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={inviteCode} onChange={(event) => setInviteCode(event.target.value.replace(/\D/g, ""))} /></label><button className="button button-primary" disabled={busy || !inviteEmail.trim() || !inviteCode.trim()}>{busy ? "Validando…" : "Validar convite"}</button></form>{notice && <p className="onboarding-notice" role="alert">{notice}</p>}<Link className="button button-secondary" href="/login">Ir para o login</Link></> : <>
           <div className="onboarding-progress" aria-label="Etapas do onboarding"><span className="is-current" /><span className={step !== "welcome" ? "is-current" : ""} /><span className={step === "signature" || step === "preparing" ? "is-current" : ""} /><span className={step === "preparing" ? "is-current" : ""} /></div>
           {step === "welcome" && <><span className="onboarding-kicker">01 / BOAS-VINDAS</span><h1>Seja bem-vindo(a){name ? `, ${name}` : ""}.</h1><p>Seu espaço na equipe Pier está pronto para começar. Vamos proteger seu acesso em alguns passos.</p><Button className="button button-primary" onPress={() => setStep("password")}>Começar <span aria-hidden="true">→</span></Button></>}
           {step === "password" && <><span className="onboarding-kicker">02 / SEGURANÇA</span><h1>Crie uma senha forte.</h1><p>Use ao menos 12 caracteres, com letra maiúscula, minúscula, número e símbolo.</p><form className="onboarding-form" onSubmit={savePassword}><label>Senha<input required minLength={12} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><label>Confirme a senha<input required minLength={12} type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><Button className="button button-primary" type="submit" isDisabled={busy}>{busy ? "Salvando…" : "Salvar e continuar"}</Button></form>{notice && <p className="onboarding-notice" role="alert">{notice}</p>}</>}

@@ -14,6 +14,7 @@ export default function ResetPasswordPage() {
   const supabase = getSupabaseBrowserClient();
   const [step, setStep] = useState<Step>("checking");
   const [email, setEmail] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +28,7 @@ export default function ResetPasswordPage() {
     const params = new URLSearchParams(window.location.search);
     const hash = new URLSearchParams(window.location.hash.slice(1));
     const invalid = params.has("error") || hash.has("error");
+    const enteringRecoveryCode = params.get("mode") === "verify";
     const updating = params.get("mode") === "update" || hash.get("type") === "recovery";
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active || invalid) return;
@@ -44,6 +46,7 @@ export default function ResetPasswordPage() {
         if (active) setStep("invalid");
         return;
       }
+      if (enteringRecoveryCode) { if (active) setStep("sent"); return; }
       if (!updating) { if (active) setStep("request"); return; }
       try {
         const { data, error } = await supabase!.auth.getUser();
@@ -87,6 +90,28 @@ export default function ResetPasswordPage() {
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally { setCaptchaToken(""); captcha.current?.reset(); setBusy(false); }
+  }
+
+  async function verifyRecoveryCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || busy || !email.trim() || !recoveryCode.trim()) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: recoveryCode.trim(),
+        type: "recovery",
+      });
+      if (error || !data.session || !grantTemporaryAuthFlow("recovery", data.session.user.id)) {
+        setNotice("Código inválido ou expirado. Solicite um novo código e tente novamente.");
+        return;
+      }
+      window.history.replaceState(null, "", "/reset-password?mode=update");
+      setStep("update");
+    } catch {
+      setNotice("Não foi possível validar o código. Verifique sua conexão e tente novamente.");
+    } finally { setBusy(false); }
   }
 
   async function savePassword(event: FormEvent<HTMLFormElement>) {
@@ -133,16 +158,21 @@ export default function ResetPasswordPage() {
         {!supabase ? <p role="alert">A recuperação de senha está indisponível. Fale com a equipe para restabelecer o acesso.</p> : <>
           {step === "checking" && <p role="status">Verificando seu link…</p>}
           {step === "request" && <>
-            <p>Informe o e-mail da sua conta para receber um link de redefinição de senha.</p>
+            <p>Informe o e-mail da sua conta para receber um código de redefinição de senha.</p>
             <form onSubmit={requestReset} className="form-stack" aria-busy={busy}>
               <label>E-mail<input type="email" autoComplete="email" required disabled={busy} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
               <div className="auth-captcha"><Turnstile ref={captcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark" }} onSuccess={setCaptchaToken} onExpire={() => setCaptchaToken("")} onError={() => { setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
-              <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Solicitando…" : "Enviar link de recuperação"}</button>
+              <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Solicitando…" : "Enviar código de recuperação"}</button>
             </form>
           </>}
           {step === "sent" && <>
-            <p role="status">Se esse e-mail estiver associado a uma conta, você receberá um link para redefinir sua senha. Confira também a pasta de spam.</p>
-            <button className="button button-secondary" onClick={() => { setNotice(""); setStep("request"); }}>Solicitar outro link</button>
+            <p role="status">{email.trim() ? `Informe o código enviado para ${email.trim()}.` : "Informe o e-mail da conta e o código recebido."} Confira também a pasta de spam.</p>
+            <form onSubmit={verifyRecoveryCode} className="form-stack" aria-busy={busy}>
+              <label>E-mail<input type="email" autoComplete="email" required disabled={busy} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+              <label>Código recebido por e-mail<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8} required disabled={busy} value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value.replace(/\D/g, ""))} /></label>
+              <button className="button button-primary" disabled={busy || !recoveryCode.trim()}>{busy ? "Validando…" : "Validar código"}</button>
+            </form>
+            <button className="button button-secondary" onClick={() => { window.history.replaceState(null, "", "/reset-password"); setNotice(""); setRecoveryCode(""); setStep("request"); }}>Solicitar outro código</button>
           </>}
           {step === "update" && <>
             <p id="password-help">Use ao menos 12 caracteres, com letra maiúscula, minúscula, número e símbolo.</p>

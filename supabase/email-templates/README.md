@@ -34,7 +34,9 @@ Abra [preview.html](preview.html) no navegador. Os 13 exemplos usam endereços `
 
 ## Variáveis e fluxo
 
-- Autenticação por link: `{{ .ConfirmationURL }}` no botão e no link alternativo. Mantém o token, tipo e redirecionamento gerados pelo Supabase.
+- Convite e recuperação usam `{{ .Token }}` como código digitado no app. Isso evita que varredores de links de email consumam o token de uso único ao abrir automaticamente um `{{ .ConfirmationURL }}`.
+- O convite abre `{{ .SiteURL }}` (o endereço de onboarding configurado no Supabase); o usuário informa o email e o código recebido.
+- A recuperação abre `https://piervuln.vercel.app/reset-password?mode=verify`; o usuário informa o email e o código, que é validado com `verifyOtp` do tipo `recovery`.
 - Reautenticação: `{{ .Token }}` para inserir na operação que solicitou o código, sem botão de confirmação.
 - Conta: `{{ .Email }}`.
 - Alteração de email: `{{ .Email }}` e `{{ .NewEmail }}`. O texto atende às confirmações do email antigo e novo quando a opção Secure email change estiver ativa.
@@ -45,7 +47,7 @@ Abra [preview.html](preview.html) no navegador. Os 13 exemplos usam endereços `
 
 O template **Magic link or OTP** usa o modo magic link. O login atual do PierVuln não oferece um formulário para inserir OTP de acesso; o email não promete esse fluxo. A reautenticação é um template preparado para quando a aplicação solicitar esse código.
 
-O retorno da recuperação continua vindo de `resetPasswordForEmail({ redirectTo: ".../reset-password?mode=update" })`; o email de convite respeita o retorno para onboarding. Não construa URLs anexando caminhos a `SiteURL`: no projeto, ela já contém `/onboarding`. Confira Site URL e Redirect URLs no painel antes de testar os fluxos.
+O app ainda pede a recuperação com `resetPasswordForEmail({ redirectTo: ".../reset-password?mode=update" })`; o HTML do email não usa esse token link de uso único. O endereço fixo do botão de recuperação precisa ser atualizado se o domínio do app mudar. Confira Site URL e Redirect URLs no painel antes de testar os fluxos.
 
 As notificações de segurança informam uma alteração já realizada. Não usam tokens ou links de confirmação. Orientam o usuário a acessar o endereço conhecido do serviço e contatar o administrador da equipe, sem inventar um contato de suporte.
 

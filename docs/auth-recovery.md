@@ -1,10 +1,12 @@
 # Recuperação de senha e onboarding
 
-O login oferece o link `/reset-password`. A solicitação usa `auth.resetPasswordForEmail` com retorno para `/reset-password?mode=update`. A nova senha é salva com `auth.updateUser`, após verificação do usuário pelo Supabase. A página exige confirmação e a mesma composição de senha do onboarding: 12 caracteres, maiúscula, minúscula, número e símbolo. Após salvar, a sessão local é encerrada e o usuário pode voltar ao login.
+O login oferece `/reset-password`. A solicitação usa `auth.resetPasswordForEmail`. Os e-mails de recuperação e convite entregam `{{ .Token }}` como código digitado na aplicação; o app valida com `auth.verifyOtp` (tipo `recovery` ou `invite`) antes de liberar a redefinição ou o onboarding. Isso evita que filtros automáticos do email consumam o link único antes do usuário. A nova senha é salva com `auth.updateUser`, após verificação do usuário pelo Supabase. A página exige confirmação e a mesma composição de senha do onboarding: 12 caracteres, maiúscula, minúscula, número e símbolo. Após salvar, a sessão local é encerrada e o usuário pode voltar ao login.
 
 No projeto remoto PierGV (`jgrmgqukkrwrntsihmmk`), o Site URL foi definido como `https://piervuln.vercel.app/onboarding`. A lista de redirecionamentos existente, `https://piervuln.vercel.app/**`, cobre onboarding e recuperação. Os links enviados diretamente pelo painel Supabase, sem redirecionamento explícito, usam esse Site URL. Links com um redirecionamento explícito autorizado continuam respeitando esse destino.
 
-A função `admin-actions`, publicada como versão 5, envia os convites de clientes e equipe para `/onboarding`. Convites antigos com `/login?invite=1` também são encaminhados ao onboarding. Eventos `PASSWORD_RECOVERY` recebidos no onboarding, login ou painel abrem a redefinição de senha.
+A função `admin-actions` envia os convites de clientes e equipe para `/onboarding`. Convites antigos com `/login?invite=1` também são encaminhados ao onboarding. O onboarding continua aceitando convites antigos por link; os novos podem ser validados pelo código digitado. Eventos `PASSWORD_RECOVERY` recebidos no onboarding, login ou painel abrem a redefinição de senha.
+
+Depois de publicar o app, atualize no projeto Supabase os templates **Invite user** e **Reset password** com `supabase/email-templates/invite-user.html` e `supabase/email-templates/reset-password.html`. O painel do Supabase não é atualizado automaticamente pelos arquivos locais. Os códigos seguem o prazo configurado em Auth → Sign In / Providers → Email OTP expiration (padrão de uma hora).
 
 O `supabase/config.toml` mantém os equivalentes locais. Ele não aplica configurações ao projeto hospedado. Para testar os e-mails do projeto remoto em localhost, é necessário autorizar também o endereço local no painel Supabase; para testes com Supabase local, os endereços já estão no arquivo.
 
