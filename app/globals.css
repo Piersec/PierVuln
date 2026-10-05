@@ -288,13 +288,15 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .landscape-alert { margin: 0; padding: 12px 14px; border: 0; border-radius: 8px; background: #351e28; color: #ffd3d9; font-size: 13px; }
 .landscape-loading, .landscape-hint { margin: 0; color: var(--muted); font-size: 12px; }
 .severity-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.severity-block { display: grid; align-content: center; min-height: 100px; gap: 3px; padding: 16px 18px; border-radius: 12px; color: #fff; }
+.severity-block { display: grid; align-content: center; min-height: 100px; gap: 3px; padding: 16px 18px; border-radius: 12px; background: var(--severity-color); color: #fff; animation: severity-color-reveal 1.4s ease both; }
 .severity-block strong { font-size: clamp(25px, 2.5vw, 35px); line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .severity-block span { font-size: 12px; font-weight: 700; }
-.severity-block-critical { background: #790d2c; }
-.severity-block-high { background: #c72b30; }
-.severity-block-medium { background: #c86e19; }
-.severity-block-low { background: #c6a318; color: #171611; }
+.severity-block-critical { --severity-color: #a90839; }
+.severity-block-high { --severity-color: #c72b30; animation-delay: 1s; }
+.severity-block-medium { --severity-color: #c86e19; animation-delay: 2s; }
+.severity-block-low { --severity-color: #c6a318; animation-delay: 3s; }
+@keyframes severity-color-reveal { from { background-color: #191a1c; } to { background-color: var(--severity-color); } }
+@media (prefers-reduced-motion: reduce) { .severity-block { animation: none; } }
 .landscape-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .landscape-stat-grid > div { display: grid; align-content: start; gap: 6px; min-height: 116px; padding: 16px; border: 0; border-radius: 12px; background: var(--surface); }
 .landscape-stat-grid span { color: var(--muted-strong); font-size: 12px; }
@@ -303,7 +305,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .landscape-analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .analysis-panel { min-width: 0; padding: 19px; border: 0; border-radius: 12px; background: var(--surface); }
 .analysis-panel h3 { margin: 0 0 5px; font-size: 16px; }
-.trend-chart { display: grid; height: 178px; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 12px; margin-top: 22px; border-bottom: 1px solid var(--line-strong); }
+.trend-chart { display: grid; height: 178px; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 12px; margin-top: 22px; }
 .trend-month { display: grid; height: 100%; grid-template-rows: 1fr 20px; gap: 3px; text-align: center; }
 .trend-month > span { color: var(--muted); font-size: 11px; }
 .trend-stack { display: flex; min-height: 0; flex-direction: column-reverse; justify-content: flex-start; overflow: hidden; border-radius: 4px 4px 0 0; }
