@@ -11,6 +11,7 @@ import { hasInviteLink } from "@/src/lib/temporary-auth-flow";
 import { TURNSTILE_SITE_KEY } from "@/src/lib/auth-captcha";
 
 const inviteHashAtLoad = typeof window !== "undefined" && hasInviteLink() ? window.location.hash : "";
+const captchaRefreshAfterMs = 4 * 60_000;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +22,25 @@ export default function LoginPage() {
   const [notice, setNotice] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const captcha = useRef<TurnstileInstance>(null);
+  const submitting = useRef(false);
+  const captchaIssuedAt = useRef(0);
+
+  function acceptCaptcha(token: string) {
+    captchaIssuedAt.current = Date.now();
+    setCaptchaToken(token);
+    setNotice((current) => current.includes("desafio de segurança") ? "" : current);
+  }
+
+  useEffect(() => {
+    if (!captchaToken) return;
+    const timer = setTimeout(() => {
+      if (submitting.current) return;
+      captchaIssuedAt.current = 0;
+      setCaptchaToken("");
+      captcha.current?.reset();
+    }, Math.max(0, captchaRefreshAfterMs - (Date.now() - captchaIssuedAt.current)));
+    return () => clearTimeout(timer);
+  }, [captchaToken]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -36,21 +56,34 @@ export default function LoginPage() {
 
   async function onSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!supabase || submitting.current) return;
     if (!captchaToken) { setNotice("Confirme o desafio de segurança para entrar."); return; }
+    if (Date.now() - captchaIssuedAt.current >= captchaRefreshAfterMs) {
+      captchaIssuedAt.current = 0;
+      setCaptchaToken("");
+      captcha.current?.reset();
+      setNotice("O desafio de segurança expirou. Aguarde a nova confirmação para entrar.");
+      return;
+    }
+    const token = captchaToken;
+    submitting.current = true;
+    captchaIssuedAt.current = 0;
+    setCaptchaToken("");
     setBusy(true);
     setNotice("");
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
+      const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: token } });
       if (error) setNotice(error.code === "captcha_failed"
-        ? "Não foi possível validar o desafio de segurança. Tente novamente."
+        ? "O desafio de segurança expirou ou já foi utilizado. Aguarde a nova confirmação e tente entrar novamente."
         : "Não foi possível entrar. Confira o e-mail e a senha ou peça um novo convite à equipe.");
       else router.replace("/");
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally {
+      captchaIssuedAt.current = 0;
       setCaptchaToken("");
       captcha.current?.reset();
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -69,7 +102,7 @@ export default function LoginPage() {
         <form onSubmit={onSignIn} className="form-stack">
           <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          <div className="auth-captcha"><Turnstile ref={captcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark" }} onSuccess={setCaptchaToken} onExpire={() => setCaptchaToken("")} onError={() => { setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+          <div className="auth-captcha"><Turnstile ref={captcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark", refreshExpired: "auto" }} onSuccess={acceptCaptcha} onExpire={() => { captchaIssuedAt.current = 0; setCaptchaToken(""); }} onError={() => { captchaIssuedAt.current = 0; setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
           <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Entrando…" : "Entrar"}</button>
         </form>
         {notice && <p className="form-notice" role="status">{notice}</p>}
