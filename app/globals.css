@@ -287,6 +287,17 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .landscape-heading p, .analysis-panel > p, .priority-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .landscape-alert { margin: 0; padding: 12px 14px; border: 0; border-radius: 8px; background: #351e28; color: #ffd3d9; font-size: 13px; }
 .landscape-loading, .landscape-hint { margin: 0; color: var(--muted); font-size: 12px; }
+.landscape-skeleton { display: contents; }
+.landscape-placeholder { display: block; width: 75%; max-width: 100%; height: 12px; border-radius: 5px; background: var(--line-strong); animation: landscape-placeholder-pulse 1.5s ease-in-out infinite alternate; }
+.landscape-placeholder-value { width: 90px; height: 32px; }
+.landscape-placeholder-chart { width: 100%; height: 100%; }
+.landscape-placeholder-cell { width: 100%; height: 26px; }
+.landscape-skeleton .severity-block { background: var(--surface); animation: none; }
+.landscape-skeleton .overview-compact .landscape-placeholder-text { justify-self: end; }
+.landscape-skeleton-chart { height: 178px; margin-top: 22px; }
+.landscape-skeleton .priority-list > div { min-height: 34px; align-items: center; }
+@keyframes landscape-placeholder-pulse { from { opacity: .45; } to { opacity: .85; } }
+@media (prefers-reduced-motion: reduce) { .landscape-placeholder { animation: none; } }
 .severity-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .severity-block { display: grid; align-content: center; min-height: 100px; gap: 3px; padding: 16px 18px; border-radius: 12px; background: var(--severity-color); color: #fff; animation: severity-color-reveal .8s ease both; }
 .severity-block strong { font-size: clamp(25px, 2.5vw, 35px); line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
