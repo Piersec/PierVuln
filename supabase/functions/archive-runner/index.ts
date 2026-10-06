@@ -3,8 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const expectedJobTokens = [Deno.env.get("ARCHIVE_JOB_TOKEN"), Deno.env.get("WAZUH_WORKER_CONFIG_TOKEN")]
-  .filter((token): token is string => Boolean(token && token.length >= 16));
+const expectedJobToken = Deno.env.get("ARCHIVE_JOB_TOKEN");
 const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -41,13 +40,15 @@ async function jsonBytes(value: unknown) {
   return new TextEncoder().encode(JSON.stringify(value));
 }
 
-async function expireArchives() {
-  const { data: manifests, error } = await supabase.from("archive_manifests")
+async function expireArchives(connectionId: string | null) {
+  let query = supabase.from("archive_manifests")
     .select("id,object_path,bucket_name")
     .eq("status", "database_purged")
     .lte("expires_at", new Date().toISOString())
     .order("expires_at")
     .limit(100);
+  if (connectionId) query = query.eq("connection_id", connectionId);
+  const { data: manifests, error } = await query;
   if (error) throw error;
   let expired = 0;
   for (const manifest of manifests ?? []) {
@@ -65,13 +66,15 @@ async function expireArchives() {
   return expired;
 }
 
-async function archiveResolvedFindings() {
+async function archiveResolvedFindings(connectionId: string | null) {
   const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: outstandingManifests, error: outstandingError } = await supabase.from("archive_manifests")
+  let outstandingQuery = supabase.from("archive_manifests")
     .select("id,bucket_name,object_path,checksum_sha256,finding_ids,status")
     .in("status", ["pending", "verified"])
     .order("created_at")
     .limit(100);
+  if (connectionId) outstandingQuery = outstandingQuery.eq("connection_id", connectionId);
+  const { data: outstandingManifests, error: outstandingError } = await outstandingQuery;
   if (outstandingError) throw outstandingError;
   const reservedFindingIds = new Set((outstandingManifests ?? []).flatMap((manifest) => manifest.finding_ids as string[]));
   let archived = 0;
@@ -96,13 +99,15 @@ async function archiveResolvedFindings() {
     }
   }
 
-  const { data: findings, error } = await supabase.from("wazuh_findings")
+  let findingQuery = supabase.from("wazuh_findings")
     .select("id,connection_id,tenant_id,resolved_at")
     .eq("source_state", "resolved")
     .not("tenant_id", "is", null)
     .lte("resolved_at", cutoff)
     .order("resolved_at")
     .limit(maxFindingsPerArchive * 10);
+  if (connectionId) findingQuery = findingQuery.eq("connection_id", connectionId);
+  const { data: findings, error } = await findingQuery;
   if (error) throw error;
 
   const groups = new Map<string, NonNullable<typeof findings>>();
@@ -185,12 +190,23 @@ async function archiveResolvedFindings() {
 Deno.serve(async (request) => {
   if (request.method !== "POST") return response(405, { error: "Method not allowed" });
   const suppliedToken = request.headers.get("x-archive-token") ?? "";
-  if (!expectedJobTokens.some((token) => constantTimeEqual(suppliedToken, token))) {
+  if (suppliedToken.length < 16 || suppliedToken.length > 512) return response(401, { error: "Unauthorized" });
+  let connectionId: string | null = null;
+  const requestedConnection = request.headers.get("x-connection-id");
+  if (requestedConnection) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedConnection)) return response(401, { error: "Unauthorized" });
+    const [{ data: credential, error: credentialError }, { data: connection, error: connectionError }] = await Promise.all([
+      supabase.from("wazuh_ingest_credentials").select("token_sha256").eq("connection_id", requestedConnection).maybeSingle(),
+      supabase.from("wazuh_connections").select("id").eq("id", requestedConnection).eq("is_active", true).maybeSingle(),
+    ]);
+    if (credentialError || connectionError || !credential || !connection || !constantTimeEqual(credential.token_sha256, await sha256(new TextEncoder().encode(suppliedToken)))) return response(401, { error: "Unauthorized" });
+    connectionId = connection.id;
+  } else if (!expectedJobToken || !constantTimeEqual(suppliedToken, expectedJobToken)) {
     return response(401, { error: "Unauthorized" });
   }
   try {
-    const expiredManifests = await expireArchives();
-    const purgedFindings = await archiveResolvedFindings();
+    const expiredManifests = await expireArchives(connectionId);
+    const purgedFindings = await archiveResolvedFindings(connectionId);
     return response(200, { expiredManifests, purgedFindings });
   } catch (error) {
     console.error(`[archive-runner] retention failed: ${error instanceof Error ? error.message.slice(0, 300) : "unknown"}`);

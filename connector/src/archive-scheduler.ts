@@ -6,7 +6,9 @@ function required(name: string): string {
 
 const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
 const publishableKey = required("SUPABASE_PUBLISHABLE_KEY");
-const archiveToken = required("ARCHIVE_JOB_TOKEN");
+const configuredArchiveToken = process.env.ARCHIVE_JOB_TOKEN?.trim();
+const archiveToken = configuredArchiveToken || required("WAZUH_INGEST_TOKEN");
+const connectionId = configuredArchiveToken ? undefined : required("WAZUH_CONNECTION_ID");
 const intervalSeconds = Number(process.env.ARCHIVE_INTERVAL_SECONDS ?? "86400");
 
 if (!supabaseUrl.startsWith("https://") || !Number.isInteger(intervalSeconds) || intervalSeconds < 3600) {
@@ -20,6 +22,7 @@ async function runArchive() {
       apikey: publishableKey,
       "content-type": "application/json",
       "x-archive-token": archiveToken,
+      ...(connectionId ? { "x-connection-id": connectionId } : {}),
     },
     body: "{}",
     signal: AbortSignal.timeout(120_000),
