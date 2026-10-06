@@ -229,7 +229,7 @@ export function AdminSection({ section }: { section: Section }) {
   const companyName = (id: string | null) => visibleText(data.companies.find((c) => c.id === id)?.name ?? "Compartilhada");
   const matches = (value: string) => value.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR"));
   const companies = data.companies.filter((c) => matches(`${visibleText(c.name)} ${c.slug}`) && (!status || String(c.is_active) === status));
-  const connections = data.connections.filter((c) => matches(`${visibleText(c.name)} ${visibleText(c.endpoint_url)}`) && (!status || String(c.is_active) === status)
+  const connections = data.connections.filter((c) => matches(`${visibleText(c.name)} ${visibleText(c.endpoint_url)} ${companyName(c.tenant_id)} ${data.mappings.filter((m) => m.connection_id === c.id).map((m) => `${companyName(m.tenant_id)} ${m.match_value}`).join(" ")}`) && (!status || String(c.is_active) === status)
     && (!companyFilter || c.tenant_id === companyFilter || data.mappings.some((m) => m.connection_id === c.id && m.tenant_id === companyFilter && m.is_active)));
 
   async function download(archive: AdminArchive) {
@@ -243,7 +243,7 @@ export function AdminSection({ section }: { section: Section }) {
   }
 
   return <>
-    <div className="page-heading"><div><h1>{sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", integrations: "Fontes de vulnerabilidades e vínculos de agentes e grupos.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
+    <div className="page-heading"><div><h1>{sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", integrations: "Organize as empresas de cada indexador e gerencie seus vínculos.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
       {section === "tenants" && <button className="button button-primary" onClick={() => setEditor({ kind: "company" })}>Nova empresa</button>}
       {section === "integrations" && <button className="button button-primary" onClick={() => setEditor({ kind: "connection" })}>Nova integração</button>}
       {section === "users" && <button className="button button-primary" onClick={() => setEditor({ kind: "invite" })}>Convidar usuário</button>}
@@ -260,13 +260,14 @@ export function AdminSection({ section }: { section: Section }) {
         </DataTable>
       </section>
     </>}
-    {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar integração…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
+    {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar empresa, integração ou vínculo…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
     {section === "tenants" && <section className="panel admin-list-panel"><DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Status", "Ações"]} empty={!companies.length}>
       {companies.map((c) => <tr key={c.id}><td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small></td><td>{c.user_count}</td><td>{c.connection_count}</td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "company", company: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>)}
     </DataTable></section>}
-    {section === "integrations" && <section className="panel admin-list-panel"><DataTable headings={["Conexão / vínculos", "Empresa", "Endpoint", "Sincronização", "Status", "Ações"]} empty={!connections.length}>
-      {connections.map((c) => <tr key={c.id}><td><strong>{visibleText(c.name)}</strong><small>{c.mode === "shared" ? "Compartilhada" : "Dedicada"}</small>{c.mode === "shared" && <details className="admin-mappings"><summary>Vínculos de agentes, grupos e prefixos ({data.mappings.filter((m) => m.connection_id === c.id).length})</summary>{data.mappings.filter((m) => m.connection_id === c.id).map((m) => <div key={m.id}><span>{m.match_type === "group" ? "Grupo" : m.match_type === "agent_name_prefix" ? "agent.name" : "Agente"}: {visibleText(m.match_value)}<small>{companyName(m.tenant_id)} · {m.is_active ? "Ativo" : "Inativo"}</small></span>{m.is_active && <button className="button button-secondary" disabled={busy} onClick={() => void run({ action: "disable_agent_mapping", mappingId: m.id }, "Vínculo desativado.")}>Desativar</button>}</div>)}<div className="admin-row-actions"><button className="button button-secondary" disabled={!c.is_active || busy} onClick={() => setEditor({ kind: "shared-company", connectionId: c.id })}>Adicionar empresa</button><button className="button button-secondary" disabled={!c.is_active || busy} onClick={() => setEditor({ kind: "mapping", connectionId: c.id })}>Adicionar vínculo manual</button></div></details>}</td><td>{companyName(c.tenant_id)}</td><td className="admin-endpoint">{visibleText(c.endpoint_url)}</td><td><SyncStatus connection={c} /><small>{adminDate(c.latest_sync?.finished_at ?? c.latest_sync?.started_at)}</small></td><td><SyncTiming runs={syncHistory[c.id] ?? []} now={syncNow} /></td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "connection", connection: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "connection", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>)}
-    </DataTable></section>}
+    {section === "integrations" && <div className="admin-integrations">
+      {!connections.length && <div className="panel admin-empty">Nenhuma integração encontrada. Ajuste os filtros ou cadastre uma nova integração.</div>}
+      {connections.map((connection) => <IntegrationPanel key={connection.id} connection={connection} data={data} companyFilter={companyFilter} search={search} runs={syncHistory[connection.id] ?? []} now={syncNow} setEditor={setEditor} />)}
+    </div>}
     {section === "users" && <>
       <div className="admin-filters"><label><span className="sr-only">Buscar usuário</span><input type="search" placeholder="Buscar nome ou e-mail…" value={query.search} onChange={(e) => setQuery({ ...query, search: e.target.value, page: 0 })} /></label><label><span className="sr-only">Filtrar usuários por equipe ou empresa</span><select value={query.scope} onChange={(e) => setQuery({ ...query, scope: e.target.value, page: 0 })}><option value="">Todos os usuários</option><option value="pier">Equipe Pier</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label></div>
       <section className="panel admin-list-panel"><DataTable headings={["Nome / e-mail", "Acesso", "Empresas e perfis", "Cadastro", "Ações"]} empty={!data.users.length}>
@@ -281,6 +282,57 @@ export function AdminSection({ section }: { section: Section }) {
     </>}
     {editor && <AdminEditor editor={editor} close={() => setEditor(null)} />}
   </>;
+}
+
+function IntegrationPanel({ connection, data, companyFilter, search, runs, now, setEditor }: {
+  connection: AdminConnection; data: AdminData; companyFilter: string; search: string;
+  runs: SyncMeasurement[]; now: number; setEditor: (editor: Editor) => void;
+}) {
+  const { busy, run } = useAdmin();
+  const mappings = data.mappings.filter((mapping) => mapping.connection_id === connection.id);
+  const tenantIds = new Set(mappings.map((mapping) => mapping.tenant_id));
+  if (connection.tenant_id) tenantIds.add(connection.tenant_id);
+  const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
+  const connectionMatches = `${visibleText(connection.name)} ${visibleText(connection.endpoint_url)}`.toLocaleLowerCase("pt-BR").includes(normalizedSearch);
+  const companies = data.companies.filter((company) => tenantIds.has(company.id) && (!companyFilter || company.id === companyFilter)
+    && (connectionMatches || `${visibleText(company.name)} ${mappings.filter((mapping) => mapping.tenant_id === company.id).map((mapping) => mapping.match_value).join(" ")}`.toLocaleLowerCase("pt-BR").includes(normalizedSearch)))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  function mappingRows(rows: typeof mappings) {
+    return rows.map((mapping) => <div className="admin-mapping-row" key={mapping.id}>
+      <span><strong>{mapping.match_type === "group" ? "Grupo" : mapping.match_type === "agent_name_prefix" ? "Prefixo" : "Agente"}</strong><code>{visibleText(mapping.match_value)}</code><small>{mapping.is_active ? "Ativo" : "Inativo"}</small></span>
+      {mapping.is_active && <button className="button button-secondary" disabled={busy} aria-label={`Desativar ${visibleText(mapping.match_value)}`} onClick={() => void run({ action: "disable_agent_mapping", mappingId: mapping.id }, "Vínculo desativado.")}>Desativar</button>}
+    </div>);
+  }
+  return <section className="panel admin-integration-panel" aria-labelledby={`connection-${connection.id}`}>
+    <header className="admin-integration-header">
+      <div><h2 id={`connection-${connection.id}`}>{visibleText(connection.name)}</h2><p>{connection.mode === "shared" ? "Indexador compartilhado" : "Indexador dedicado"} · {tenantIds.size} {tenantIds.size === 1 ? "empresa vinculada" : "empresas vinculadas"}</p></div>
+      <div className="admin-integration-actions"><ActiveStatus active={connection.is_active} />{connection.mode === "shared" && <button className="button button-primary" disabled={!connection.is_active || busy} onClick={() => setEditor({ kind: "shared-company", connectionId: connection.id })}>Adicionar empresa</button>}</div>
+    </header>
+    <div className="admin-integration-sync"><SyncStatus connection={connection} /><span>Última execução: {adminDate(connection.latest_sync?.finished_at ?? connection.latest_sync?.started_at)}</span></div>
+    <details className="admin-connection-details"><summary>Configuração e sincronização</summary>
+      <div className="admin-connection-body"><div><span className="muted-copy">Endpoint</span><p className="admin-endpoint">{visibleText(connection.endpoint_url)}</p><SyncTiming runs={runs} now={now} /></div>
+        <div className="admin-integration-actions"><button className="button button-secondary" disabled={busy} onClick={() => setEditor({ kind: "connection", connection })}>Editar integração</button><button className="button button-secondary" disabled={busy} onClick={() => setEditor({ kind: "toggle", entity: "connection", id: connection.id, name: visibleText(connection.name), active: connection.is_active })}>{connection.is_active ? "Desativar" : "Reativar"}</button>{connection.mode === "shared" && <button className="button button-secondary" disabled={!connection.is_active || busy} onClick={() => setEditor({ kind: "mapping", connectionId: connection.id })}>Adicionar vínculo manual</button>}</div>
+      </div>
+    </details>
+    {!companies.length && <p className="admin-integration-empty">Nenhuma empresa vinculada nesta seleção.{connection.mode === "shared" ? " Use Adicionar empresa para configurar o primeiro cliente." : " Edite a integração para selecionar uma empresa."}</p>}
+    <div className="admin-company-grid">{companies.map((company) => {
+      const companyMappings = mappings.filter((mapping) => mapping.tenant_id === company.id);
+      const rules = companyMappings.filter((mapping) => mapping.match_type !== "agent_id");
+      const agents = companyMappings.filter((mapping) => mapping.match_type === "agent_id");
+      const activeRules = rules.filter((mapping) => mapping.is_active);
+      return <article className="admin-integration-company" key={company.id}>
+        <header><h3>{visibleText(company.name)}</h3><ActiveStatus active={company.is_active} /></header>
+        {connection.mode === "shared" ? <>
+          <dl className="admin-company-routing"><div><dt>Prefixo</dt><dd>{activeRules.filter((mapping) => mapping.match_type === "agent_name_prefix").map((mapping) => visibleText(mapping.match_value)).join(", ") || "Não configurado"}</dd></div><div><dt>Grupo</dt><dd>{activeRules.filter((mapping) => mapping.match_type === "group").map((mapping) => visibleText(mapping.match_value)).join(", ") || "Não configurado"}</dd></div></dl>
+          <details className="admin-company-details" name={`company-rules-${connection.id}`}><summary>Gerenciar vínculos <span>{companyMappings.filter((mapping) => mapping.is_active).length} ativos</span></summary>
+            {rules.length > 0 && <div className="admin-mapping-list" role="region" aria-label={`Regras de ${visibleText(company.name)}`} tabIndex={0}>{mappingRows(rules)}</div>}
+            {agents.length > 0 && <details className="admin-agent-details"><summary>Agentes individuais ({agents.length})</summary><div className="admin-mapping-list" role="region" aria-label={`Agentes de ${visibleText(company.name)}`} tabIndex={0}>{mappingRows(agents)}</div></details>}
+            {!companyMappings.length && <p className="muted-copy">Nenhum vínculo configurado para esta empresa.</p>}
+          </details>
+        </> : <p className="muted-copy">Os dados desta integração são destinados a esta empresa.</p>}
+      </article>;
+    })}</div>
+  </section>;
 }
 
 function ActiveStatus({ active }: { active: boolean }) { return <span className={`admin-status${active ? " positive" : ""}`}>{active ? "Ativa" : "Inativa"}</span>; }

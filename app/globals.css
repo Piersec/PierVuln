@@ -112,10 +112,37 @@
 .admin-file { min-width: 220px; max-width: 420px; overflow-wrap: anywhere; }
 .admin-membership { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 240px; margin-bottom: 12px; }
 .admin-membership:last-child { margin-bottom: 0; }
-.admin-mappings { margin-top: 12px; min-width: 230px; }
-.admin-mappings summary { padding: 10px 0; color: var(--accent-strong); cursor: pointer; }
-.admin-mappings > div { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
-.admin-mappings > button { margin-top: 12px; }
+.admin-integrations { display: grid; gap: 20px; }
+.admin-integration-panel { min-width: 0; padding: 22px; }
+.admin-integration-header, .admin-integration-company > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-integration-header h2 { margin: 0; font-size: 19px; }
+.admin-integration-header p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.admin-integration-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-integration-sync { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; color: var(--muted); font-size: 12px; }
+.admin-connection-details { margin-top: 10px; }
+.admin-connection-details > summary, .admin-company-details > summary, .admin-agent-details > summary { min-height: 44px; padding: 12px 0; color: var(--muted-strong); cursor: pointer; font-size: 13px; }
+.admin-connection-body { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 12px 0 18px; }
+.admin-connection-body > div { min-width: 0; }
+.admin-connection-body .admin-endpoint { min-width: 0; max-width: none; margin: 5px 0 14px; }
+.admin-company-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; margin-top: 12px; }
+.admin-integration-company { min-width: 0; padding: 16px 18px; border-radius: 12px; background: var(--surface-inset); }
+.admin-integration-company h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.admin-company-routing { display: grid; gap: 7px; margin: 14px 0 10px; font-size: 13px; }
+.admin-company-routing > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
+.admin-company-routing dt { color: var(--muted); }
+.admin-company-routing dd { margin: 0; overflow-wrap: anywhere; }
+.admin-company-details > summary { border-top: 1px solid var(--line); }
+.admin-company-details > summary span { margin-left: 8px; color: var(--muted); font-size: 12px; }
+.admin-mapping-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
+.admin-mapping-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
+.admin-mapping-row + .admin-mapping-row { border-top: 1px solid var(--line); }
+.admin-mapping-row > span { min-width: 0; }
+.admin-mapping-row strong, .admin-mapping-row code, .admin-mapping-row small { display: block; font-size: 12px; }
+.admin-mapping-row code { margin: 3px 0; overflow-wrap: anywhere; }
+.admin-mapping-row small { color: var(--muted); }
+.admin-mapping-row .button { flex-shrink: 0; }
+.admin-integration-empty { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+@media (max-width: 800px) { .admin-company-grid { grid-template-columns: 1fr; } .admin-integration-panel { padding: 16px; } }
 .admin-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .admin-pagination > div { display: flex; gap: 8px; }
 .admin-empty { padding: 36px 12px; text-align: center; color: var(--muted); }
