@@ -157,7 +157,7 @@ async function archiveResolvedFindings(connectionId: string | null) {
       const readback = new Uint8Array(await downloaded.arrayBuffer());
       if (await sha256(readback) !== checksum) throw new Error("Archive checksum mismatch after upload");
 
-      const resolvedTimes = group.map((finding) => Date.parse(finding.resolved_at!)).filter(Number.isFinite);
+      const resolvedTimes = (source.findings as Array<{ resolved_at: string }>).map((finding) => Date.parse(finding.resolved_at)).filter(Number.isFinite);
       const { error: manifestError } = await supabase.from("archive_manifests").insert({
         id: manifestId,
         tenant_id: tenantId,
