@@ -174,32 +174,47 @@ async function runConnection(connection: RemoteConnection): Promise<void> {
 
 async function main() {
   const nextRunAt = new Map<string, number>();
+  const failuresByConnection = new Map<string, number>();
   console.info(`[connector] Worker dinâmico iniciado; consulta de fontes a cada ${configPollSeconds}s; sincronização a cada ${syncIntervalSeconds}s por fonte.`);
   while (!shutdown.signal.aborted) {
     try {
       const { connections, skipped } = await loadConnections();
       const activeIds = new Set(connections.map((connection) => connection.id));
-      for (const id of nextRunAt.keys()) if (!activeIds.has(id)) nextRunAt.delete(id);
+      for (const id of nextRunAt.keys()) {
+        if (!activeIds.has(id)) {
+          nextRunAt.delete(id);
+          failuresByConnection.delete(id);
+        }
+      }
       if (skipped > 0) console.warn(`[connector] ${skipped} fonte(s) sem configuração válida foram ignoradas.`);
 
       for (const connection of connections) {
         if (shutdown.signal.aborted) break;
         if ((nextRunAt.get(connection.id) ?? 0) > Date.now()) continue;
-        console.info(`[connector] Iniciando snapshot da fonte ${connection.name}.`);
+        console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=starting.`);
         try {
           await runConnection(connection);
-          if (!shutdown.signal.aborted) console.info(`[connector] Snapshot concluído: ${connection.name}.`);
-        } catch (error) {
-          console.error(`[connector] Falha na fonte ${connection.name}: ${safeMessage(error)}.`);
-        } finally {
+          failuresByConnection.delete(connection.id);
           nextRunAt.set(connection.id, Date.now() + syncIntervalSeconds * 1000);
+          if (!shutdown.signal.aborted) console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=completed.`);
+        } catch (error) {
+          if (shutdown.signal.aborted) break;
+          const consecutiveFailures = (failuresByConnection.get(connection.id) ?? 0) + 1;
+          failuresByConnection.set(connection.id, consecutiveFailures);
+          const backoff = Math.min(15 * 60_000, 30_000 * 2 ** Math.min(consecutiveFailures - 1, 5));
+          const nextDelay = backoff + Math.round(backoff * Math.random() * 0.2);
+          nextRunAt.set(connection.id, Date.now() + nextDelay);
+          console.error(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=failed consecutiveFailures=${consecutiveFailures} nextRetryMs=${nextDelay} error=${safeMessage(error)}`);
         }
       }
       if (connections.length === 0) console.info("[connector] Nenhuma fonte ativa e configurada no momento.");
     } catch (error) {
       console.error(`[connector] Não foi possível atualizar as configurações: ${safeMessage(error)}.`);
     }
-    await wait(configPollSeconds * 1000, shutdown.signal);
+    const now = Date.now();
+    const nextScheduledRunAt = Math.min(...[...nextRunAt.values()].filter((time) => time > now));
+    const retryDelay = Number.isFinite(nextScheduledRunAt) ? Math.max(1_000, nextScheduledRunAt - now) : configPollSeconds * 1000;
+    await wait(Math.min(configPollSeconds * 1000, retryDelay), shutdown.signal);
   }
 }
 

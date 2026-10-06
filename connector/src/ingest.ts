@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import type { NormalizedFinding, SearchPage, WazuhIndexerClient } from "./wazuh.js";
+import { createHash, randomUUID } from "node:crypto";
+import type { NormalizedFinding, ScrollPage, WazuhIndexerClient } from "./wazuh.js";
 
 export type ConnectorConfig = {
   supabaseUrl: string;
@@ -14,6 +14,19 @@ export type ConnectorConfig = {
 
 type FunctionReply = Record<string, unknown>;
 
+export class SnapshotSyncError extends Error {
+  constructor(
+    message: string,
+    readonly runId: string,
+    readonly pages: number,
+    readonly documents: number,
+    readonly durationMs: number,
+  ) {
+    super(message);
+    this.name = "SnapshotSyncError";
+  }
+}
+
 export class SupabaseIngestClient {
   private readonly ingestUrl: string;
 
@@ -21,11 +34,16 @@ export class SupabaseIngestClient {
     this.ingestUrl = `${config.supabaseUrl.replace(/\/$/, "")}/functions/v1/wazuh-ingest`;
   }
 
-  async startSync(indexerVersion: string): Promise<string> {
+  async startSync(indexerVersion: string, signal?: AbortSignal): Promise<string> {
+    const protocol = await this.post(this.ingestUrl, { action: "protocol" }, false, signal);
+    if (Number(protocol.snapshotProtocol) !== 2) throw new Error("Supabase não confirmou o protocolo de snapshot atômico v2.");
+    const requestId = randomUUID();
     const reply = await this.post(this.ingestUrl, {
       action: "start",
+      requestId,
+      snapshotProtocol: 2,
       indexerVersion,
-    });
+    }, true, signal);
     if (typeof reply.runId !== "string") throw new Error("Supabase não devolveu o ID da execução.");
     return reply.runId;
   }
@@ -35,11 +53,12 @@ export class SupabaseIngestClient {
     return Number(reply.findingsChanged ?? 0);
   }
 
-  async finishSync(runId: string, expectedPages: number, expectedDocuments: number, version: string): Promise<void> {
+  async finishSync(runId: string, expectedPages: number, expectedDocuments: number, version: string, signal?: AbortSignal): Promise<number> {
     const reply = await this.post(this.ingestUrl, {
       action: "finish", runId, expectedPages, expectedDocuments, indexerVersion: version,
-    });
+    }, true, signal);
     if (reply.completed !== true) throw new Error("Supabase marcou a leitura como parcial; nenhum achado foi encerrado.");
+    return Number.isSafeInteger(reply.findingsChanged) ? Number(reply.findingsChanged) : 0;
   }
 
   async failSync(runId: string, error: string): Promise<void> {
@@ -94,48 +113,55 @@ export async function synchronizeSnapshot(
   pageSize: number,
   pageDelayMilliseconds = 250,
   signal?: AbortSignal,
-): Promise<{ pages: number; documents: number; changed: number }> {
-  const runId = await destination.startSync("unknown");
-  let pitId: string | null = null;
+): Promise<{ runId: string; pages: number; documents: number; changed: number; durationMs: number }> {
+  const startedAt = Date.now();
+  const deadline = AbortSignal.timeout(30 * 60 * 1000);
+  const runSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
+  const runId = await destination.startSync("unknown", runSignal);
+  let scrollId: string | null = null;
   let pages = 0;
   let documents = 0;
+  const documentIds = new Set<string>();
   try {
-    const version = await indexer.getVersion(signal);
-    pitId = await indexer.createPointInTime("5m", signal);
-    let page: SearchPage = await indexer.searchPointInTime(pitId, pageSize, null, "5m", signal);
-    pitId = page.pitId;
+    const version = await indexer.getVersion(runSignal);
+    let page: ScrollPage = await indexer.startScroll(pageSize, "2m", runSignal);
+    scrollId = page.scrollId;
     const expectedDocuments = page.total;
-    if (expectedDocuments === null) throw new Error("O snapshot PIT não devolveu uma contagem exata.");
+    if (expectedDocuments === null) throw new Error("O snapshot scroll não devolveu uma contagem exata.");
     let changed = 0;
-    let searchAfter: unknown[] | null = null;
 
     while (true) {
       const items = page.hits.map(normalizeHit);
+      for (const item of items) {
+        if (documentIds.has(item.documentId)) {
+          throw new Error(`O Indexer devolveu o _id ${item.documentId} mais de uma vez nesta conexão.`);
+        }
+        documentIds.add(item.documentId);
+      }
       if (items.length > 0 || pages === 0) {
-        changed += await destination.ingestPage(runId, pages, items, signal);
+        changed += await destination.ingestPage(runId, pages, items, runSignal);
         pages += 1;
         documents += items.length;
       }
       if (documents > expectedDocuments) throw new Error("A paginação trouxe mais documentos que o total informado.");
       if (page.hits.length === 0 || page.hits.length < pageSize) break;
 
-      searchAfter = page.hits[page.hits.length - 1].sortValues;
-      await wait(pageDelayMilliseconds, signal);
-      page = await indexer.searchPointInTime(pitId, pageSize, searchAfter, "5m", signal);
-      pitId = page.pitId;
+      await wait(pageDelayMilliseconds, runSignal);
+      page = await indexer.continueScroll(scrollId, "2m", runSignal);
+      scrollId = page.scrollId;
     }
 
     if (documents !== expectedDocuments) throw new Error("A paginação não recebeu todos os documentos do Indexer.");
-    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
-    await destination.finishSync(runId, pages, expectedDocuments, version);
-    return { pages, documents, changed };
+    if (runSignal.aborted) throw runSignal.reason instanceof Error ? runSignal.reason : new Error("Sincronização interrompida.");
+    changed += await destination.finishSync(runId, pages, expectedDocuments, version, runSignal);
+    return { runId, pages, documents, changed, durationMs: Date.now() - startedAt };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha desconhecida na sincronização.";
     try { await destination.failSync(runId, message); } catch { /* The next run retires stale records safely. */ }
-    throw error;
+    throw new SnapshotSyncError(message, runId, pages, documents, Date.now() - startedAt);
   } finally {
-    if (pitId) {
-      try { await indexer.closePointInTime(pitId); } catch { /* PIT cleanup failure does not change snapshot completeness. */ }
+    if (scrollId) {
+      try { await indexer.clearScroll(scrollId); } catch { /* The Indexer expires unclosed contexts after the keep-alive. */ }
     }
   }
 }

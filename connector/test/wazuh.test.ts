@@ -57,20 +57,19 @@ test("finishes a snapshot only after every page is received", async () => {
   let finishCalls = 0;
   const indexer = {
     getVersion: async () => "4.14.0",
-    createPointInTime: async () => "pit-1",
-    searchPointInTime: async (_pitId: string, _pageSize: number, searchAfter: unknown[] | null) => {
+    startScroll: async () => ({ total: 2, scrollId: "scroll-1", hits: [{ _id: "one", _source: {} }] }),
+    continueScroll: async () => {
       nextCall += 1;
-      if (!searchAfter) return { total: 2, pitId: "pit-1", hits: [{ _id: "one", _source: {}, sortValues: ["004", "CVE-1", "pkg", "1", "amd64"] }] };
-      return nextCall === 2
-        ? { total: 2, pitId: "pit-1", hits: [{ _id: "two", _source: {}, sortValues: ["004", "CVE-2", "pkg", "1", "amd64"] }] }
-        : { total: 2, pitId: "pit-1", hits: [] };
+      return nextCall === 1
+        ? { total: null, scrollId: "scroll-2", hits: [{ _id: "two", _source: {} }] }
+        : { total: null, scrollId: "scroll-2", hits: [] };
     },
-    closePointInTime: async () => undefined,
+    clearScroll: async () => undefined,
   };
   const destination = {
     startSync: async () => "run-id",
     ingestPage: async (_run: string, page: number) => { sent.push(page); return 1; },
-    finishSync: async () => { finishCalls += 1; },
+    finishSync: async () => { finishCalls += 1; return 0; },
     failSync: async () => undefined,
   } as unknown as SupabaseIngestClient;
 
@@ -86,16 +85,14 @@ test("marks incomplete pagination failed and never calls the complete operation"
   let failCalls = 0;
   const indexer = {
     getVersion: async () => "4.14.0",
-    createPointInTime: async () => "pit-1",
-    searchPointInTime: async (_pitId: string, _pageSize: number, searchAfter: unknown[] | null) => searchAfter
-      ? { total: 2, pitId: "pit-1", hits: [] }
-      : { total: 2, pitId: "pit-1", hits: [{ _id: "one", _source: {}, sortValues: ["004", "CVE-1", "pkg", "1", "amd64"] }] },
-    closePointInTime: async () => undefined,
+    startScroll: async () => ({ total: 2, scrollId: "scroll-1", hits: [{ _id: "one", _source: {} }] }),
+    continueScroll: async () => ({ total: null, scrollId: "scroll-2", hits: [] }),
+    clearScroll: async () => undefined,
   };
   const destination = {
     startSync: async () => "run-id",
     ingestPage: async () => 1,
-    finishSync: async () => { finishCalls += 1; },
+    finishSync: async () => { finishCalls += 1; return 0; },
     failSync: async () => { failCalls += 1; },
   } as unknown as SupabaseIngestClient;
 

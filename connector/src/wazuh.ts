@@ -59,6 +59,7 @@ function normalizeScore(value: unknown): number | null {
 }
 
 export function normalizeWazuhDocument(documentId: string, sourceValue: unknown): NormalizedFinding {
+  if (!documentId || documentId.length > 512) throw new Error("Documento do Indexer sem _id aceito.");
   const source = asRecord(sourceValue);
   const agent = asRecord(source.agent);
   const pkg = asRecord(source.package);
@@ -77,7 +78,7 @@ export function normalizeWazuhDocument(documentId: string, sourceValue: unknown)
   const vulnerabilityId = asString(vulnerability.id, 128) ?? "UNKNOWN";
 
   return {
-    documentId: documentId.slice(0, 512),
+    documentId,
     agentId: asString(agent.id, 128) ?? asString(source.agent_id, 128),
     agentName: asString(agent.name, 256) ?? asString(source.agent_name, 256),
     agentGroups,
@@ -97,6 +98,7 @@ export function normalizeWazuhDocument(documentId: string, sourceValue: unknown)
 
 export type WazuhHit = { _id: string; _source: unknown };
 export type SearchPage = { hits: Array<WazuhHit & { sortValues: unknown[] }>; total: number | null; pitId: string };
+export type ScrollPage = { hits: WazuhHit[]; total: number | null; scrollId: string };
 
 class IndexerHttpError extends Error {
   constructor(readonly status: number, method: string, path: string) {
@@ -194,6 +196,29 @@ export class WazuhIndexerClient {
     return count;
   }
 
+  async startScroll(pageSize: number, keepAlive = "2m", signal?: AbortSignal): Promise<ScrollPage> {
+    const query = new URLSearchParams({ scroll: keepAlive });
+    const result = await this.requestJson("POST", `/${this.indexPattern}/_search?${query.toString()}`, {
+      size: pageSize,
+      sort: ["_doc"],
+      track_total_hits: true,
+      query: { match_all: {} },
+    }, signal, false);
+    return this.parseScrollPage(asRecord(result), true);
+  }
+
+  async continueScroll(scrollId: string, keepAlive = "2m", signal?: AbortSignal): Promise<ScrollPage> {
+    const result = await this.requestJson("POST", "/_search/scroll", {
+      scroll: keepAlive,
+      scroll_id: scrollId,
+    }, signal, false);
+    return this.parseScrollPage(asRecord(result), false);
+  }
+
+  async clearScroll(scrollId: string): Promise<void> {
+    await this.requestJson("DELETE", "/_search/scroll", { scroll_id: [scrollId] }, AbortSignal.timeout(5_000), false);
+  }
+
   async createPointInTime(keepAlive = "5m", signal?: AbortSignal): Promise<string> {
     const query = new URLSearchParams({ keep_alive: keepAlive });
     const response = asRecord(await this.requestJson("POST", `/${this.indexPattern}/_search/point_in_time?${query.toString()}`, undefined, signal));
@@ -242,6 +267,7 @@ export class WazuhIndexerClient {
     const hits = rawHits.map((value) => {
       const hit = asRecord(value);
       if (typeof hit._id !== "string" || !hit._id) throw new Error("Documento do Indexer sem _id estável.");
+      if (hit._id.length > 512) throw new Error("Documento do Indexer tem um _id maior que o limite aceito.");
       if (!Array.isArray(hit.sort) || hit.sort.length !== cursorSort.length) {
         throw new Error("Documento do Indexer sem cursor estável para search_after.");
       }
@@ -255,8 +281,35 @@ export class WazuhIndexerClient {
     };
   }
 
-  private async requestJson(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> {
-    const maximumAttempts = 5;
+  private parseScrollPage(result: UnknownRecord, requireExactTotal: boolean): ScrollPage {
+    if (result.timed_out === true) throw new Error("O Indexer encerrou a consulta por timeout.");
+    const shards = asRecord(result._shards);
+    if (Number(shards.failed ?? 0) > 0) throw new Error("O Indexer devolveu shards com falha.");
+    const hitsBlock = asRecord(result.hits);
+    if (!Array.isArray(hitsBlock.hits)) throw new Error("O Indexer respondeu sem a lista de documentos.");
+    const totalBlock = hitsBlock.total;
+    const total = typeof totalBlock === "number" ? totalBlock : Number(asRecord(totalBlock).value);
+    const relation = typeof totalBlock === "object" ? asRecord(totalBlock).relation : "eq";
+    const hasExactTotal = Number.isSafeInteger(total) && total >= 0 && relation === "eq";
+    if (!hasExactTotal && requireExactTotal) throw new Error("A leitura não trouxe uma contagem exata do Indexer.");
+    const scrollId = result._scroll_id;
+    if (typeof scrollId !== "string" || !scrollId || scrollId.length > 8192) {
+      throw new Error("O Indexer não devolveu um ID válido para o contexto scroll.");
+    }
+    const hits = hitsBlock.hits.map((value) => {
+      const hit = asRecord(value);
+      if (typeof hit._id !== "string" || !hit._id) throw new Error("Documento do Indexer sem _id estável.");
+      if (hit._id.length > 512) throw new Error("Documento do Indexer tem um _id maior que o limite aceito.");
+      if (!hit._source || typeof hit._source !== "object" || Array.isArray(hit._source)) {
+        throw new Error("Documento do Indexer sem _source válido.");
+      }
+      return { _id: hit._id, _source: hit._source };
+    });
+    return { hits, total: hasExactTotal ? total : null, scrollId };
+  }
+
+  private async requestJson(method: string, path: string, body?: unknown, signal?: AbortSignal, retrySafe = true): Promise<unknown> {
+    const maximumAttempts = retrySafe ? 5 : 1;
     for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
       if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Sincronização interrompida.");
       let response: Response;

@@ -1,4 +1,4 @@
-import { SupabaseIngestClient, synchronizeSnapshot, type ConnectorConfig } from "./ingest.js";
+import { SnapshotSyncError, SupabaseIngestClient, synchronizeSnapshot, type ConnectorConfig } from "./ingest.js";
 import { WazuhIndexerClient } from "./wazuh.js";
 
 function required(name: string): string {
@@ -82,34 +82,44 @@ async function main() {
   if (process.argv.includes("--check")) {
     const version = await indexer.getVersion(shutdown.signal);
     const count = await indexer.countDocuments(shutdown.signal);
-    const pitId = await indexer.createPointInTime("5m", shutdown.signal);
+    const page = await indexer.startScroll(1, "2m", shutdown.signal);
     try {
-      await indexer.searchPointInTime(pitId, 1, null, "5m", shutdown.signal);
+      if (page.total === null) throw new Error("O Indexer não devolveu uma contagem exata para o scroll.");
     } finally {
-      await indexer.closePointInTime(pitId).catch(() => undefined);
+      await indexer.clearScroll(page.scrollId).catch(() => undefined);
     }
-    console.info(`[connector] Indexer ${version} validado; ${count} documentos no snapshot.`);
+    console.info(`[connector] Indexer ${version} validado; _count=${count}, scrollTotal=${page.total}.`);
     return;
   }
   const once = process.argv.includes("--once");
   if (once) {
     const result = await synchronizeSnapshot(indexer, destination, config.pageSize, config.pageDelayMilliseconds, shutdown.signal);
-    console.info(`[connector] Snapshot completo: ${result.documents} documentos em ${result.pages} páginas.`);
+    console.info(`[connector] ${new Date().toISOString()} connectionId=${config.connectionId} runId=${result.runId} status=succeeded durationMs=${result.durationMs} documents=${result.documents} pages=${result.pages} changed=${result.changed}.`);
     return;
   }
+  let failureCount = 0;
   while (!shutdown.signal.aborted) {
     const startedAt = Date.now();
+    let nextDelay: number;
     try {
       const result = await synchronizeSnapshot(indexer, destination, config.pageSize, config.pageDelayMilliseconds, shutdown.signal);
-      console.info(`[connector] Leitura completa: ${result.documents} documentos em ${result.pages} páginas.`);
+      console.info(`[connector] ${new Date().toISOString()} connectionId=${config.connectionId} runId=${result.runId} status=succeeded durationMs=${result.durationMs} documents=${result.documents} pages=${result.pages} changed=${result.changed}.`);
+      failureCount = 0;
+      nextDelay = Math.max(60_000, config.syncIntervalSeconds * 1000 - (Date.now() - startedAt));
     } catch (error) {
-      if (!shutdown.signal.aborted) console.error(`[connector] Sincronização parcial/falha: ${safeMessage(error)}`);
+      if (shutdown.signal.aborted) break;
+      failureCount += 1;
+      const backoff = Math.min(15 * 60_000, 30_000 * 2 ** Math.min(failureCount - 1, 5));
+      const jitter = Math.round(backoff * Math.random() * 0.2);
+      nextDelay = backoff + jitter;
+      const syncContext = error instanceof SnapshotSyncError
+        ? `runId=${error.runId} durationMs=${error.durationMs} pages=${error.pages} documents=${error.documents} `
+        : "";
+      console.error(`[connector] ${new Date().toISOString()} connectionId=${config.connectionId} ${syncContext}status=failed consecutiveFailures=${failureCount} nextRetryMs=${nextDelay} error=${safeMessage(error)}`);
     }
 
     if (shutdown.signal.aborted) break;
-
-    const elapsed = Date.now() - startedAt;
-    await wait(Math.max(60_000, config.syncIntervalSeconds * 1000 - elapsed), shutdown.signal);
+    await wait(nextDelay, shutdown.signal);
   }
 }
 
@@ -118,6 +128,10 @@ function safeMessage(error: unknown) {
 }
 
 main().catch((error) => {
-  console.error(`[connector] Inicialização cancelada: ${safeMessage(error)}`);
+  if (error instanceof SnapshotSyncError) {
+    console.error(`[connector] ${new Date().toISOString()} connectionId=${process.env.WAZUH_CONNECTION_ID ?? "unknown"} runId=${error.runId} status=failed durationMs=${error.durationMs} pages=${error.pages} documents=${error.documents} error=${safeMessage(error)}`);
+  } else {
+    console.error(`[connector] ${new Date().toISOString()} Inicialização cancelada: ${safeMessage(error)}`);
+  }
   process.exitCode = 1;
 });

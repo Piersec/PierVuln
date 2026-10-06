@@ -16,16 +16,35 @@ As consultas em segundo plano mantêm o quadro montado e preservam os filtros de
 cada coluna. Se uma leitura falhar, os últimos dados válidos continuam visíveis
 até a próxima tentativa automática.
 
-O indexador é consultado pelo conector em ciclos de 60 segundos, com páginas
-de 500 documentos. Se um snapshot demorar mais de um minuto, o seguinte começa
-quando ele termina; nunca existem dois snapshots simultâneos nesse processo.
-O tempo real do painel começa quando os dados chegam ao Supabase. A coleta do
-A consulta ao indexador é periódica e depende da disponibilidade da rede e do serviço de origem.
+O KPI principal e o Book contam todos os documentos ativos do inventário,
+independentemente do estado de workflow. Casos continuam sendo a unidade de
+tratamento e podem ter estado, comentários e histórico próprios.
+
+O conector percorre o Indexer por scroll em páginas de até 500 documentos. Ele
+preserva o `_id` original, exige uma contagem inicial exata e interrompe a leitura
+se detectar IDs repetidos, páginas incompletas, shards com falha ou timeout. Uma
+execução leva no máximo 30 minutos. Se ocorrer uma falha, o staging é descartado e
+os achados ativos já publicados permanecem visíveis.
+
+As páginas recebidas ficam em staging privado. A conclusão valida contagem,
+sequência e identidade e publica achados, casos e resoluções na mesma transação.
+O início também usa um ID de requisição para que uma resposta HTTP perdida não
+deixe uma execução órfã nem impeça a repetição segura do pedido.
+O painel compara o marcador da última publicação antes e depois das consultas e
+repete a leitura se uma publicação ocorrer no meio. Componentes separados ainda
+podem atualizar em instantes distintos.
+
+A leitura completa é considerada atual por 1 hora, recebe aviso de atualização
+entre 1 e 2 horas e fica atrasada após 2 horas. Realtime acelera a atualização do
+painel depois que uma publicação chega ao Supabase; não substitui a coleta periódica
+nem prova que o Indexer foi consultado.
 
 O horário exibido corresponde à conclusão de um snapshot completo, nunca à mera
-abertura do painel. Falhas antes da primeira página também são registradas em
-`sync_runs`. Leituras parciais não confirmam resolução de vulnerabilidades.
+abertura do painel. Falhas também são registradas em `sync_runs`. Leituras parciais
+não confirmam resolução de vulnerabilidades.
 
-Para instalações existentes, ajustar `SYNC_INTERVAL_SECONDS=60` e
-`INDEXER_PAGE_SIZE=500` no `.env` privado do conector e reiniciar seu serviço.
-Aplicar a migração `operational_realtime` para publicar as três tabelas operacionais.
+Para instalações existentes, configure `SYNC_INTERVAL_SECONDS` e
+`INDEXER_PAGE_SIZE=500` no `.env` privado do conector e reinicie o serviço. A
+publicação atômica exige a migração de protocolo 2, a Edge Function `wazuh-ingest`
+e a versão correspondente do conector. Não atualize somente o conector antes que
+o endpoint confirme esse protocolo.

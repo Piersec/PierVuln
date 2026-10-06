@@ -23,6 +23,8 @@ import {
   YAxis,
 } from "recharts";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { withConsistentInventoryRead } from "@/src/lib/consistent-inventory";
+import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { visibleText } from "@/src/lib/visible-text";
@@ -38,7 +40,6 @@ type BookFinding = {
   last_seen_at: string;
   source_state: string;
 };
-type BookCase = { id: string; wazuh_findings: BookFinding };
 type SeverityDatum = { name: string; count: number; color: string };
 type AgeDatum = { name: string; count: number };
 type MonthDatum = { month: string; count: number; key: string };
@@ -62,7 +63,7 @@ type BookMetrics = {
   currentMonth: number;
   previousMonth: number;
 };
-type SyncSummary = { finishedAt: string | null; connections: number };
+type SyncSummary = { finishedAt: string | null; connections: number; missingSnapshots: number };
 
 const pageSize = 1000;
 const severityColors: Record<string, string> = {
@@ -86,7 +87,7 @@ export function CustomerBook() {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [findings, setFindings] = useState<BookFinding[]>([]);
-  const [latestSync, setLatestSync] = useState<SyncSummary>({ finishedAt: null, connections: 0 });
+  const [latestSync, setLatestSync] = useState<SyncSummary>({ finishedAt: null, connections: 0, missingSnapshots: 0 });
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -170,12 +171,11 @@ export function CustomerBook() {
   }, [userId, supabase]);
 
   const loadFindings = useCallback(async (client: SupabaseClient, companyId: string) => {
-    const selection = "id,wazuh_findings!inner(id,vulnerability_id,severity,agent_id,agent_name,first_detected_at,last_seen_at,source_state)";
+    const selection = "id,vulnerability_id,severity,agent_id,agent_name,first_detected_at,last_seen_at,source_state";
     const createQuery = () => {
-      let query = client.from("vulnerability_cases")
+      let query = client.from("wazuh_findings")
         .select(selection, { count: "exact" })
-        .in("workflow_status", ["open", "in_progress", "awaiting_validation"])
-        .eq("wazuh_findings.source_state", "active")
+        .eq("source_state", "active")
         .order("id", { ascending: true });
       if (companyId) query = query.eq("tenant_id", companyId);
       return query;
@@ -191,23 +191,23 @@ export function CustomerBook() {
     }));
     const failedPage = remaining.find((result) => result.error);
     if (failedPage?.error) throw failedPage.error;
-    const allCases = [
+    const allFindings = [
       ...(first.data ?? []),
       ...remaining.flatMap((result) => result.data ?? []),
-    ] as unknown as BookCase[];
-    const uniqueCases = new Map(allCases.map((item) => [item.id, item]));
-    if (uniqueCases.size !== total) {
+    ] as unknown as BookFinding[];
+    const uniqueFindings = new Map(allFindings.map((item) => [item.id, item]));
+    if (uniqueFindings.size !== total) {
       throw new Error("A leitura mudou enquanto os dados eram carregados. Atualize o relatório para repetir a leitura completa.");
     }
-    return [...uniqueCases.values()].map((item) => item.wazuh_findings);
+    return [...uniqueFindings.values()];
   }, []);
 
   const loadSyncSummary = useCallback(async (client: SupabaseClient, companyId: string, internal: boolean): Promise<SyncSummary> => {
     const { data: connectionRows, error: connectionError } = await client
       .from("wazuh_connections")
-      .select("id,tenant_id,mode")
+      .select("id,tenant_id,mode,published_sync_run_id")
       .eq("is_active", true);
-    if (connectionError) { notify({ title: "Não foi possível consultar as fontes de dados.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
+    if (connectionError) throw connectionError;
     let connections = connectionRows ?? [];
     if (companyId && internal) {
       const { data: mappingRows, error: mappingError } = await client
@@ -215,26 +215,38 @@ export function CustomerBook() {
         .select("connection_id")
         .eq("tenant_id", companyId)
         .eq("is_active", true);
-      if (mappingError) { notify({ title: "Não foi possível consultar os vínculos de agentes e grupos.", error: true, key: "book-sync" }); return { finishedAt: null, connections: 0 }; }
+      if (mappingError) throw mappingError;
       const mappedIds = new Set((mappingRows ?? []).map((row) => row.connection_id));
       connections = connections.filter((connection) =>
         connection.tenant_id === companyId || (connection.mode === "shared" && mappedIds.has(connection.id))
       );
     }
     const ids = connections.map((connection) => connection.id);
-    if (!ids.length) return { finishedAt: null, connections: 0 };
+    if (!ids.length) return { finishedAt: null, connections: 0, missingSnapshots: 0 };
+    const publishedRunIds = connections
+      .map((connection) => connection.published_sync_run_id)
+      .filter((runId): runId is string => Boolean(runId));
+    if (!publishedRunIds.length) {
+      return { finishedAt: null, connections: ids.length, missingSnapshots: ids.length };
+    }
     const { data: runs, error: runError } = await client
       .from("sync_runs")
-      .select("finished_at")
-      .in("connection_id", ids)
+      .select("id,connection_id,finished_at,status,full_snapshot")
+      .in("id", publishedRunIds)
       .eq("status", "succeeded")
-      .eq("full_snapshot", true)
-      .not("finished_at", "is", null)
-      .order("finished_at", { ascending: false })
-      .limit(1);
-    if (runError) { notify({ title: "Não foi possível consultar a última sincronização.", error: true, key: "book-sync" }); return { finishedAt: null, connections: ids.length }; }
-    return { finishedAt: runs?.[0]?.finished_at ?? null, connections: ids.length };
-  }, [notify]);
+      .eq("full_snapshot", true);
+    if (runError) throw runError;
+    const publishedByConnection = new Map((runs ?? [])
+      .filter((run) => run.finished_at)
+      .map((run) => [run.connection_id, run.finished_at!]));
+    const completedAt = ids.map((id) => publishedByConnection.get(id)).filter((value): value is string => Boolean(value));
+    completedAt.sort((left, right) => Date.parse(left) - Date.parse(right));
+    return {
+      finishedAt: completedAt[0] ?? null,
+      connections: ids.length,
+      missingSnapshots: ids.length - completedAt.length,
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabase || !userId || !contextReady || contextError || (!isInternal && !selectedCompany)) return;
@@ -242,10 +254,10 @@ export function CustomerBook() {
     const scope = `${userId}:${selectedCompany}:${isInternal}`;
     if (loadedScopeRef.current !== scope || refreshRequested.current) setLoading(true);
     setError("");
-    void Promise.all([
+    void withConsistentInventoryRead(supabase, () => Promise.all([
       loadFindings(supabase, selectedCompany),
       loadSyncSummary(supabase, selectedCompany, isInternal),
-    ]).then(([nextFindings, nextSync]) => {
+    ])).then(([nextFindings, nextSync]) => {
       if (!active) return;
       loadedScopeRef.current = scope;
       setFindings((current) => JSON.stringify(current) === JSON.stringify(nextFindings) ? current : nextFindings);
@@ -269,8 +281,9 @@ export function CustomerBook() {
 
   const metrics = useMemo(() => buildMetrics(findings), [findings]);
   const selectedCompanyName = companies.find((company) => company.id === selectedCompany)?.name;
-  const syncAge = latestSync.finishedAt ? live.now - Date.parse(latestSync.finishedAt) : Number.POSITIVE_INFINITY;
-  const isStale = !Number.isFinite(syncAge) || syncAge > 2 * 60 * 60 * 1000;
+  const freshness = snapshotFreshness(latestSync.finishedAt, live.now);
+  const isStale = latestSync.missingSnapshots > 0 || freshness === "stale";
+  const isAging = !isStale && freshness === "aging";
   const displayCount = (value: number) => value.toLocaleString("pt-BR");
 
   async function signOut() {
@@ -312,7 +325,7 @@ export function CustomerBook() {
         <div className="book-content" id="book-overview" tabIndex={-1}>
           <div className="book-heading">
             <div><h1>Book dos Clientes</h1><p>Exposição atual, criticidade e tempo de permanência das vulnerabilidades.</p></div>
-            <div className={`book-source-state ${isStale ? "book-source-stale" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : "Leitura completa") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Leitura completa em ${formatDate(latestSync.finishedAt)}` : "Nenhum snapshot completo disponível"} · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
+            <div className={`book-source-state ${isStale ? "book-source-stale" : isAging ? "book-source-aging" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : isAging ? "Atualização recomendada" : "Leitura atualizada") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Snapshot mais antigo: ${formatDate(latestSync.finishedAt)}${latestSync.missingSnapshots ? ` · ${latestSync.missingSnapshots} fonte(s) sem snapshot` : ""}` : "Nenhum snapshot completo disponível"} · recomendada após 1h; atrasada após 2h · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
           </div>
 
           {contextError && <div className="book-alert" role="alert">{contextError}</div>}

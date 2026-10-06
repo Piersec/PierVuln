@@ -46,8 +46,10 @@ function stringArray(value: unknown, maxItems: number, maxLength: number): strin
 function normalizeItem(input: unknown): Item {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid item shape");
   const row = input as Record<string, unknown>;
-  const documentId = str(row.documentId, 512);
-  if (!documentId) throw new Error("Missing document ID");
+  const documentId = typeof row.documentId === "string" ? row.documentId : "";
+  if (!documentId || documentId.trim() !== documentId || documentId.length > 512) {
+    throw new Error("Missing, padded, or oversized document ID");
+  }
   const score = typeof row.cvssBase === "number" ? row.cvssBase : null;
   const severityValue = str(row.severity, 40)?.toLowerCase();
   const severity = ["critical", "high", "medium", "low", "informational"].includes(severityValue ?? "")
@@ -122,12 +124,22 @@ Deno.serve(async (request) => {
 
   const action = payload.action;
   try {
+    if (action === "protocol") {
+      const { data, error } = await service.rpc("wazuh_snapshot_protocol");
+      if (error) throw error;
+      return json(200, { snapshotProtocol: Number(data) });
+    }
+
     if (action === "start") {
+      if (payload.snapshotProtocol !== 2) return json(426, { error: "Connector snapshot protocol 2 is required" });
+      const requestId = str(payload.requestId, 36);
+      if (!requestId || !/^[0-9a-f-]{36}$/i.test(requestId)) return json(400, { error: "Invalid sync request ID" });
       const version = str(payload.indexerVersion, 160);
       if (!version) return json(400, { error: "Indexer version required" });
       const { data, error } = await service.rpc("register_wazuh_sync", {
         p_connection_id: connectionId,
         p_indexer_version: version,
+        p_request_id: requestId,
       });
       if (error) throw error;
       return json(201, { runId: data });

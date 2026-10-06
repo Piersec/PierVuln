@@ -42,7 +42,12 @@ curl --silent --show-error --output /dev/null --write-out 'HTTP %{http_code}\n' 
   --cacert /caminho/da/ca-do-wazuh.pem https://<IP-PRIVADO-DO-MANAGER>:55000/
 ```
 
-O conector requer que a conta de leitura do Indexer permita busca e as ações `indices:data/read/point_in_time/create`, `indices:data/read/point_in_time/delete` e `indices:data/read/search` no padrão de índices de vulnerabilidade.
+O conector requer busca e scroll somente leitura no padrão de índices de
+vulnerabilidade: `indices:data/read/search*`, `indices:data/read/scroll` e
+`indices:data/read/scroll/clear`. O Indexer exige a permissão de limpeza tanto
+no escopo de cluster quanto de índice. A busca inicial solicita a contagem exata;
+as páginas seguintes avançam o contexto scroll e não são repetidas automaticamente
+se a resposta se perder.
 
 ## Instalar Docker e preparar conexões
 
@@ -84,6 +89,25 @@ O cron roda de hora em hora por padrão, adequado para snapshots completos maior
 
 Para iniciar uma primeira carga manual fora do horário de pico, execute `sudo bash connector/oracle/run-sync.sh`.
 
-O conector faz snapshots completos via PIT e `search_after`, em páginas de até 500 linhas, com intervalo de 250 ms. O Wazuh documenta `wazuh-states-vulnerabilities-*` como índice de estado atual. Por isso, a leitura completa é necessária para que o PierVuln detecte documentos que deixaram de aparecer e marque esses achados como resolvidos; um incremental baseado apenas nos documentos ainda presentes não detectaria ausências. O OpenSearch recomenda PIT com `search_after` para paginação profunda consistente ([guia de PIT](https://docs.opensearch.org/latest/search-plugins/searching-data/point-in-time/), [paginação](https://docs.opensearch.org/latest/search-plugins/searching-data/paginate/)).
+O conector percorre snapshots completos com scroll e ordenação `_doc`, em páginas
+de até 500 documentos, com intervalo de 250 ms. Ele conserva o `_id` do Indexer;
+se um ID aparecer mais de uma vez, a execução falha sem publicar. O contexto
+scroll usa keep-alive de 2 minutos, é fechado ao final e expira no Indexer se a
+conexão cair. Cada execução tem limite de 30 minutos.
+
+O Wazuh documenta `wazuh-states-vulnerabilities-*` como índice de estado atual.
+Por isso, a leitura completa é necessária para que o PierVuln detecte documentos
+que deixaram de aparecer e marque esses achados como resolvidos; um incremental
+baseado apenas nos documentos ainda presentes não detectaria ausências. O
+OpenSearch recomenda `_doc` para percorrer todos os documentos sem cálculo de
+relevância ([scroll](https://docs.opensearch.org/latest/api-reference/search-apis/scroll/)).
+
+Cada página é guardada no staging privado do Supabase. O protocolo 2 só publica
+os achados depois de validar todos os documentos; uma falha anterior mantém a
+última versão publicada. Antes de atualizar o coletor, instale a migração e a
+Edge Function que anunciam o protocolo 2. Após a atualização, a primeira leitura
+completa reconcilia o inventário legado.
+O início da execução reaproveita o mesmo ID de requisição em tentativas de rede,
+evitando criar execuções órfãs quando uma resposta do Supabase se perde.
 
 O volume de 300 mil documentos leva cerca de 600 chamadas de página por conexão, além do tempo de processamento e envio ao Supabase. Execute a primeira carga fora do pico e meça o tempo de uma sincronização completa antes de escolher o intervalo do cron. Meça o tamanho ocupado por 10 mil achados no Supabase antes de importar 300 mil, pois o limite de armazenamento do plano gratuito pode ser atingido antes do limite da VM. A documentação Wazuh descreve esses índices como estado atual ([índices Wazuh](https://documentation.wazuh.com/current/user-manual/wazuh-indexer/wazuh-indexer-indices.html)).

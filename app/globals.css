@@ -237,6 +237,8 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .pulse-dot, .book-source-state > span, .status-mark { width: 9px; height: 9px; border: 1px solid currentColor; border-radius: 50%; background: var(--positive); color: var(--positive); }
 .sync-indicator.stale, .book-source-stale { border-color: #987941; }
 .sync-indicator.stale .pulse-dot, .book-source-stale > span { background: var(--caution); color: var(--caution); }
+.book-source-aging { border-color: #987941; }
+.book-source-aging > span { background: var(--caution); color: var(--caution); }
 .sync-indicator.fresh .pulse-dot, .book-source-fresh > span { background: var(--positive); color: var(--positive); }
 
 /* Vulnerability inventory */
@@ -264,6 +266,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .source-reading { display: grid; grid-template-columns: 8px minmax(0, 1fr); align-content: end; align-items: center; gap: 3px 7px; margin-top: 4px; font-size: 12px; font-weight: 500; }
 .source-reading .pulse-dot { grid-row: 1; }
 .source-stale .pulse-dot { background: var(--caution); color: var(--caution); }
+.source-aging .pulse-dot { background: var(--caution); color: var(--caution); }
 .source-fresh .pulse-dot { background: var(--positive); color: var(--positive); }
 .sync-note { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; color: var(--muted); font-size: 12px; }
 .sync-note a { margin-left: auto; color: var(--accent-strong); font-weight: 600; }
@@ -1101,7 +1104,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .status-pill { display: inline-flex; min-height: 28px; align-items: center; gap: 7px; flex: 0 0 auto; padding: 4px 9px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--muted-strong); font-size: 12px; font-weight: 600; }
 .status-pill > span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .status-pill.status-healthy, .status-pill.status-running { border-color: rgb(97 223 87 / 38%); color: var(--positive); }
-.status-pill.status-warning, .status-pill.status-empty { border-color: rgb(255 206 120 / 42%); color: var(--caution); }
+.status-pill.status-warning, .status-pill.status-aging, .status-pill.status-stale, .status-pill.status-empty { border-color: rgb(255 206 120 / 42%); color: var(--caution); }
 .status-source-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding-top: 18px; border-top: 1px solid var(--line); }
 .status-source-facts > div { display: grid; align-content: start; gap: 6px; min-width: 0; }
 .status-source-facts strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }

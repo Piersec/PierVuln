@@ -7,6 +7,8 @@ import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
+import { withConsistentInventoryRead } from "@/src/lib/consistent-inventory";
+import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
 import { visibleText } from "@/src/lib/visible-text";
 
 type Connection = { id: string; name: string; is_active: boolean };
@@ -21,27 +23,28 @@ type SyncRun = {
 type Source = { connection: Connection; latest: SyncRun | null; lastSuccess: SyncRun | null };
 type Heartbeat = { connection_id: string; observed_at: string; vpn_active: boolean; indexer_reachable: boolean; connector_active: boolean; uptime_seconds: number; load_percent: number; memory_percent: number; disk_percent: number; indexer_latency_ms: number | null };
 type Probe = { api: boolean; database: boolean; databaseLatencyMs?: number };
-type Health = "healthy" | "running" | "warning" | "paused" | "empty";
+type Health = "healthy" | "running" | "aging" | "stale" | "warning" | "paused" | "empty";
 
-const staleAfterMs = 2 * 60 * 60 * 1000;
 const runningAfterMs = 10 * 60 * 1000;
 const heartbeatAfterMs = 3 * 60 * 1000;
 
 function sourceHealth(source: Source, now: number): Health {
   if (!source.connection.is_active) return "paused";
-  if (source.latest?.status === "running") {
-    if (now - Date.parse(source.latest.started_at) >= runningAfterMs) return "warning";
-    if (!source.lastSuccess || now - Date.parse(source.lastSuccess.finished_at ?? source.lastSuccess.started_at) > staleAfterMs) return "warning";
-    return "running";
+  const running = source.latest?.status === "running";
+  if (running && now - Date.parse(source.latest!.started_at) >= runningAfterMs) return "warning";
+  if (!source.lastSuccess) {
+    if (running) return "running";
+    return source.latest && ["failed", "partial"].includes(source.latest.status) ? "warning" : "empty";
   }
+  const freshness = snapshotFreshness(source.lastSuccess.finished_at ?? source.lastSuccess.started_at, now);
+  if (freshness === "stale") return "stale";
+  if (freshness === "aging") return "aging";
   if (source.latest && ["failed", "partial"].includes(source.latest.status)) return "warning";
-  if (!source.lastSuccess) return "empty";
-  return now - Date.parse(source.lastSuccess.finished_at ?? source.lastSuccess.started_at) > staleAfterMs
-    ? "warning" : "healthy";
+  return running ? "running" : "healthy";
 }
 
 function healthLabel(health: Health): string {
-  return ({ healthy: "Em dia", running: "Sincronizando", warning: "Atenção", paused: "Pausada", empty: "Sem leitura completa" })[health];
+  return ({ healthy: "Em dia", running: "Sincronizando", aging: "Atualização recomendada", stale: "Atrasada", warning: "Atenção", paused: "Pausada", empty: "Sem leitura completa" })[health];
 }
 
 function runLabel(status: string): string {
@@ -64,6 +67,7 @@ export function CollectionStatus() {
   const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [probe, setProbe] = useState<Probe | null>(null);
   const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
+  const [databaseLatencyMs, setDatabaseLatencyMs] = useState<number | null>(null);
   const [databaseReadable, setDatabaseReadable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,38 +80,44 @@ export function CollectionStatus() {
     const currentRequest = ++requestId.current;
     if (showRefresh) setRefreshing(true);
     setError("");
-    const probeStarted = performance.now();
-    const [probeResult, heartbeatsResult] = await Promise.all([
-      client.functions.invoke("connector-status", { method: "GET" }),
-      client.from("connector_status_heartbeats").select("connection_id,observed_at,vpn_active,indexer_reachable,connector_active,uptime_seconds,load_percent,memory_percent,disk_percent,indexer_latency_ms"),
+    const [probeRead, heartbeatRead] = await Promise.all([
+      (async () => {
+        const started = performance.now();
+        const result = await client.functions.invoke("connector-status", { method: "GET" });
+        return { result, latencyMs: Math.round(performance.now() - started) };
+      })(),
+      (async () => {
+        const started = performance.now();
+        const result = await client.from("connector_status_heartbeats")
+          .select("connection_id,observed_at,vpn_active,indexer_reachable,connector_active,uptime_seconds,load_percent,memory_percent,disk_percent,indexer_latency_ms");
+        return { result, latencyMs: Math.round(performance.now() - started) };
+      })(),
     ]);
+    const probeResult = probeRead.result;
+    const heartbeatsResult = heartbeatRead.result;
     if (currentRequest !== requestId.current) return;
-    setApiLatencyMs(probeResult.error ? null : Math.round(performance.now() - probeStarted));
+    setApiLatencyMs(probeResult.error ? null : probeRead.latencyMs);
+    setDatabaseLatencyMs(heartbeatsResult.error ? null : heartbeatRead.latencyMs);
     setProbe(probeResult.error ? null : probeResult.data as Probe);
     setHeartbeats(heartbeatsResult.error ? [] : heartbeatsResult.data ?? []);
     setDatabaseReadable(!heartbeatsResult.error);
 
-    const { data: connections, error: connectionsError } = await client.from("wazuh_connections")
-      .select("id,name,is_active").order("name");
-    if (currentRequest !== requestId.current) return;
-    if (connectionsError) {
-      setError("Não foi possível consultar as fontes. Tente atualizar a página.");
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
-    const results = await Promise.all((connections ?? []).map(async (connection) => {
-      const [latest, lastSuccess] = await Promise.all([
-        client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received")
-          .eq("connection_id", connection.id).order("started_at", { ascending: false }).limit(1).maybeSingle(),
-        client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received")
-          .eq("connection_id", connection.id).eq("status", "succeeded").eq("full_snapshot", true)
-          .order("started_at", { ascending: false }).limit(1).maybeSingle(),
-      ]);
-      if (latest.error || lastSuccess.error) throw new Error("sync_runs");
-      return { connection, latest: latest.data, lastSuccess: lastSuccess.data } as Source;
-    }));
+    const results = await withConsistentInventoryRead(client, async () => {
+      const { data: connections, error: connectionsError } = await client.from("wazuh_connections")
+        .select("id,name,is_active").order("name");
+      if (connectionsError) throw connectionsError;
+      return await Promise.all((connections ?? []).map(async (connection) => {
+        const [latest, lastSuccess] = await Promise.all([
+          client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received")
+            .eq("connection_id", connection.id).order("started_at", { ascending: false }).limit(1).maybeSingle(),
+          client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received")
+            .eq("connection_id", connection.id).eq("status", "succeeded").eq("full_snapshot", true)
+            .order("started_at", { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        if (latest.error || lastSuccess.error) throw new Error("sync_runs");
+        return { connection, latest: latest.data, lastSuccess: lastSuccess.data } as Source;
+      }));
+    });
     if (currentRequest !== requestId.current) return;
     setSources(results);
     setCheckedAt(new Date().toISOString());
@@ -154,15 +164,15 @@ export function CollectionStatus() {
   const vpnHealthy = allFresh && activeHeartbeats.every((item) => item?.vpn_active && item.indexer_reachable);
   const vmHealthy = allFresh && activeHeartbeats.every((item) => item?.connector_active);
   const performanceHealthy = allFresh && apiLatencyMs !== null && apiLatencyMs < 2000 &&
-    (probe?.databaseLatencyMs ?? Infinity) < 1000 && activeHeartbeats.every((item) => item &&
+    databaseLatencyMs !== null && databaseLatencyMs < 1000 && activeHeartbeats.every((item) => item &&
       item.load_percent < 150 && item.memory_percent < 90 && item.disk_percent < 90 &&
       item.indexer_latency_ms !== null && item.indexer_latency_ms < 5000);
   const checks = [
     { name: "API", healthy: probe?.api === true, detail: probe?.api ? `Resposta em ${apiLatencyMs ?? "—"} ms` : "Sem resposta da função de status" },
     { name: "VPN", healthy: vpnHealthy, detail: !allFresh ? "Sem sinal recente da VM" : vpnHealthy ? "Túnel ativo e Indexer acessível" : "Túnel ou Indexer indisponível" },
     { name: "VM", healthy: vmHealthy, detail: !allFresh ? "Sem sinal nos últimos 3 minutos" : vmHealthy ? "Conector em execução" : "Conector parado" },
-    { name: "Banco de dados", healthy: probe?.database === true && databaseReadable, detail: probe?.database && databaseReadable ? `Consulta em ${probe.databaseLatencyMs ?? "—"} ms` : "Consulta indisponível" },
-    { name: "Performance", healthy: performanceHealthy, detail: !allFresh ? "Sem métricas recentes" : `API ${apiLatencyMs ?? "—"} ms · banco ${probe?.databaseLatencyMs ?? "—"} ms` },
+    { name: "Banco de dados", healthy: databaseReadable, detail: databaseReadable ? `Consulta direta em ${databaseLatencyMs ?? "—"} ms` : "Consulta indisponível" },
+    { name: "Performance", healthy: performanceHealthy, detail: !allFresh ? "Sem métricas recentes" : `API ${apiLatencyMs ?? "—"} ms · banco ${databaseLatencyMs ?? "—"} ms` },
   ];
   const infrastructureHealthy = checks.every((check) => check.healthy);
 
@@ -204,7 +214,7 @@ export function CollectionStatus() {
               <div className="status-source-facts"><div><span>Última leitura completa</span><strong>{formatDate(complete?.finished_at)}</strong></div><div><span>Documentos recebidos</span><strong>{complete ? complete.documents_received.toLocaleString("pt-BR") : "—"}</strong></div><div><span>Páginas recebidas</span><strong>{complete ? complete.pages_received.toLocaleString("pt-BR") : "—"}</strong></div><div><span>Última tentativa</span><strong>{source.latest ? `${runLabel(source.latest.status)} · ${formatDate(source.latest.finished_at ?? source.latest.started_at)}` : "—"}</strong></div></div>
             </article>;
           })}</div>}
-          <p className="status-method">Uma fonte ativa aparece em dia quando a última leitura completa ocorreu nas últimas 2 horas. A página atualiza a cada minuto enquanto estiver aberta.</p>
+          <p className="status-method">A leitura fica em dia por 1 hora, recebe aviso de atualização entre 1 e 2 horas e é considerada atrasada após 2 horas. A página atualiza a cada minuto enquanto estiver aberta.</p>
         </>}
       </div>
     </section>

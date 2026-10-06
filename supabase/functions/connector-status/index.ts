@@ -8,7 +8,7 @@ const service = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
 
 const cors = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "authorization, apikey, content-type, x-connection-id",
+  "access-control-allow-headers": "authorization, apikey, content-type, x-client-info, x-connection-id",
   "access-control-allow-methods": "GET, POST, OPTIONS",
 };
 
