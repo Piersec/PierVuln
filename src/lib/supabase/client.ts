@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { clearTemporaryAuthFlow, grantTemporaryAuthFlow } from "@/src/lib/temporary-auth-flow";
 import { clearOverviewCache } from "@/src/lib/vulnerability-overview";
+import { withRequestTimeout } from "@/src/lib/request-timeout";
 
 let browserClient: SupabaseClient | null = null;
 
@@ -11,6 +12,12 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
 
   if (!browserClient) {
     browserClient = createClient(url, key, {
+      global: {
+        fetch: (input, init) => withRequestTimeout(
+          (signal) => fetch(input, { ...init, signal }),
+          init?.signal ?? (input instanceof Request ? input.signal : undefined),
+        ),
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,

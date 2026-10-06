@@ -24,6 +24,7 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
     let active = true;
     let subscribedOnce = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastRefreshAt = 0;
     setConnected(false);
     const request = () => {
       if (!active || document.visibilityState === "hidden") return;
@@ -31,9 +32,10 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
       timer = setTimeout(() => {
         timer = undefined;
         if (!active) return;
+        lastRefreshAt = Date.now();
         if (busyRef.current) pending.current = true;
         else setRevision((value) => value + 1);
-      }, 1000);
+      }, Math.max(1000, 30_000 - (Date.now() - lastRefreshAt)));
     };
     const channel = client.channel(`operational-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "sync_runs" }, (payload) => {
@@ -41,7 +43,10 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
         const next = payload.new as { status?: string };
         if (isSyncBoundary(payload.eventType, next)) request();
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "finding_events" }, request)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "finding_events" }, (payload) => {
+        const eventType = (payload.new as { event_type?: string }).event_type;
+        if (eventType !== "first_detected" && eventType !== "tenant_mapping_changed") request();
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "vulnerability_comments" }, request)
       .subscribe((status) => {
         if (!active) return;

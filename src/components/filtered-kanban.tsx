@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CveKanban, type RemoteKanbanColumn } from "@/src/components/cve-kanban";
 import { type KanbanFilters, type KanbanSummary } from "@/src/lib/kanban";
 import { visibleText } from "@/src/lib/visible-text";
+import { withRequestTimeout } from "@/src/lib/request-timeout";
 
 const stages = ["open", "in_progress", "awaiting_validation", "resolved"];
 type Column = RemoteKanbanColumn & { items: KanbanSummary[] };
@@ -32,6 +33,8 @@ export function FilteredKanban({ client, companyId, accessToken, canManage, comp
   const opener = useRef<HTMLButtonElement | null>(null);
   const requests = useRef(new Map<string, AbortController>());
   const cache = useRef(new Map<string, { savedAt: number; column: Column }>());
+  const loadedScopes = useRef(new Map<string, string>());
+  const previousQueryScope = useRef(JSON.stringify([companyId, search]));
 
   const load = useCallback(async (status: string, filters: KanbanFilters, page: number, force = false) => {
     requests.current.get(status)?.abort();
@@ -41,22 +44,30 @@ export function FilteredKanban({ client, companyId, accessToken, canManage, comp
     const controller = new AbortController();
     requests.current.set(status, controller);
     const key = JSON.stringify([companyId, search, status, filters, page, revision]);
+    const scope = JSON.stringify([companyId, search, status, filters, page]);
     const cached = cache.current.get(key);
     if (!force && cached && Date.now() - cached.savedAt < 5 * 60_000) {
+      loadedScopes.current.set(status, scope);
       setColumns((current) => ({ ...current, [status]: cached.column })); return;
     }
-    setColumns((current) => ({ ...current, [status]: { items: [], filters, page, total: 0, loading: true, error: "" } }));
+    setColumns((current) => ({ ...current, [status]: loadedScopes.current.get(status) === scope
+      ? { ...current[status], loading: true, error: "" }
+      : { items: [], filters, page, total: 0, loading: true, error: "" } }));
     try {
-      const response = await fetch("/api/kanban", {
-        method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ companyId, status, filters, page, search }), signal: controller.signal,
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Não foi possível consultar esta coluna.");
+      const payload = await withRequestTimeout(async (signal) => {
+        const response = await fetch("/api/kanban", {
+          method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ companyId, status, filters, page, search }), signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Não foi possível consultar esta coluna.");
+        return payload;
+      }, controller.signal);
       if (controller.signal.aborted) return;
       const column: Column = { items: payload.items, total: payload.total, page: payload.page, filters, loading: false, error: "" };
       if (cache.current.size >= 100) cache.current.clear();
       cache.current.set(key, { savedAt: Date.now(), column });
+      loadedScopes.current.set(status, scope);
       setColumns((current) => ({ ...current, [status]: column }));
     } catch (cause) {
       if (!controller.signal.aborted) setColumns((current) => ({ ...current, [status]: { ...current[status], loading: false, error: cause instanceof Error ? cause.message : "Consulta indisponível." } }));
@@ -65,14 +76,17 @@ export function FilteredKanban({ client, companyId, accessToken, canManage, comp
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      const scope = JSON.stringify([companyId, search]);
+      const changedSelection = previousQueryScope.current !== scope;
+      previousQueryScope.current = scope;
       for (const status of stages) {
         const column = columnsRef.current[status];
-        if (column.filters) void load(status, column.filters, 0);
+        if (column.filters) void load(status, column.filters, changedSelection ? 0 : column.page);
       }
     }, 400);
     const pending = requests.current;
     return () => { clearTimeout(timer); for (const request of pending.values()) request.abort(); };
-  }, [load]);
+  }, [companyId, load, search]);
 
   useEffect(() => {
     if (!selected) return;

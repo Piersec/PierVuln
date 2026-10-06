@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withRequestTimeout } from "./request-timeout";
 
 type PublicationMarker = { id: string; published_sync_run_id: string | null };
 
@@ -16,17 +17,19 @@ async function readPublicationMarkers(client: SupabaseClient, signal?: AbortSign
 
 export async function withConsistentInventoryRead<T>(
   client: SupabaseClient,
-  read: () => Promise<T>,
+  read: (signal: AbortSignal) => Promise<T>,
   signal?: AbortSignal,
 ): Promise<T> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Leitura interrompida.");
-    const before = await readPublicationMarkers(client, signal);
-    const result = await read();
-    const after = await readPublicationMarkers(client, signal);
-    if (before === after) return result;
-    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
-  }
-  throw new Error("A sincronização do inventário mudou durante a leitura. Atualize para carregar um snapshot completo.");
+  return withRequestTimeout(async (signal) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Leitura interrompida.");
+      const before = await readPublicationMarkers(client, signal);
+      const result = await read(signal);
+      const after = await readPublicationMarkers(client, signal);
+      if (before === after) return result;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
+    }
+    throw new Error("A sincronização do inventário mudou durante a leitura. Atualize para carregar um snapshot completo.");
+  }, signal);
 }
 
