@@ -299,13 +299,13 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 @keyframes landscape-placeholder-pulse { from { opacity: .45; } to { opacity: .85; } }
 @media (prefers-reduced-motion: reduce) { .landscape-placeholder { animation: none; } }
 .severity-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.severity-block { display: grid; align-content: center; min-height: 100px; gap: 3px; padding: 16px 18px; border-radius: 12px; background: var(--severity-color); color: #fff; animation: severity-color-reveal .8s ease both; }
+.severity-block { display: grid; align-content: center; min-height: 100px; gap: 3px; padding: 16px 18px; border-radius: 12px; background: var(--severity-color); color: #fff; animation: severity-color-reveal .6s ease both; }
 .severity-block strong { font-size: clamp(25px, 2.5vw, 35px); line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .severity-block span { font-size: 12px; font-weight: 700; }
 .severity-block-critical { --severity-color: #a90839; }
-.severity-block-high { --severity-color: #c72b30; animation-delay: 1s; }
-.severity-block-medium { --severity-color: #c86e19; animation-delay: 2s; }
-.severity-block-low { --severity-color: #c6a318; animation-delay: 3s; }
+.severity-block-high { --severity-color: #c72b30; animation-delay: .14s; }
+.severity-block-medium { --severity-color: #c86e19; animation-delay: .28s; }
+.severity-block-low { --severity-color: #c6a318; animation-delay: .42s; }
 @keyframes severity-color-reveal { from { background-color: #191a1c; } to { background-color: var(--severity-color); } }
 @media (prefers-reduced-motion: reduce) { .severity-block { animation: none; } }
 .landscape-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
