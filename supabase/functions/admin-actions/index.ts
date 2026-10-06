@@ -338,6 +338,44 @@ Deno.serve(async (request) => {
       return json(200, { mappingId: data.id, entityId: data.id });
     }
 
+    if (action === "create_shared_company") {
+      const connectionId = text(input.connectionId, 36);
+      const tenantId = text(input.tenantId, 36);
+      const name = text(input.name, 161);
+      const prefix = text(input.agentNamePrefix, 81);
+      const group = text(input.group, 161);
+      if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId)
+          || (tenantId !== null && !/^[0-9a-f-]{36}$/i.test(tenantId))
+          || (!tenantId && (!name || name.length > 160 || name.length < 2))
+          || !prefix || prefix.length > 80 || !/^[A-Za-z0-9._-]+$/.test(prefix)
+          || !group || group.length > 160 || !/^[A-Za-z0-9._-]+$/.test(group)) {
+        return json(400, { error: "Informe o nome da empresa, o prefixo e o grupo válidos." });
+      }
+      const slug = name ? slugify(name) : null;
+      if (!tenantId && !slug) return json(400, { error: "O nome não gerou um identificador válido para a empresa." });
+      if (!tenantId) {
+        const { data: existing, error: lookupError } = await admin.from("companies")
+          .select("id").eq("slug", slug).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (existing) return json(409, { error: "Já existe uma empresa com esse nome. Selecione-a como empresa cadastrada." });
+      }
+
+      const { data, error } = await admin.rpc("configure_shared_company", {
+        p_connection_id: connectionId,
+        p_tenant_id: tenantId,
+        p_company_name: name ?? null,
+        p_company_slug: slug,
+        p_agent_name_prefix: prefix,
+        p_group: group,
+        p_created_by: userData.user.id,
+      });
+      if (error?.code === "23505") return json(409, { error: "Esse grupo ou prefixo já está vinculado a outra empresa." });
+      if (error?.code === "22023") return json(400, { error: "Confira o nome, o prefixo e o grupo informados." });
+      if (error?.code === "P0002") return json(404, { error: "O indexador compartilhado não está ativo." });
+      if (error) throw error;
+      return json(tenantId ? 200 : 201, data as Record<string, unknown>);
+    }
+
     if (action === "disable_agent_mapping") {
       const mappingId = text(input.mappingId, 36);
       if (!mappingId || !/^[0-9a-f-]{36}$/i.test(mappingId)) return json(400, { error: "Invalid mapping" });
