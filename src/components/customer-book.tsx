@@ -171,7 +171,7 @@ export function CustomerBook() {
   }, [userId, supabase]);
 
   const loadFindings = useCallback(async (client: SupabaseClient, companyId: string) => {
-    const selection = "id,vulnerability_id,severity,agent_id,agent_name,first_detected_at,last_seen_at,source_state";
+    const selection = "id,vulnerability_id,severity,agent_id,agent_name,first_detected_at,last_seen_at:finding_last_seen,source_state";
     const createQuery = () => {
       let query = client.from("wazuh_findings")
         .select(selection, { count: "exact" })

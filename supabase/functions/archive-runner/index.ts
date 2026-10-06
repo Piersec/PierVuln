@@ -3,12 +3,12 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const expectedJobToken = Deno.env.get("ARCHIVE_JOB_TOKEN")!;
+const expectedJobTokens = [Deno.env.get("ARCHIVE_JOB_TOKEN"), Deno.env.get("WAZUH_WORKER_CONFIG_TOKEN")]
+  .filter((token): token is string => Boolean(token && token.length >= 16));
 const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const bucket = "wazuh-vulnerability-archives";
-const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 const maxFindingsPerArchive = 100;
 
 function response(status: number, body: Record<string, unknown>) {
@@ -66,6 +66,7 @@ async function expireArchives() {
 }
 
 async function archiveResolvedFindings() {
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const { data: outstandingManifests, error: outstandingError } = await supabase.from("archive_manifests")
     .select("id,bucket_name,object_path,checksum_sha256,finding_ids,status")
     .in("status", ["pending", "verified"])
@@ -96,7 +97,7 @@ async function archiveResolvedFindings() {
   }
 
   const { data: findings, error } = await supabase.from("wazuh_findings")
-    .select("id,connection_id,tenant_id,source_document_id,vulnerability_id,resolved_at,first_detected_at,last_seen_at,agent_id,agent_name,agent_groups,host_os,package_name,package_version,package_type,package_architecture,description,severity,cvss_base,reference_urls,source_status,source_state")
+    .select("id,connection_id,tenant_id,resolved_at")
     .eq("source_state", "resolved")
     .not("tenant_id", "is", null)
     .lte("resolved_at", cutoff)
@@ -118,24 +119,21 @@ async function archiveResolvedFindings() {
     const ids = group.map((finding) => finding.id);
     const tenantId = group[0].tenant_id!;
     const connectionId = group[0].connection_id;
-    const [{ data: cases, error: casesError }, { data: comments, error: commentsError }, { data: events, error: eventsError }] = await Promise.all([
-      supabase.from("vulnerability_cases").select("*").eq("tenant_id", tenantId).in("finding_id", ids),
-      supabase.from("vulnerability_comments").select("*").eq("tenant_id", tenantId).in("finding_id", ids),
-      supabase.from("finding_events").select("*").eq("tenant_id", tenantId).in("finding_id", ids),
-    ]);
-    if (casesError) throw casesError;
-    if (commentsError) throw commentsError;
-    if (eventsError) throw eventsError;
+    const { data: source, error: sourceError } = await supabase.rpc("prepare_archive_source", {
+      p_finding_ids: ids, p_tenant_id: tenantId,
+    });
+    if (sourceError) throw sourceError;
+    if (!source || typeof source.sourceFingerprint !== "string") throw new Error("Archive source verification is missing");
 
     const archive = {
       format: "piergv-wazuh-vulnerability-archive-v1",
       createdAt: new Date().toISOString(),
       tenantId,
       connectionId,
-      findings: group,
-      cases: cases ?? [],
-      comments: comments ?? [],
-      events: events ?? [],
+      findings: source.findings,
+      cases: source.cases,
+      comments: source.comments,
+      events: source.events,
     };
     const compressed = await gzip(await jsonBytes(archive));
     const checksum = await sha256(compressed);
@@ -162,6 +160,7 @@ async function archiveResolvedFindings() {
         bucket_name: bucket,
         object_path: objectPath,
         checksum_sha256: checksum,
+        source_fingerprint: source.sourceFingerprint,
         record_count: group.length,
         finding_ids: ids,
         period_start: new Date(Math.min(...resolvedTimes)).toISOString(),
@@ -186,7 +185,7 @@ async function archiveResolvedFindings() {
 Deno.serve(async (request) => {
   if (request.method !== "POST") return response(405, { error: "Method not allowed" });
   const suppliedToken = request.headers.get("x-archive-token") ?? "";
-  if (!expectedJobToken || !constantTimeEqual(suppliedToken, expectedJobToken)) {
+  if (!expectedJobTokens.some((token) => constantTimeEqual(suppliedToken, token))) {
     return response(401, { error: "Unauthorized" });
   }
   try {
