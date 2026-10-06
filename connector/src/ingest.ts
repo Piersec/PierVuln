@@ -1,4 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
+import { mkdtemp, open, rm } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { NormalizedFinding, ScrollPage, WazuhIndexerClient } from "./wazuh.js";
 
 export type ConnectorConfig = {
@@ -54,11 +59,14 @@ export class SupabaseIngestClient {
   }
 
   async finishSync(runId: string, expectedPages: number, expectedDocuments: number, version: string, signal?: AbortSignal): Promise<number> {
-    const reply = await this.post(this.ingestUrl, {
-      action: "finish", runId, expectedPages, expectedDocuments, indexerVersion: version,
-    }, true, signal);
-    if (reply.completed !== true) throw new Error("Supabase marcou a leitura como parcial; nenhum achado foi encerrado.");
-    return Number.isSafeInteger(reply.findingsChanged) ? Number(reply.findingsChanged) : 0;
+    for (;;) {
+      const reply = await this.post(this.ingestUrl, {
+        action: "finish", runId, expectedPages, expectedDocuments, indexerVersion: version,
+      }, true, signal);
+      if (reply.completed === true) return Number.isSafeInteger(reply.findingsChanged) ? Number(reply.findingsChanged) : 0;
+      if (reply.pending !== true) throw new Error("A publicação do snapshot não foi concluída; os dados anteriores foram mantidos.");
+      await wait(10_000, signal);
+    }
   }
 
   async failSync(runId: string, error: string): Promise<void> {
@@ -118,6 +126,9 @@ export async function synchronizeSnapshot(
   const deadline = AbortSignal.timeout(30 * 60 * 1000);
   const runSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
   const runId = await destination.startSync("unknown", runSignal);
+  const spoolDirectory = await mkdtemp(join(tmpdir(), "piervuln-snapshot-"));
+  const spoolPath = join(spoolDirectory, "pages.ndjson");
+  const spool = await open(spoolPath, "wx", 0o600);
   let scrollId: string | null = null;
   let pages = 0;
   let documents = 0;
@@ -139,7 +150,7 @@ export async function synchronizeSnapshot(
         documentIds.add(item.documentId);
       }
       if (items.length > 0 || pages === 0) {
-        changed += await destination.ingestPage(runId, pages, items, runSignal);
+        await spool.writeFile(JSON.stringify(items) + "\n");
         pages += 1;
         documents += items.length;
       }
@@ -152,6 +163,23 @@ export async function synchronizeSnapshot(
     }
 
     if (documents !== expectedDocuments) throw new Error("A paginação não recebeu todos os documentos do Indexer.");
+    await spool.close();
+    if (scrollId) {
+      await indexer.clearScroll(scrollId).catch(() => undefined);
+      scrollId = null;
+    }
+    console.info(`[connector] runId=${runId} status=downloaded documents=${documents} pages=${pages}; enviando snapshot completo.`);
+    let uploadPage = 0;
+    const stream = createReadStream(spoolPath);
+    const reader = createInterface({ input: stream, crlfDelay: Infinity });
+    try {
+      for await (const line of reader) {
+        if (runSignal.aborted) throw runSignal.reason;
+        changed += await destination.ingestPage(runId, uploadPage, JSON.parse(line) as NormalizedFinding[], runSignal);
+        uploadPage += 1;
+      }
+    } finally { reader.close(); stream.destroy(); }
+    if (uploadPage !== pages) throw new Error("O snapshot local não contém todas as páginas baixadas.");
     if (runSignal.aborted) throw runSignal.reason instanceof Error ? runSignal.reason : new Error("Sincronização interrompida.");
     changed += await destination.finishSync(runId, pages, expectedDocuments, version, runSignal);
     return { runId, pages, documents, changed, durationMs: Date.now() - startedAt };
@@ -160,6 +188,8 @@ export async function synchronizeSnapshot(
     try { await destination.failSync(runId, message); } catch { /* The next run retires stale records safely. */ }
     throw new SnapshotSyncError(message, runId, pages, documents, Date.now() - startedAt);
   } finally {
+    await spool.close().catch(() => undefined);
+    await rm(spoolDirectory, { recursive: true, force: true });
     if (scrollId) {
       try { await indexer.clearScroll(scrollId); } catch { /* The Indexer expires unclosed contexts after the keep-alive. */ }
     }

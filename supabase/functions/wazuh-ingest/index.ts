@@ -178,7 +178,7 @@ Deno.serve(async (request) => {
       });
       if (error) throw error;
       const result = data as Record<string, unknown>;
-      return json(result.completed === true ? 200 : 409, result);
+      return json(result.completed === true || result.pending === true ? 200 : 409, result);
     }
 
     if (action === "fail") {
