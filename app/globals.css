@@ -261,10 +261,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .overview-bento p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .tile-link { display: inline-flex; width: fit-content; min-height: 27px; align-items: center; gap: 4px; margin-top: 4px; padding: 0 8px; border: 0; border-radius: 999px; background: #16343b; color: var(--accent-strong); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .tile-link:hover { background: #24515a; color: var(--ink); }
-.overview-risk, .overview-progress, .overview-bento > .overview-source { background: var(--surface); }
-.overview-bento > .overview-source { align-items: stretch; }
-.source-reading { display: grid; grid-template-columns: 8px minmax(0, 1fr); align-content: end; align-items: center; gap: 3px 7px; margin-top: 4px; font-size: 12px; font-weight: 500; }
-.source-reading .pulse-dot { grid-row: 1; }
+.overview-risk, .overview-progress, .overview-informational { background: var(--surface); }
 .source-stale .pulse-dot { background: var(--caution); color: var(--caution); }
 .source-aging .pulse-dot { background: var(--caution); color: var(--caution); }
 .source-fresh .pulse-dot { background: var(--positive); color: var(--positive); }
@@ -275,7 +272,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .overview-bento.overview-compact > .bento-card { display: grid; min-height: 82px; grid-template-columns: auto minmax(0, 1fr); align-content: center; align-items: center; gap: 6px 12px; padding: 12px 15px; }
 .overview-compact .tile-label { grid-column: 1 / -1; font-size: 11px; }
 .overview-compact strong { margin: 0; font-size: 25px; }
-.overview-compact .tile-link, .overview-compact p, .overview-compact .source-reading { justify-self: end; margin: 0; font-size: 10px; }
+.overview-compact .tile-link, .overview-compact p { justify-self: end; margin: 0; font-size: 10px; }
 .overview-compact p { text-align: right; }
 .inventory-tabs { display: flex; gap: 6px; margin: 0 0 18px; border-bottom: 1px solid var(--line); }
 .inventory-tabs button { min-height: 44px; padding: 0 16px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; transition: color .18s, border-color .18s; }
@@ -810,9 +807,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .book-month-comparison strong { font-size: 16px; }
   .book-chart { height: 225px; }
   .book-age-chart { height: 210px; }
-  .overview-bento > .overview-risk, .overview-bento > .overview-progress { padding: 15px; }
-  .overview-bento > .overview-source { align-items: flex-start; flex-direction: column; justify-content: center; gap: 9px; }
-  .source-reading { max-width: none; }
+  .overview-bento > .overview-risk, .overview-bento > .overview-progress, .overview-bento > .overview-informational { padding: 15px; }
   .auth-feature { min-height: 132px; }
   .auth-feature strong, .welcome-feature strong { font-size: 18px; }
 }
