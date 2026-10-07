@@ -315,11 +315,11 @@ export function AdminSection({ section }: { section: Section }) {
         <TriangleAlert size={22} aria-hidden="true" />
         <div><strong>Limite de armazenamento ultrapassado</strong><p>O banco está usando {formatStorageBytes(storageUsage.database_bytes)} de 500 MB ({Math.round(storageUsage.database_bytes / DATABASE_LIMIT_BYTES * 100)}%). Excedente: {formatStorageBytes(storageUsage.database_bytes - DATABASE_LIMIT_BYTES)}.</p><small>Com base na medição de {adminDate(storageUsage.measured_at)}. Atualização a cada 5 minutos.</small></div>
       </div>}
-      <div className="panel-heading"><div><p>Uso estimado de achados, casos e histórico, incluindo índices e espaço reservado nas tabelas compartilhadas.</p><small className="muted-copy" role="status">
+      <div className="panel-heading"><div><p>Tamanho medido dos registros de cada empresa: achados, casos, histórico e comentários. Índices e espaço livre das tabelas compartilhadas aparecem somente no total do banco.</p><small className="muted-copy" role="status">
         {storageUsage ? `Banco: ${formatStorageBytes(storageUsage.database_bytes)} · Medição: ${adminDate(storageUsage.measured_at)} · Atualização a cada 5 minutos` : storageError ? "Não foi possível consultar os tamanhos. Nova tentativa automática em um minuto." : "Carregando a medição de armazenamento…"}
         {storageUsage && (storageError || storageNow - Date.parse(storageUsage.measured_at) > storageUsage.refresh_seconds * 2000) && " · Última medição mantida; aguardando atualização."}
       </small></div></div>
-      <DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Uso no banco", "Status", "Ações"]} empty={!companies.length}>
+      <DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Tamanho dos dados", "Status", "Ações"]} empty={!companies.length}>
       {companies.map((c) => {
         const usage = storageUsage?.companies.find((item) => item.tenant_id === c.id);
         const deletion = storageUsage?.deletions?.find((item) => item.tenant_id === c.id);
@@ -333,7 +333,7 @@ export function AdminSection({ section }: { section: Section }) {
             </ProgressBar>}
           </td>
           <td>{c.user_count}</td><td>{c.connection_count}</td>
-          <td title="Rateio do espaço físico conforme o tamanho dos dados de cada empresa, incluindo índices e espaço livre interno.">{usage ? <><strong>{usage.allocated_bytes > 0 ? "≈ " : ""}{formatStorageBytes(usage.allocated_bytes)}</strong><small>Dados: {formatStorageBytes(usage.data_bytes)}</small></> : <span className="muted-copy">{storageError ? "Indisponível" : "Aguardando medição"}</span>}</td>
+          <td title="Soma do tamanho dos registros da empresa, medida com pg_column_size. Não inclui rateio de índices nem espaço livre compartilhado.">{usage ? <strong>{formatStorageBytes(usage.data_bytes)}</strong> : <span className="muted-copy">{storageError ? "Indisponível" : "Aguardando medição"}</span>}</td>
           <td><ActiveStatus active={c.is_active} /></td>
           <td><div className="admin-row-actions">
             <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "company", company: c })}>Editar</button>
