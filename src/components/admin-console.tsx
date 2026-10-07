@@ -323,12 +323,15 @@ export function AdminSection({ section }: { section: Section }) {
       {companies.map((c) => {
         const usage = storageUsage?.companies.find((item) => item.tenant_id === c.id);
         const deletion = storageUsage?.deletions?.find((item) => item.tenant_id === c.id);
-        const deleting = deletion?.status === "queued" || deletion?.status === "running";
+        const removing = deletion?.status === "queued" || deletion?.status === "running";
+        const compacting = deletion?.storage_status === "queued" || deletion?.storage_status === "running";
+        const deleting = removing || compacting;
         return <tr key={c.id}>
           <td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small>
-            {deletion && <small role="status">{deleting ? `Limpeza ${deletion.status === "queued" ? "na fila" : "em andamento"} · ${deletion.findings_deleted.toLocaleString("pt-BR")} achados removidos` : deletion.status === "failed" ? deletion.error_message : "Última limpeza concluída"}</small>}
-            {deletion && deletion.status !== "failed" && <ProgressBar className="company-cleanup-progress" aria-label={`Limpeza de ${visibleText(c.name)}`}
-              isIndeterminate={deleting} value={deletion.status === "succeeded" ? 100 : 0} color={deletion.status === "succeeded" ? "success" : "accent"} size="sm">
+            {deletion && <small role="status">{removing ? `Limpeza ${deletion.status === "queued" ? "na fila" : "em andamento"} · ${deletion.findings_deleted.toLocaleString("pt-BR")} achados removidos` : compacting ? `Dados apagados · compactação ${deletion.storage_status === "queued" ? "na fila" : "em andamento"} · ${deletion.storage_tables_done ?? 0}/4 tabelas` : deletion.status === "failed" ? deletion.error_message : deletion.storage_status === "failed" ? deletion.storage_error : deletion.storage_status === "succeeded" ? `Limpeza concluída · ${formatStorageBytes(deletion.storage_reclaimed_bytes ?? 0)} recuperados nas tabelas compartilhadas` : "Última limpeza concluída"}</small>}
+            {deletion && deletion.status !== "failed" && deletion.storage_status !== "failed" && <ProgressBar className="company-cleanup-progress" aria-label={`${compacting ? "Compactação" : "Limpeza"} de ${visibleText(c.name)}`}
+              isIndeterminate={removing} value={compacting ? (deletion.storage_tables_done ?? 0) / 4 * 100 : deletion.status === "succeeded" ? 100 : 0} color={deleting ? "accent" : "success"} size="sm">
+              {compacting && <ProgressBar.Output />}
               <ProgressBar.Track><ProgressBar.Fill /></ProgressBar.Track>
             </ProgressBar>}
           </td>
@@ -338,7 +341,7 @@ export function AdminSection({ section }: { section: Section }) {
           <td><div className="admin-row-actions">
             <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "company", company: c })}>Editar</button>
             <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button>
-            <button className="button button-secondary button-destructive" disabled={busy || deleting} onClick={() => setDeleteCompany(c)}>{deleting ? "Apagando…" : "Apagar dados"}</button>
+            <button className="button button-secondary button-destructive" disabled={busy || deleting} onClick={() => setDeleteCompany(c)}>{compacting ? "Compactando…" : removing ? "Apagando…" : "Apagar dados"}</button>
           </div></td>
         </tr>;
       })}

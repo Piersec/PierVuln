@@ -183,6 +183,7 @@ dialog:is(.admin-dialog, .kanban-filter-dialog, .cve-dialog):modal { position: f
   --line: #35373a;
   --line-strong: #4b4e52;
   --ink: #f6f7f7;
+  --foreground: var(--ink);
   --muted: #a4a8ae;
   --muted-strong: #d4d7da;
   --accent: #48e9ff;
@@ -1342,6 +1343,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .database-storage-meter { width: auto; margin: 20px; gap: 10px; }
 .database-storage-meter .meter__track, .company-cleanup-progress .progress-bar__track { background: var(--surface-raised); }
 .database-storage-meter .meter__output { color: var(--ink); font-size: 13px; }
+.database-storage-meter [data-slot="label"], .company-cleanup-progress .progress-bar__output { color: var(--ink); }
 .company-cleanup-progress { width: min(260px, 100%); margin-top: 10px; }
 @media (max-width: 600px) { .database-storage-meter { grid-template-areas: "label" "output" "track"; grid-template-columns: minmax(0, 1fr); } }
 .company-deletion-content { display: grid; gap: 16px; padding: 24px; }

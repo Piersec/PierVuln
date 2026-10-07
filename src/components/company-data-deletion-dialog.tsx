@@ -46,7 +46,7 @@ export function CompanyDataDeletionDialog({ company, client, close, onQueued }: 
       <h2 id="delete-company-title" className="company-deletion-title"><TriangleAlert size={24} aria-hidden="true" />Apagar dados de {visibleText(company.name)}</h2>
       <p>Esta ação apaga permanentemente os achados, casos, histórico e comentários da empresa.</p>
       <p>A empresa será desativada e a coleta será desligada. O cadastro, os usuários e seus vínculos serão preservados.</p>
-      <p className="muted-copy">A limpeza acontece em lotes no segundo plano. Você pode acompanhar o andamento na lista de empresas.</p>
+      <p className="muted-copy">A limpeza apaga os registros em lotes e depois compacta as tabelas compartilhadas para recuperar espaço em disco. A compactação pode bloquear temporariamente consultas nessas tabelas. Acompanhe as duas etapas na lista de empresas.</p>
       <label>Digite <strong>{visibleText(company.name)}</strong> para confirmar
         <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={busy}
           autoFocus autoComplete="off" spellCheck={false} aria-describedby="delete-company-instructions" />
