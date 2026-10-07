@@ -147,6 +147,7 @@
 .admin-pagination > div { display: flex; gap: 8px; }
 .admin-empty { padding: 36px 12px; text-align: center; color: var(--muted); }
 .admin-loading { display: flex; align-items: center; gap: 16px; min-height: 160px; color: var(--muted); }
+dialog:is(.admin-dialog, .kanban-filter-dialog, .cve-dialog):modal { position: fixed; inset: 0; margin: auto; }
 .admin-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100svh - 40px); overflow: auto; padding: 0; border: 0; border-radius: 15px; background: var(--surface); color: var(--ink); }
 .admin-dialog::backdrop { background: rgb(0 0 0 / 70%); }
 .admin-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
