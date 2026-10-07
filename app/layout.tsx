@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import "./microinteractions.css";
 import { SiteNotifications } from "@/src/components/site-notifications";
 
 const plexSans = IBM_Plex_Sans({

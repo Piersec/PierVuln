@@ -1,0 +1,122 @@
+:root {
+  --motion-quick: 140ms;
+  --motion-standard: 220ms;
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* One quiet arrival per view; controls respond only to the person's action. */
+:is(.page-heading, .book-heading, .auth-card h1, .welcome-card h1, .onboarding-card h1, .login-card) {
+  animation: view-arrive 300ms var(--motion-ease) both;
+}
+
+@keyframes view-arrive {
+  from { opacity: 0; translate: 0 5px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+:is(.button, .icon-button, .nav-link, .book-mobile-nav a, .admin-tabs a, .inventory-tabs button,
+  .filter-select, .kev-filter, .pagination button, .kanban-pagination button, .company-picker-trigger,
+  .company-picker-all, .profile-menu-trigger, .profile-menu-popover .menu-item, .book-feedback,
+  .login-submit, .login-password-toggle, .login-recovery, .tile-link, .heading-link,
+  button[data-slot="button"], button[data-slot="toggle-button"]) {
+  transition-property: background-color, border-color, color, box-shadow, scale;
+  transition-duration: var(--motion-quick);
+  transition-timing-function: ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.nav-link, .book-mobile-nav a, .admin-tabs a, .inventory-tabs button, .pagination button,
+    .kanban-pagination button, .company-picker-trigger, .company-picker-all, .profile-menu-trigger,
+    .book-feedback):hover:not(:disabled) { scale: 1.025; }
+  .nav-link:hover .nav-symbol { translate: 0 -1px; }
+  :is(.admin-table tbody tr, .book-table-scroll tbody tr) { transition: background-color var(--motion-quick) ease-out; }
+  .admin-table tbody tr:hover, .book-table-scroll tbody tr:hover { background: var(--surface-raised); }
+}
+
+:is(.button, .icon-button, .nav-link, .book-mobile-nav a, .admin-tabs a, .inventory-tabs button,
+  .filter-select, .kev-filter, .pagination button, .kanban-pagination button, .company-picker-trigger,
+  .company-picker-all, .profile-menu-trigger, .book-feedback, .login-submit, .login-password-toggle,
+  .tile-link, button[data-slot="button"], button[data-slot="toggle-button"]):active:not(:disabled):not([data-disabled="true"]) { scale: .975; }
+
+.nav-symbol { transition: translate var(--motion-quick) var(--motion-ease); }
+
+:is(.button, .icon-button, .nav-link, .book-mobile-nav a, .admin-tabs a, .inventory-tabs button,
+  .filter-select, .kev-filter, .pagination button, .kanban-pagination button, .company-picker-trigger,
+  .company-picker-all, .profile-menu-trigger, .profile-menu-popover .menu-item, .book-feedback,
+  .login-submit, .login-password-toggle, .login-recovery, .tile-link, .heading-link,
+  .sidebar-signout, .book-signout, button[data-slot="button"], button[data-slot="toggle-button"]):focus-visible,
+:is(.button, .icon-button, .profile-menu-popover .menu-item)[data-focus-visible="true"] {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  filter: none;
+}
+
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea):focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  transition: border-color var(--motion-quick) ease-out, background-color var(--motion-quick) ease-out;
+}
+
+:is(.search-control, .battle-search):focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+:is(.search-control, .battle-search) :is(input, select):focus-visible { outline: none; }
+
+:is(.refresh-button, .book-feedback, .admin-shell .topbar > .button):disabled::before {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 7px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: refresh-turn .8s linear infinite;
+}
+@keyframes refresh-turn { to { rotate: 360deg; } }
+
+:is(.admin-dialog, .kanban-filter-dialog, .cve-dialog)[open] {
+  animation: dialog-arrive var(--motion-standard) var(--motion-ease) both;
+}
+@keyframes dialog-arrive {
+  from { opacity: 0; scale: .985; }
+  to { opacity: 1; scale: 1; }
+}
+
+:is(.admin-connection-details, .admin-company-details, .admin-agent-details) > summary {
+  display: flex;
+  align-items: center;
+  list-style: none;
+}
+:is(.admin-connection-details, .admin-company-details, .admin-agent-details) > summary::-webkit-details-marker { display: none; }
+:is(.admin-connection-details, .admin-company-details, .admin-agent-details) > summary::after {
+  content: "⌄";
+  margin-left: auto;
+  color: var(--muted-strong);
+  font-size: 17px;
+  line-height: 1;
+  transition: rotate var(--motion-standard) var(--motion-ease);
+}
+:is(.admin-connection-details, .admin-company-details, .admin-agent-details)[open] > summary::after { rotate: 180deg; }
+:is(.admin-connection-details, .admin-company-details, .admin-agent-details) > summary:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.page-heading, .book-heading, .auth-card h1, .welcome-card h1, .onboarding-card h1, .login-card,
+    .admin-dialog, .kanban-filter-dialog, .cve-dialog) { animation: none; }
+  .nav-symbol, :is(.admin-connection-details, .admin-company-details, .admin-agent-details) > summary::after { transition: none; }
+  :is(.button, .icon-button, .nav-link, .book-mobile-nav a, .admin-tabs a, .inventory-tabs button,
+    .filter-select, .kev-filter, .pagination button, .kanban-pagination button, .company-picker-trigger,
+    .company-picker-all, .profile-menu-trigger, .book-feedback, .login-submit, .login-password-toggle,
+    .tile-link, button[data-slot="button"], button[data-slot="toggle-button"]):active:not(:disabled) { scale: 1; }
+  :is(.refresh-button, .book-feedback, .admin-shell .topbar > .button):disabled::before { animation: none; }
+}
+
+@media print {
+  :is(.page-heading, .book-heading, .auth-card h1, .welcome-card h1, .onboarding-card h1, .login-card) { animation: none; }
+}
