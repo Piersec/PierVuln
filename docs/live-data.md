@@ -20,6 +20,11 @@ O KPI principal e o Book contam todos os documentos ativos do inventário,
 independentemente do estado de workflow. Casos continuam sendo a unidade de
 tratamento e podem ter estado, comentários e histórico próprios.
 
+A lista de casos carrega 25 registros por página e busca um registro extra para
+habilitar a próxima página. Os totais sem busca usam os resumos por empresa já
+salvos no banco; busca textual e KEV usam paginação sem varrer toda a tabela para
+contar resultados antes de exibir a página.
+
 O conector percorre o Indexer por scroll em páginas de até 500 documentos. Ele
 preserva o `_id` original, exige uma contagem inicial exata e interrompe a leitura
 se detectar IDs repetidos, páginas incompletas, shards com falha ou timeout. Uma
