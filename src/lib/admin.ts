@@ -1,6 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AdminCompany = { id: string; name: string; slug: string; is_active: boolean; user_count: number; connection_count: number };
+export type CompanyStorageUsage = {
+  measured_at: string; database_bytes: number; refresh_seconds: number;
+  companies: { tenant_id: string; data_bytes: number; allocated_bytes: number; finding_count: number }[];
+};
+
+export function formatStorageBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const unit = Math.min(Math.floor(Math.log(Math.max(bytes, 1)) / Math.log(1000)), units.length - 1);
+  return `${(bytes / 1000 ** unit).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${units[unit]}`;
+}
 export type AdminSync = { id: string; status: string; started_at: string; finished_at: string | null; full_snapshot: boolean; documents_received: number };
 export type AdminConnection = { id: string; name: string; mode: string; tenant_id: string | null; endpoint_url: string; is_active: boolean; latest_sync: AdminSync | null };
 export type AdminMapping = { id: string; connection_id: string; tenant_id: string; match_type: string; match_value: string; is_active: boolean };

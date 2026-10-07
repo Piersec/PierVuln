@@ -12,7 +12,7 @@ import { useSiteNotifications } from "@/src/components/site-notifications";
 import { useErrorNotice } from "@/src/lib/use-filter-notice";
 import { type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
-import { AdminRequestError, adminDate, archiveLabels, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership } from "@/src/lib/admin";
+import { AdminRequestError, adminDate, archiveLabels, formatStorageBytes, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership, type CompanyStorageUsage } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
 
 type Section = "dashboard" | "tenants" | "integrations" | "users" | "audit";
@@ -176,7 +176,45 @@ export function AdminSection({ section }: { section: Section }) {
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [syncHistory, setSyncHistory] = useState<Record<string, SyncMeasurement[]>>({});
   const [syncNow, setSyncNow] = useState(() => Date.now());
+  const [storageUsage, setStorageUsage] = useState<CompanyStorageUsage | null>(null);
+  const [storageError, setStorageError] = useState(false);
+  const [storageNow, setStorageNow] = useState(() => Date.now());
   const connectionIds = data?.connections.map((connection) => connection.id).sort().join(",") ?? "";
+
+  useEffect(() => {
+    if (section !== "tenants") return;
+    let active = true;
+    let pending = false;
+    let controller: AbortController | undefined;
+    async function loadStorage() {
+      if (pending || document.visibilityState === "hidden") return;
+      pending = true;
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 10_000);
+      try {
+        const { data: result, error } = await client.rpc("get_company_storage_usage").abortSignal(controller.signal);
+        if (!active) return;
+        setStorageError(Boolean(error));
+        if (!error && result) setStorageUsage(result as CompanyStorageUsage);
+        setStorageNow(Date.now());
+      } catch {
+        if (active) setStorageError(true);
+      } finally {
+        clearTimeout(timeout);
+        pending = false;
+      }
+    }
+    void loadStorage();
+    const timer = setInterval(() => void loadStorage(), 60_000);
+    const onVisibility = () => { if (document.visibilityState === "visible") void loadStorage(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      active = false;
+      controller?.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [client, data, section]);
 
   useEffect(() => {
     if ((section !== "dashboard" && section !== "integrations") || !connectionIds) {
@@ -261,8 +299,16 @@ export function AdminSection({ section }: { section: Section }) {
       </section>
     </>}
     {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar empresa, integração ou vínculo…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
-    {section === "tenants" && <section className="panel admin-list-panel"><DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Status", "Ações"]} empty={!companies.length}>
-      {companies.map((c) => <tr key={c.id}><td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small></td><td>{c.user_count}</td><td>{c.connection_count}</td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "company", company: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>)}
+    {section === "tenants" && <section className="panel admin-list-panel">
+      <div className="panel-heading"><div><p>Uso estimado de achados, casos e histórico, incluindo índices e espaço reservado nas tabelas compartilhadas.</p><small className="muted-copy" role="status">
+        {storageUsage ? `Banco: ${formatStorageBytes(storageUsage.database_bytes)} · Medição: ${adminDate(storageUsage.measured_at)} · Atualização a cada 5 minutos` : storageError ? "Não foi possível consultar os tamanhos. Nova tentativa automática em um minuto." : "Carregando a medição de armazenamento…"}
+        {storageUsage && (storageError || storageNow - Date.parse(storageUsage.measured_at) > storageUsage.refresh_seconds * 2000) && " · Última medição mantida; aguardando atualização."}
+      </small></div></div>
+      <DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Uso no banco", "Status", "Ações"]} empty={!companies.length}>
+      {companies.map((c) => {
+        const usage = storageUsage?.companies.find((item) => item.tenant_id === c.id);
+        return <tr key={c.id}><td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small></td><td>{c.user_count}</td><td>{c.connection_count}</td><td title="Rateio do espaço físico conforme o tamanho dos dados de cada empresa. Inclui índices e espaço livre interno; não é espaço exclusivo.">{usage ? <><strong>{usage.allocated_bytes > 0 ? "≈ " : ""}{formatStorageBytes(usage.allocated_bytes)}</strong><small>Dados: {formatStorageBytes(usage.data_bytes)}</small></> : <span className="muted-copy">{storageError ? "Indisponível" : "Aguardando medição"}</span>}</td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "company", company: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>;
+      })}
     </DataTable></section>}
     {section === "integrations" && <div className="admin-integrations">
       {!connections.length && <div className="panel admin-empty">Nenhuma integração encontrada. Ajuste os filtros ou cadastre uma nova integração.</div>}
