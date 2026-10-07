@@ -4,6 +4,7 @@ export type AdminCompany = { id: string; name: string; slug: string; is_active: 
 export type CompanyStorageUsage = {
   measured_at: string; database_bytes: number; refresh_seconds: number;
   companies: { tenant_id: string; data_bytes: number; allocated_bytes: number; finding_count: number }[];
+  deletions?: { tenant_id: string; status: "queued" | "running" | "succeeded" | "failed"; findings_deleted: number; error_message: string | null }[];
 };
 
 export function formatStorageBytes(bytes: number): string {

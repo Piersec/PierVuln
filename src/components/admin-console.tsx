@@ -14,6 +14,7 @@ import { type NoticeInput } from "@/src/lib/admin-notifications";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { AdminRequestError, adminDate, archiveLabels, formatStorageBytes, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership, type CompanyStorageUsage } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
+import { CompanyDataDeletionDialog } from "@/src/components/company-data-deletion-dialog";
 
 type Section = "dashboard" | "tenants" | "integrations" | "users" | "audit";
 type SyncMeasurement = {
@@ -167,7 +168,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
 type Editor = { kind: "company"; company?: AdminCompany } | { kind: "connection"; connection?: AdminConnection } | { kind: "invite" } | { kind: "mapping"; connectionId: string } | { kind: "shared-company"; connectionId: string } | { kind: "membership"; membership: AdminMembership; email: string } | { kind: "toggle"; entity: "company" | "connection"; id: string; name: string; active: boolean };
 
 export function AdminSection({ section }: { section: Section }) {
-  const { data, client, busy, query, setQuery, run, notify } = useAdmin();
+  const { data, client, busy, query, setQuery, run, notify, reload } = useAdmin();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
@@ -179,6 +180,7 @@ export function AdminSection({ section }: { section: Section }) {
   const [storageUsage, setStorageUsage] = useState<CompanyStorageUsage | null>(null);
   const [storageError, setStorageError] = useState(false);
   const [storageNow, setStorageNow] = useState(() => Date.now());
+  const [deleteCompany, setDeleteCompany] = useState<AdminCompany | null>(null);
   const connectionIds = data?.connections.map((connection) => connection.id).sort().join(",") ?? "";
 
   useEffect(() => {
@@ -205,7 +207,7 @@ export function AdminSection({ section }: { section: Section }) {
       }
     }
     void loadStorage();
-    const timer = setInterval(() => void loadStorage(), 60_000);
+    const timer = setInterval(() => void loadStorage(), 15_000);
     const onVisibility = () => { if (document.visibilityState === "visible") void loadStorage(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -307,7 +309,21 @@ export function AdminSection({ section }: { section: Section }) {
       <DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Uso no banco", "Status", "Ações"]} empty={!companies.length}>
       {companies.map((c) => {
         const usage = storageUsage?.companies.find((item) => item.tenant_id === c.id);
-        return <tr key={c.id}><td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small></td><td>{c.user_count}</td><td>{c.connection_count}</td><td title="Rateio do espaço físico conforme o tamanho dos dados de cada empresa. Inclui índices e espaço livre interno; não é espaço exclusivo.">{usage ? <><strong>{usage.allocated_bytes > 0 ? "≈ " : ""}{formatStorageBytes(usage.allocated_bytes)}</strong><small>Dados: {formatStorageBytes(usage.data_bytes)}</small></> : <span className="muted-copy">{storageError ? "Indisponível" : "Aguardando medição"}</span>}</td><td><ActiveStatus active={c.is_active} /></td><td><div className="admin-row-actions"><button className="button button-secondary" onClick={() => setEditor({ kind: "company", company: c })}>Editar</button><button className="button button-secondary" onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button></div></td></tr>;
+        const deletion = storageUsage?.deletions?.find((item) => item.tenant_id === c.id);
+        const deleting = deletion?.status === "queued" || deletion?.status === "running";
+        return <tr key={c.id}>
+          <td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small>
+            {deletion && <small role="status">{deleting ? `Limpeza ${deletion.status === "queued" ? "na fila" : "em andamento"} · ${deletion.findings_deleted.toLocaleString("pt-BR")} achados removidos` : deletion.status === "failed" ? deletion.error_message : "Última limpeza concluída"}</small>}
+          </td>
+          <td>{c.user_count}</td><td>{c.connection_count}</td>
+          <td title="Rateio do espaço físico conforme o tamanho dos dados de cada empresa, incluindo índices e espaço livre interno.">{usage ? <><strong>{usage.allocated_bytes > 0 ? "≈ " : ""}{formatStorageBytes(usage.allocated_bytes)}</strong><small>Dados: {formatStorageBytes(usage.data_bytes)}</small></> : <span className="muted-copy">{storageError ? "Indisponível" : "Aguardando medição"}</span>}</td>
+          <td><ActiveStatus active={c.is_active} /></td>
+          <td><div className="admin-row-actions">
+            <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "company", company: c })}>Editar</button>
+            <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button>
+            <button className="button button-secondary button-destructive" disabled={busy || deleting} onClick={() => setDeleteCompany(c)}>{deleting ? "Apagando…" : "Apagar dados"}</button>
+          </div></td>
+        </tr>;
       })}
     </DataTable></section>}
     {section === "integrations" && <div className="admin-integrations">
@@ -327,6 +343,11 @@ export function AdminSection({ section }: { section: Section }) {
       </DataTable></section>
     </>}
     {editor && <AdminEditor editor={editor} close={() => setEditor(null)} />}
+    {deleteCompany && <CompanyDataDeletionDialog company={deleteCompany} client={client} close={() => setDeleteCompany(null)} onQueued={() => {
+      setDeleteCompany(null);
+      notify({ title: "Limpeza iniciada. A empresa foi desativada e a coleta desligada." });
+      void reload();
+    }} />}
   </>;
 }
 
