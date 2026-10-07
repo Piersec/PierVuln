@@ -785,7 +785,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .sidebar .brand-mark { width: 42px; height: 28px; }
   .nav-caption { display: none; }
   .workspace-nav { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
-  .sidebar.has-admin .workspace-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sidebar.has-admin .workspace-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .workspace-nav > .nav-link { width: auto; min-height: 44px; justify-content: center; gap: 7px; margin: 0; padding: 3px 7px; text-align: center; font-size: 12px; line-height: 1.2; }
   .nav-label { display: inline; }
   .nav-symbol { width: 16px; height: 16px; }
@@ -797,7 +797,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .book-shell .sidebar > .brand { grid-column: auto; }
   .book-shell .sidebar-bottom { grid-column: auto; }
   .book-mobile-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 12; display: grid; min-height: 66px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 7px 10px max(7px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--canvas); }
-  .book-mobile-nav.has-admin { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .book-mobile-nav.has-admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .book-mobile-nav a { display: grid; min-height: 48px; place-items: center; padding: 4px; border-radius: 5px; color: var(--muted-strong); font-size: 11px; text-align: center; }
 .book-mobile-nav a[aria-current="page"] { border: 1px solid var(--line-strong); background: var(--nav-current); color: var(--accent-strong); }
   .book-content { padding-bottom: 92px; }

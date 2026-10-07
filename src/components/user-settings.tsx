@@ -240,6 +240,7 @@ export function UserSettings() {
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
         <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
+        {isInternal && <Link className="nav-link" href="/battle" aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>}
       </nav>
       <div className="sidebar-bottom"><ProfileMenu userId={user.id} fallback={name || user.email || "U"} isInternal={isInternal} /><div className="user-info"><strong>{name || user.email}</strong><span>{isInternal ? "Equipe Pier" : "Minha conta"}</span></div><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div>
     </aside>

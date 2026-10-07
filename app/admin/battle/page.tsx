@@ -1,5 +1,5 @@
-import { AdminSection } from "@/src/components/admin-console";
+import { redirect } from "next/navigation";
 
 export default function BattlePage() {
-  return <AdminSection section="battle" />;
+  redirect("/battle");
 }

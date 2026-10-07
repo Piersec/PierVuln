@@ -33,7 +33,6 @@ type SyncMeasurement = {
 const sections: { key: Section; label: string; href: string }[] = [
   { key: "dashboard", label: "Visão geral", href: "/admin" },
   { key: "tenants", label: "Empresas", href: "/admin/tenants" },
-  { key: "battle", label: "Batalha", href: "/admin/battle" },
   { key: "integrations", label: "Integrações", href: "/admin/integrations" },
   { key: "users", label: "Usuários", href: "/admin/users" },
   { key: "audit", label: "Auditoria", href: "/admin/audit" },
@@ -52,6 +51,7 @@ function useAdmin() { const value = useContext(AdminContext); if (!value) throw 
 export function AdminWorkspace({ children }: { children: ReactNode }) {
   const client = getSupabaseBrowserClient();
   const pathname = usePathname();
+  const battlePage = pathname === "/battle";
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [access, setAccess] = useState<"checking" | "allowed" | "denied" | "error">("checking");
@@ -148,16 +148,17 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   if (access !== "allowed") return <main className="auth-shell"><section className="auth-card"><Brand /><h1>{access === "error" ? "Não foi possível verificar o acesso" : "Acesso restrito"}</h1><p>Esta área é exclusiva da equipe Pier.</p><Link className="button button-secondary" href="/">Voltar ao painel</Link>{access === "error" && <button className="button button-secondary" onClick={() => window.location.reload()}>Tentar novamente</button>}</section></main>;
 
   return <AdminContext.Provider value={{ client, data, loading, busy, loadError, query, setQuery, reload, notify, run, setIslandHost }}>
-    <main className="app-shell admin-shell">
+    <main className={`app-shell${battlePage ? "" : " admin-shell"}`}>
       <a className="skip-link" href="#admin-content">Pular para o conteúdo</a>
       <aside className="sidebar has-admin"><Brand /><nav className="workspace-nav" aria-label="Navegação principal">
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
         <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
+        <Link className={`nav-link${battlePage ? " active" : ""}`} href="/battle" aria-current={battlePage ? "page" : undefined} aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>
       </nav><div className="sidebar-bottom"><ProfileMenu userId={session.user.id} fallback={session.user.email ?? "U"} isInternal={true} /><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>
-      <section className="main-column"><header className="topbar"><div className="breadcrumb">ADMIN <span>/</span><strong>{sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload(true)}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
+      <section className="main-column"><header className="topbar"><div className="breadcrumb">{battlePage ? "PierVuln" : "ADMIN"} <span>/</span><strong>{battlePage ? "Batalha" : sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload(true)}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
         <div className="content-wrap admin-content" id="admin-content" tabIndex={-1}>
-          <nav className="admin-tabs" aria-label="Administração">{sections.map((s) => <Link href={s.href} key={s.key} className={pathname === s.href ? "active" : ""} aria-current={pathname === s.href ? "page" : undefined}>{s.label}</Link>)}</nav>
+          {!battlePage && <nav className="admin-tabs" aria-label="Administração">{sections.map((s) => <Link href={s.href} key={s.key} className={pathname === s.href ? "active" : ""} aria-current={pathname === s.href ? "page" : undefined}>{s.label}</Link>)}</nav>}
           {loadError && <div className="inline-alert" role="alert">{loadError}<button className="button button-secondary" onClick={() => void reload(true)}>Tentar novamente</button></div>}
           {loading && !data ? <div className="admin-loading" role="status"><div className="spinner" />Carregando dados administrativos…</div> : data && children}
         </div>
@@ -297,7 +298,7 @@ export function AdminSection({ section }: { section: Section }) {
   }
 
   return <>
-    <div className="page-heading"><div><h1>{sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", battle: "Ranking interno dos clientes com dados publicados.", integrations: "Organize as empresas de cada indexador e gerencie seus vínculos.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
+    <div className="page-heading"><div><h1>{section === "battle" ? "Batalha" : sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", battle: "Ranking interno dos clientes com dados publicados.", integrations: "Organize as empresas de cada indexador e gerencie seus vínculos.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
       {section === "tenants" && <button className="button button-primary" onClick={() => setEditor({ kind: "company" })}>Nova empresa</button>}
       {section === "integrations" && <button className="button button-primary" onClick={() => setEditor({ kind: "connection" })}>Nova integração</button>}
       {section === "users" && <button className="button button-primary" onClick={() => setEditor({ kind: "invite" })}>Convidar usuário</button>}
