@@ -17,6 +17,7 @@ import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { AdminRequestError, adminDate, archiveLabels, formatStorageBytes, invokeAdmin, roleLabels, syncLabels, type AdminArchive, type AdminCompany, type AdminConnection, type AdminData, type AdminMembership, type CompanyStorageUsage } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
 import { CompanyDataDeletionDialog } from "@/src/components/company-data-deletion-dialog";
+import { BattleDashboard, type BattleCompany } from "@/src/components/battle-dashboard";
 
 type Section = "dashboard" | "tenants" | "battle" | "integrations" | "users" | "audit";
 const DATABASE_LIMIT_BYTES = 500_000_000;
@@ -169,8 +170,6 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
 
 type Editor = { kind: "company"; company?: AdminCompany } | { kind: "delete-company"; company: AdminCompany } | { kind: "connection"; connection?: AdminConnection } | { kind: "invite" } | { kind: "mapping"; connectionId: string } | { kind: "shared-company"; connectionId: string } | { kind: "membership"; membership: AdminMembership; email: string } | { kind: "toggle"; entity: "company" | "connection"; id: string; name: string; active: boolean };
 
-type BattleCompany = { id: string; name: string; slug: string; case_count: number; critical_high_count: number; in_progress_count: number; corrected_30: number; refreshed_at: string | null; stale: boolean };
-
 export function AdminSection({ section }: { section: Section }) {
   const { data, client, busy, query, setQuery, run, notify, reload } = useAdmin();
   const [search, setSearch] = useState("");
@@ -187,6 +186,7 @@ export function AdminSection({ section }: { section: Section }) {
   const [deleteCompany, setDeleteCompany] = useState<AdminCompany | null>(null);
   const [battle, setBattle] = useState<BattleCompany[] | null>(null);
   const [battleError, setBattleError] = useState("");
+  const [battleRetry, setBattleRetry] = useState(0);
   const connectionIds = data?.connections.map((connection) => connection.id).sort().join(",") ?? "";
 
   useEffect(() => {
@@ -196,7 +196,7 @@ export function AdminSection({ section }: { section: Section }) {
       .then((result) => { if (active) { setBattle(result.companies); setBattleError(""); } })
       .catch((error) => { if (active) setBattleError((error as Error).message); });
     return () => { active = false; };
-  }, [client, data, section]);
+  }, [client, data, section, battleRetry]);
 
   useEffect(() => {
     if (section !== "tenants") return;
@@ -315,16 +315,7 @@ export function AdminSection({ section }: { section: Section }) {
         </DataTable>
       </section>
     </>}
-    {section === "battle" && <section className="panel admin-list-panel"><div className="panel-heading"><div><h2>Classificação atual</h2><p>Índice = percentual de casos ativos sem severidade crítica ou alta. Empresas sem casos publicados ficam fora da classificação. A posição não mede evolução histórica.</p></div></div>
-      {battleError && <div className="inline-alert" role="alert">{battleError}</div>}
-      {!battle && !battleError && <p className="admin-empty" role="status">Carregando classificação…</p>}
-      {battle && <DataTable headings={["Posição", "Empresa", "Índice", "Casos ativos", "Críticos ou altos", "Em tratamento", "Corrigidos em 30 dias", "Dados"]} empty={!battle.length}>
-        {[...battle].sort((a, b) => {
-          const score = (company: BattleCompany) => company.case_count > 0 ? 1 - company.critical_high_count / company.case_count : -1;
-          return score(b) - score(a) || a.critical_high_count - b.critical_high_count || a.name.localeCompare(b.name, "pt-BR");
-        }).map((company, index) => <tr key={company.id}><td>{company.case_count > 0 ? `${index + 1}º` : "—"}</td><td><strong>{visibleText(company.name)}</strong><small>{company.slug}</small></td><td><strong>{company.case_count > 0 ? `${Math.round(100 * (1 - company.critical_high_count / company.case_count))}%` : "Sem dados"}</strong></td><td>{company.case_count.toLocaleString("pt-BR")}</td><td>{company.critical_high_count.toLocaleString("pt-BR")}</td><td>{company.in_progress_count.toLocaleString("pt-BR")}</td><td>{company.corrected_30.toLocaleString("pt-BR")}</td><td>{company.refreshed_at ? adminDate(company.refreshed_at) : "Aguardando publicação"}{company.stale && <small>Atualização pendente</small>}</td></tr>)}
-      </DataTable>}
-    </section>}
+    {section === "battle" && <BattleDashboard companies={battle} error={battleError} onRetry={() => { setBattleError(""); setBattleRetry((value) => value + 1); }} />}
     {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar empresa, integração ou vínculo…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
     {section === "tenants" && <section className="panel admin-list-panel">
       {storageUsage && <Meter className="database-storage-meter" value={Math.min(storageUsage.database_bytes, DATABASE_LIMIT_BYTES)} maxValue={DATABASE_LIMIT_BYTES}
