@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
+import { Label, Meter, ProgressBar } from "@heroui/react";
 import { trackSpotlight } from "@/src/components/ui/spotlight-card";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -304,6 +305,12 @@ export function AdminSection({ section }: { section: Section }) {
     </>}
     {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar empresa, integração ou vínculo…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
     {section === "tenants" && <section className="panel admin-list-panel">
+      {storageUsage && <Meter className="database-storage-meter" value={Math.min(storageUsage.database_bytes, DATABASE_LIMIT_BYTES)} maxValue={DATABASE_LIMIT_BYTES}
+        color={storageUsage.database_bytes > DATABASE_LIMIT_BYTES ? "danger" : storageUsage.database_bytes >= DATABASE_LIMIT_BYTES * .8 ? "warning" : "accent"}
+        valueLabel={`${formatStorageBytes(storageUsage.database_bytes)} de 500 MB · ${Math.round(storageUsage.database_bytes / DATABASE_LIMIT_BYTES * 100)}%`}>
+        <Label>Armazenamento do banco</Label><Meter.Output />
+        <Meter.Track><Meter.Fill /></Meter.Track>
+      </Meter>}
       {storageUsage && storageUsage.database_bytes > DATABASE_LIMIT_BYTES && <div className="database-capacity-warning" role="status">
         <TriangleAlert size={22} aria-hidden="true" />
         <div><strong>Limite de armazenamento ultrapassado</strong><p>O banco está usando {formatStorageBytes(storageUsage.database_bytes)} de 500 MB ({Math.round(storageUsage.database_bytes / DATABASE_LIMIT_BYTES * 100)}%). Excedente: {formatStorageBytes(storageUsage.database_bytes - DATABASE_LIMIT_BYTES)}.</p><small>Com base na medição de {adminDate(storageUsage.measured_at)}. Atualização a cada 5 minutos.</small></div>
@@ -320,6 +327,10 @@ export function AdminSection({ section }: { section: Section }) {
         return <tr key={c.id}>
           <td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small>
             {deletion && <small role="status">{deleting ? `Limpeza ${deletion.status === "queued" ? "na fila" : "em andamento"} · ${deletion.findings_deleted.toLocaleString("pt-BR")} achados removidos` : deletion.status === "failed" ? deletion.error_message : "Última limpeza concluída"}</small>}
+            {deletion && deletion.status !== "failed" && <ProgressBar className="company-cleanup-progress" aria-label={`Limpeza de ${visibleText(c.name)}`}
+              isIndeterminate={deleting} value={deletion.status === "succeeded" ? 100 : 0} color={deletion.status === "succeeded" ? "success" : "accent"} size="sm">
+              <ProgressBar.Track><ProgressBar.Fill /></ProgressBar.Track>
+            </ProgressBar>}
           </td>
           <td>{c.user_count}</td><td>{c.connection_count}</td>
           <td title="Rateio do espaço físico conforme o tamanho dos dados de cada empresa, incluindo índices e espaço livre interno.">{usage ? <><strong>{usage.allocated_bytes > 0 ? "≈ " : ""}{formatStorageBytes(usage.allocated_bytes)}</strong><small>Dados: {formatStorageBytes(usage.data_bytes)}</small></> : <span className="muted-copy">{storageError ? "Indisponível" : "Aguardando medição"}</span>}</td>
