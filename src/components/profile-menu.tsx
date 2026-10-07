@@ -20,7 +20,7 @@ export function ProfileMenu({ userId, fallback, isInternal }: {
   const items = links.filter((item) => isInternal || item.kind !== "admin");
 
   return <Dropdown>
-    <Dropdown.Trigger className="profile-menu-trigger" aria-label="Menu de perfil" title="Menu de perfil">
+    <Dropdown.Trigger className="profile-menu-trigger" aria-label="Menu de perfil">
       <UserAvatar userId={userId} fallback={fallback} />
     </Dropdown.Trigger>
     <Dropdown.Popover className="profile-menu-popover" placement="top start" offset={10}>
