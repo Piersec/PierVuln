@@ -366,7 +366,7 @@ begin
     'findingsChanged', v_changed
   );
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION wazuh_internal.apply_complete_wazuh_sync(p_connection_id uuid, p_run_id uuid, p_expected_pages integer, p_expected_documents bigint, p_indexer_version text)
  RETURNS jsonb
@@ -472,7 +472,7 @@ begin
     'resolvedFindings', v_resolved
   );
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION wazuh_internal.publish_wazuh_snapshot(p_connection_id uuid, p_run_id uuid, p_expected_pages integer, p_expected_documents bigint, p_indexer_version text)
  RETURNS jsonb
@@ -613,7 +613,7 @@ begin
 
   return v_publish_result || jsonb_build_object('findingsChanged', v_run.findings_changed);
 end;
-$function$
+$function$;
 
 revoke all on function wazuh_internal.apply_wazuh_batch(uuid,uuid,integer,text,jsonb),
   wazuh_internal.apply_complete_wazuh_sync(uuid,uuid,integer,bigint,text),

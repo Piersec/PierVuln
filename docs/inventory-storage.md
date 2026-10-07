@@ -10,7 +10,8 @@ Para achados ativos, a última leitura é obtida da execução publicada da cone
 
 ## Conversão e manutenção
 
-- `piervuln-normalize-content`: até 1.000 registros por minuto, com limite de 10 segundos por transação e bloqueios limitados a um segundo. A rotina se remove do agendamento quando não há mais registros pendentes.
+- `piervuln-normalize-content`: até 10 registros a cada dois minutos, com limite de 25 segundos por transação e bloqueios limitados a um segundo. O lote foi reduzido após os limites iniciais excederem o tempo seguro no banco ativo. A rotina se remove do agendamento quando não há mais registros pendentes e cede enquanto houver publicação pendente.
+- `piervuln-refresh-overview-snapshots`: recalcula uma empresa por vez em segundo plano quando a publicação muda. O painel lê o último resumo persistido enquanto uma nova versão é preparada.
 - `piervuln-inventory-maintenance`: diariamente às 05:15 UTC. Fecha coletas abandonadas há duas horas sem publicação pendente, limpa temporários encerrados, remove filas e registros de execução sem referências após 30 dias e elimina conteúdo sem achados associados.
 - Registros de execução ainda referenciados pelos achados ou pelo snapshot publicado são preservados.
 - O último snapshot do front permanece disponível durante as tarefas. A conversão não altera empresa, severidade, primeira detecção, estado ou fluxo do caso.

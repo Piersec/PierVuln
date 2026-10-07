@@ -6,6 +6,7 @@ as $$
 declare v_changed integer;
 begin
   if not pg_try_advisory_xact_lock(20261006, 1) then return 0; end if;
+  if exists (select 1 from wazuh_internal.publication_queue where status = 'pending') then return 0; end if;
   with candidates as materialized (
     select id from public.wazuh_findings where content_id is null
     order by id limit least(greatest(p_limit, 1), 2000) for update skip locked
@@ -52,7 +53,7 @@ end;
 $$;
 revoke all on function private.inventory_maintenance() from public, anon, authenticated, service_role;
 
-select cron.schedule('piervuln-normalize-content', '* * * * *',
-  $job$set statement_timeout = '10s'; set lock_timeout = '1s'; select private.normalize_finding_content_batch(1000);$job$);
+select cron.schedule('piervuln-normalize-content', '*/2 * * * *',
+  $job$set statement_timeout = '25s'; set lock_timeout = '1s'; select private.normalize_finding_content_batch(10);$job$);
 select cron.schedule('piervuln-inventory-maintenance', '15 5 * * *',
   $job$set statement_timeout = '20s'; set lock_timeout = '1s'; select private.inventory_maintenance();$job$);
