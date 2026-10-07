@@ -1,0 +1,54 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="36.5316" height="8.43037" viewBox="0 0 36.5316 8.43037" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Core / Traffic Lights (Big Sur)">
+<g id="close">
+<g filter="url(#filter0_i_0_101)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M4.21518 8.43037C6.54317 8.43037 8.43037 6.54317 8.43037 4.21518C8.43037 1.8872 6.54317 0 4.21518 0C1.8872 0 0 1.8872 0 4.21518C0 6.54317 1.8872 8.43037 4.21518 8.43037Z" fill="#EE6A5F"/>
+</g>
+<path d="M4.21484 0.175781C6.44571 0.175781 8.2547 1.98402 8.25488 4.21484C8.25488 6.44583 6.44583 8.25488 4.21484 8.25488C1.98402 8.2547 0.175781 6.44571 0.175781 4.21484C0.175965 1.98413 1.98413 0.175965 4.21484 0.175781Z" stroke="#CE5347" stroke-width="0.351265"/>
+</g>
+<g id="minimize">
+<g filter="url(#filter1_i_0_101)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M18.2658 8.43037C20.5938 8.43037 22.481 6.54317 22.481 4.21518C22.481 1.8872 20.5938 0 18.2658 0C15.9378 0 14.0506 1.8872 14.0506 4.21518C14.0506 6.54317 15.9378 8.43037 18.2658 8.43037Z" fill="#F5BD4F"/>
+</g>
+<path d="M18.2655 0.175781C20.4963 0.175781 22.3053 1.98402 22.3055 4.21484C22.3055 6.44583 20.4964 8.25488 18.2655 8.25488C16.0346 8.2547 14.2264 6.44571 14.2264 4.21484C14.2266 1.98413 16.0347 0.175965 18.2655 0.175781Z" stroke="#D6A243" stroke-width="0.351265"/>
+</g>
+<g id="fullscreen">
+<g filter="url(#filter2_i_0_101)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M32.3164 8.43037C34.6444 8.43037 36.5316 6.54317 36.5316 4.21518C36.5316 1.8872 34.6444 0 32.3164 0C29.9884 0 28.1012 1.8872 28.1012 4.21518C28.1012 6.54317 29.9884 8.43037 32.3164 8.43037Z" fill="#61C454"/>
+</g>
+<path d="M32.3161 0.175781C34.5469 0.175781 36.3559 1.98402 36.3561 4.21484C36.3561 6.44583 34.5471 8.25488 32.3161 8.25488C30.0852 8.2547 28.277 6.44571 28.277 4.21484C28.2772 1.98413 30.0854 0.175965 32.3161 0.175781Z" stroke="#58A942" stroke-width="0.351265"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_i_0_101" x="0" y="0" width="8.43037" height="8.43037" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="2.10759"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.92549 0 0 0 0 0.427451 0 0 0 0 0.384314 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_101"/>
+</filter>
+<filter id="filter1_i_0_101" x="14.0506" y="0" width="8.43037" height="8.43037" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="2.10759"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.960784 0 0 0 0 0.768627 0 0 0 0 0.317647 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_101"/>
+</filter>
+<filter id="filter2_i_0_101" x="28.1012" y="0" width="8.43037" height="8.43037" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="2.10759"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.407843 0 0 0 0 0.8 0 0 0 0 0.345098 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_101"/>
+</filter>
+</defs>
+</svg>

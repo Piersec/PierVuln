@@ -1,0 +1,67 @@
+.login-shell {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  grid-template-columns: minmax(340px, 40.2%) minmax(0, 1fr);
+  align-items: center;
+  overflow: clip;
+  background: #000 url("/login/background.svg") center / cover no-repeat;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: clamp(300px, 18vw, 360px);
+  max-width: calc(100% - 40px);
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  padding-block: 44px;
+}
+
+.login-card .brand { gap: 8px; margin-bottom: 28px; font-size: clamp(22px, 1.7vw, 30px); letter-spacing: -.04em; }
+.login-card .brand-mark { width: clamp(52px, 4vw, 72px); height: auto; image-rendering: auto; }
+.login-card .brand-light { color: #fff; }
+.login-form { display: grid; width: 100%; gap: 18px; }
+.login-form label { display: grid; gap: 7px; color: #e2e2e2; font-size: 13px; font-weight: 500; }
+.login-form input { display: block; width: 100%; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid transparent; border-radius: 7px; background: #d9d9d9; color: #191a1c; font-size: 14px; }
+.login-form input::placeholder { color: #5b5b5f; opacity: 1; }
+.login-form input:focus-visible { border-color: var(--accent); }
+.login-password-field { position: relative; display: block; }
+.login-password-field input { padding-right: 48px; }
+.login-password-toggle { position: absolute; top: 2px; right: 3px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #4c4c51; }
+.login-password-toggle:hover { background: rgb(0 0 0 / 7%); color: #191a1c; }
+.login-submit { justify-self: center; width: 70%; min-height: 44px; margin-top: 2px; border-radius: 999px; background: #d9d9d9; color: #191a1c; font-size: 14px; }
+.login-submit:hover:not(:disabled) { background: #fff; }
+.login-card .auth-captcha { min-height: 65px; overflow: visible; }
+.login-card .form-notice { width: 100%; }
+.login-recovery { display: inline-flex; min-height: 44px; align-items: center; margin-top: 10px; color: #b8b8bd; font-size: 12px; }
+.login-recovery:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+
+.login-preview { position: absolute; top: 17.1vh; left: 46.8%; width: min(96.3vw, 1782px); aspect-ratio: 890.809 / 590.126; pointer-events: none; }
+.login-preview-scene { position: relative; width: 890.809px; height: 590.126px; transform-origin: top left; }
+.login-browser-artwork { position: relative; width: 890.809px; height: 590.126px; overflow: hidden; border-radius: 24px; background: #080b0d; }
+.login-preview-glow { position: absolute; top: -16px; left: -28px; filter: blur(80.9px); }
+.login-browser-body { position: absolute; inset: 36.53px 0 .7px; overflow: hidden; }
+.login-browser-body > img { position: absolute; top: .08%; left: -.1%; display: block; width: 100.2%; height: 77.43%; max-width: none; }
+.login-browser-toolbar { position: absolute; top: -.7px; left: 0; width: 899.239px; height: 37.234px; background: #191c1f; border-radius: 7.025px 7.025px 0 0; box-shadow: inset 0 .351px 0 rgb(255 255 255 / 40%), inset 0 .703px 0 rgb(255 255 255 / 40%), inset -.703px 0 0 #47494b; }
+.login-browser-toolbar img { display: block; max-width: none; flex-shrink: 0; }
+.login-browser-lights { position: absolute; top: 14.05px; left: 14.75px; }
+.login-browser-sidebar { position: absolute; top: 8.43px; left: 64.63px; }
+.login-browser-navigation { position: absolute; top: 8.43px; left: 94.14px; display: flex; }
+.login-browser-address { position: absolute; top: 8.43px; left: 26.56%; right: 26.56%; height: 19.671px; }
+.login-browser-url { position: absolute; top: 0; right: 29.51px; bottom: 0; left: 29.51px; border-radius: 6px; background: #0c0f12; }
+.login-browser-url > span { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 4.215px; transform: translate(-50%, -50%); color: #fff; font-family: Arial, sans-serif; font-size: 9.13px; line-height: normal; white-space: nowrap; }
+.login-browser-url > img { position: absolute; top: 50%; right: 4.44px; transform: translateY(-50%); }
+.login-browser-actions { position: absolute; top: 8.43px; right: 8.43px; display: flex; gap: 5.62px; }
+
+@media (max-width: 800px) {
+  .login-shell { grid-template-columns: minmax(0, 1fr); }
+  .login-card { width: min(360px, calc(100% - 40px)); max-width: none; }
+  .login-preview { display: none; }
+}
+
+@media (max-width: 340px) {
+  .login-card { width: calc(100% - 20px); }
+}

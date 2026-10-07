@@ -1,12 +1,14 @@
 "use client";
 
+import "./login.css";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Brand } from "@/src/components/brand";
+import { LoginPreview } from "@/src/components/login-preview";
+import { Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
-import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { hasInviteLink } from "@/src/lib/temporary-auth-flow";
 import { TURNSTILE_SITE_KEY } from "@/src/lib/auth-captcha";
 
@@ -18,6 +20,7 @@ export default function LoginPage() {
   const supabase = getSupabaseBrowserClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
@@ -93,35 +96,21 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth-shell">
+    <main className="login-shell">
       <a className="skip-link" href="#login-content">Pular para o formulário</a>
-      <section className="auth-card" id="login-content" tabIndex={-1}>
-        <Brand />
-        <h1>Entrar no painel</h1>
-        <p>Entre com o e-mail associado ao seu convite.</p>
-        <form onSubmit={onSignIn} className="form-stack">
-          <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          <div className="auth-captcha"><Turnstile ref={captcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark", refreshExpired: "auto" }} onSuccess={acceptCaptcha} onExpire={() => { captchaIssuedAt.current = 0; setCaptchaToken(""); }} onError={() => { captchaIssuedAt.current = 0; setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
-          <button className="button button-primary" disabled={busy || !captchaToken}>{busy ? "Entrando…" : "Entrar"}</button>
+      <section className="login-card" id="login-content" tabIndex={-1}>
+        <Brand markSrc="/login/mascot.png" />
+        <h1 className="sr-only">Entrar no painel</h1>
+        <form onSubmit={onSignIn} className="login-form" aria-busy={busy}>
+          <label htmlFor="login-email">E-mail<input id="login-email" type="email" autoComplete="email" placeholder="nome@empresa.com.br" required disabled={busy} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label htmlFor="login-password">Senha<span className="login-password-field"><input id="login-password" aria-label="Senha" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Sua senha" required disabled={busy} value={password} onChange={(e) => setPassword(e.target.value)} /><button className="login-password-toggle" type="button" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} aria-pressed={showPassword} onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span></label>
+          <div className="auth-captcha"><Turnstile ref={captcha} siteKey={TURNSTILE_SITE_KEY} options={{ theme: "dark", size: "flexible", refreshExpired: "auto" }} onSuccess={acceptCaptcha} onExpire={() => { captchaIssuedAt.current = 0; setCaptchaToken(""); }} onError={() => { captchaIssuedAt.current = 0; setCaptchaToken(""); setNotice("O desafio de segurança falhou. Recarregue a página e tente novamente."); }} /></div>
+          <button className="button login-submit" disabled={busy || !captchaToken}>{busy ? "Entrando…" : "Entrar"}</button>
         </form>
         {notice && <p className="form-notice" role="status">{notice}</p>}
-        <Link href="/reset-password" className="back-link">Esqueci minha senha</Link>
-        <Link href="/" className="back-link">Voltar ao painel</Link>
+        <Link href="/reset-password" className="login-recovery">Esqueci minha senha</Link>
       </section>
-      <aside className="auth-rail" aria-label="Sobre o PierVuln">
-        <div className="auth-rail-content">
-          <span className="auth-rail-label">PIERVULN / OPERAÇÕES</span>
-          <h2>Uma leitura clara da exposição.</h2>
-          <p>Consulte as vulnerabilidades identificadas e acompanhe o tratamento com o histórico de cada caso.</p>
-          <BentoGrid className="auth-bento" aria-label="O que você acompanha no PierVuln">
-            <BentoCard className="auth-feature auth-feature-source"><span>Fonte de dados</span><strong>Indexador</strong><small>Estado da última leitura completa sempre visível.</small></BentoCard>
-            <BentoCard className="auth-feature"><span>Tratamento</span><strong>Fluxo de casos</strong><small>Da abertura à validação.</small></BentoCard>
-            <BentoCard className="auth-feature"><span>Registro</span><strong>Histórico</strong><small>Contexto e comentários no mesmo lugar.</small></BentoCard>
-          </BentoGrid>
-          <div className="auth-rail-foot"><span className="status-mark" aria-hidden="true"/>Acesso por convite</div>
-        </div>
-      </aside>
+      <LoginPreview />
     </main>
   );
 }
