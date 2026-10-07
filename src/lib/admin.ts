@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type AdminCompany = { id: string; name: string; slug: string; is_active: boolean; user_count: number; connection_count: number };
+export type AdminCompany = { id: string; name: string; slug: string; is_active: boolean; user_count: number; connection_count: number; logo_dark_path: string | null; logo_light_path: string | null };
 export type CompanyStorageUsage = {
   measured_at: string; database_bytes: number; refresh_seconds: number;
   companies: { tenant_id: string; data_bytes: number; allocated_bytes: number; finding_count: number }[];

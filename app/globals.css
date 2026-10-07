@@ -91,6 +91,21 @@
 .admin-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
 .admin-filters label:first-child { flex: 1 1 260px; max-width: 520px; }
 .admin-filters input, .admin-filters select, .admin-editor-form input, .admin-editor-form select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-inset); padding: 10px 12px; }
+.company-logo-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-company-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.admin-company-identity img { width: 42px; height: 42px; flex: 0 0 42px; padding: 3px; border-radius: 7px; background: var(--surface-inset); object-fit: contain; }
+.company-logo-field { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.company-logo-field small { display: block; color: var(--muted-strong); }
+.company-logo-preview { display: grid; min-height: 100px; justify-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 12px; }
+.company-logo-preview.dark { background: #17191b; }
+.company-logo-preview.light { background: #fff; }
+.company-logo-preview img { width: 100%; max-width: 150px; height: 65px; object-fit: contain; }
+.company-logo-preview label { display: flex; align-items: center; gap: 8px; padding: 4px; background: var(--surface); border-radius: 6px; color: var(--ink); font-size: 12px; }
+.company-logo-preview input { width: 18px; min-height: 18px; }
+.company-logo-light { display: none; }
+[data-theme="light"] .company-logo-dark { display: none; }
+[data-theme="light"] .company-logo-light { display: block; }
+@media (max-width: 600px) { .company-logo-fields { grid-template-columns: 1fr; } }
 .admin-list-panel { padding: 0; overflow: hidden; }
 .admin-list-panel .panel-heading { padding: 20px; margin: 0; }
 .admin-list-panel h2 { margin: 0; font-size: 18px; }

@@ -124,6 +124,66 @@ Deno.serve(async (request) => {
       return json(200, data);
     }
 
+    if (action === "battle_data") {
+      const { data, error } = await admin.rpc("admin_battle_data");
+      if (error) throw error;
+      return json(200, { companies: data });
+    }
+
+    if (action === "set_company_logo") {
+      const id = text(input.id, 36);
+      const theme = input.theme;
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id) || (theme !== "dark" && theme !== "light"))
+        return json(400, { error: "Empresa ou tema inválido." });
+      const column = theme === "dark" ? "logo_dark_path" : "logo_light_path";
+      const { data: company, error: companyError } = await admin.from("companies").select(`id,${column}`).eq("id", id).maybeSingle();
+      if (companyError) throw companyError;
+      if (!company) return json(404, { error: "Empresa não encontrada." });
+      const previous = company[column] as string | null;
+      if (input.image === null) {
+        const { error } = await admin.from("companies").update({ [column]: null }).eq("id", id);
+        if (error) throw error;
+        if (previous) await admin.storage.from("company-logos").remove([previous]);
+        return json(200, { entityId: id, path: null });
+      }
+      const image = input.image;
+      if (typeof image !== "string" || image.length > 1_400_000) return json(400, { error: "A logo deve ter até 1 MB." });
+      const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(image);
+      if (!match) return json(400, { error: "Use uma imagem PNG, JPG ou WebP." });
+      const binary = Uint8Array.from(atob(match[2]), (character) => character.charCodeAt(0));
+      if (binary.length > 1_048_576 || binary.length === 0) return json(400, { error: "A logo deve ter até 1 MB." });
+      const mime = match[1];
+      const valid = mime === "image/png" ? binary[0] === 137 && binary[1] === 80 && binary[2] === 78 && binary[3] === 71
+        : mime === "image/jpeg" ? binary[0] === 255 && binary[1] === 216 && binary.at(-2) === 255 && binary.at(-1) === 217
+        : binary[0] === 82 && binary[1] === 73 && binary[2] === 70 && binary[3] === 70 && binary[8] === 87 && binary[9] === 69 && binary[10] === 66 && binary[11] === 80;
+      if (!valid) return json(400, { error: "O arquivo da logo não corresponde ao formato informado." });
+      const extension = mime === "image/png" ? "png" : mime === "image/jpeg" ? "jpg" : "webp";
+      const path = `${id}/${theme}-${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await admin.storage.from("company-logos").upload(path, binary, { contentType: mime, cacheControl: "31536000" });
+      if (uploadError) throw uploadError;
+      const { error: updateError } = await admin.from("companies").update({ [column]: path }).eq("id", id);
+      if (updateError) {
+        await admin.storage.from("company-logos").remove([path]);
+        throw updateError;
+      }
+      if (previous) await admin.storage.from("company-logos").remove([previous]);
+      return json(200, { entityId: id, path });
+    }
+
+    if (action === "delete_company") {
+      const id = text(input.id, 36);
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return json(400, { error: "Empresa inválida." });
+      const { data: company, error: lookupError } = await admin.from("companies").select("logo_dark_path,logo_light_path").eq("id", id).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (!company) return json(404, { error: "Empresa não encontrada." });
+      const { error } = await admin.from("companies").delete().eq("id", id);
+      if (error?.code === "23503") return json(409, { error: "A empresa possui vínculos ou dados. Desative-a para preservar o histórico." });
+      if (error) throw error;
+      const paths = [company.logo_dark_path, company.logo_light_path].filter((path): path is string => Boolean(path));
+      if (paths.length) await admin.storage.from("company-logos").remove(paths);
+      return json(200, { entityId: id });
+    }
+
     if (action === "update_company" || action === "update_connection") {
       const id = text(input.id, 36);
       if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return json(400, { error: "Identificador inválido." });

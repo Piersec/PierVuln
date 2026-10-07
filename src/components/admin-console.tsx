@@ -18,7 +18,7 @@ import { AdminRequestError, adminDate, archiveLabels, formatStorageBytes, invoke
 import { visibleText } from "@/src/lib/visible-text";
 import { CompanyDataDeletionDialog } from "@/src/components/company-data-deletion-dialog";
 
-type Section = "dashboard" | "tenants" | "integrations" | "users" | "audit";
+type Section = "dashboard" | "tenants" | "battle" | "integrations" | "users" | "audit";
 const DATABASE_LIMIT_BYTES = 500_000_000;
 type SyncMeasurement = {
   id: string;
@@ -33,6 +33,7 @@ type SyncMeasurement = {
 const sections: { key: Section; label: string; href: string }[] = [
   { key: "dashboard", label: "Visão geral", href: "/admin" },
   { key: "tenants", label: "Empresas", href: "/admin/tenants" },
+  { key: "battle", label: "Batalha", href: "/admin/battle" },
   { key: "integrations", label: "Integrações", href: "/admin/integrations" },
   { key: "users", label: "Usuários", href: "/admin/users" },
   { key: "audit", label: "Auditoria", href: "/admin/audit" },
@@ -165,7 +166,9 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   </AdminContext.Provider>;
 }
 
-type Editor = { kind: "company"; company?: AdminCompany } | { kind: "connection"; connection?: AdminConnection } | { kind: "invite" } | { kind: "mapping"; connectionId: string } | { kind: "shared-company"; connectionId: string } | { kind: "membership"; membership: AdminMembership; email: string } | { kind: "toggle"; entity: "company" | "connection"; id: string; name: string; active: boolean };
+type Editor = { kind: "company"; company?: AdminCompany } | { kind: "delete-company"; company: AdminCompany } | { kind: "connection"; connection?: AdminConnection } | { kind: "invite" } | { kind: "mapping"; connectionId: string } | { kind: "shared-company"; connectionId: string } | { kind: "membership"; membership: AdminMembership; email: string } | { kind: "toggle"; entity: "company" | "connection"; id: string; name: string; active: boolean };
+
+type BattleCompany = { id: string; name: string; slug: string; case_count: number; critical_high_count: number; in_progress_count: number; corrected_30: number; refreshed_at: string | null; stale: boolean };
 
 export function AdminSection({ section }: { section: Section }) {
   const { data, client, busy, query, setQuery, run, notify, reload } = useAdmin();
@@ -181,7 +184,18 @@ export function AdminSection({ section }: { section: Section }) {
   const [storageError, setStorageError] = useState(false);
   const [storageNow, setStorageNow] = useState(() => Date.now());
   const [deleteCompany, setDeleteCompany] = useState<AdminCompany | null>(null);
+  const [battle, setBattle] = useState<BattleCompany[] | null>(null);
+  const [battleError, setBattleError] = useState("");
   const connectionIds = data?.connections.map((connection) => connection.id).sort().join(",") ?? "";
+
+  useEffect(() => {
+    if (section !== "battle") return;
+    let active = true;
+    void invokeAdmin<{ companies: BattleCompany[] }>(client, { action: "battle_data" })
+      .then((result) => { if (active) { setBattle(result.companies); setBattleError(""); } })
+      .catch((error) => { if (active) setBattleError((error as Error).message); });
+    return () => { active = false; };
+  }, [client, data, section]);
 
   useEffect(() => {
     if (section !== "tenants") return;
@@ -283,7 +297,7 @@ export function AdminSection({ section }: { section: Section }) {
   }
 
   return <>
-    <div className="page-heading"><div><h1>{sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", integrations: "Organize as empresas de cada indexador e gerencie seus vínculos.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
+    <div className="page-heading"><div><h1>{sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", battle: "Ranking interno dos clientes com dados publicados.", integrations: "Organize as empresas de cada indexador e gerencie seus vínculos.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
       {section === "tenants" && <button className="button button-primary" onClick={() => setEditor({ kind: "company" })}>Nova empresa</button>}
       {section === "integrations" && <button className="button button-primary" onClick={() => setEditor({ kind: "connection" })}>Nova integração</button>}
       {section === "users" && <button className="button button-primary" onClick={() => setEditor({ kind: "invite" })}>Convidar usuário</button>}
@@ -300,6 +314,16 @@ export function AdminSection({ section }: { section: Section }) {
         </DataTable>
       </section>
     </>}
+    {section === "battle" && <section className="panel admin-list-panel"><div className="panel-heading"><div><h2>Classificação atual</h2><p>Índice = percentual de casos ativos sem severidade crítica ou alta. Empresas sem casos publicados ficam fora da classificação. A posição não mede evolução histórica.</p></div></div>
+      {battleError && <div className="inline-alert" role="alert">{battleError}</div>}
+      {!battle && !battleError && <p className="admin-empty" role="status">Carregando classificação…</p>}
+      {battle && <DataTable headings={["Posição", "Empresa", "Índice", "Casos ativos", "Críticos ou altos", "Em tratamento", "Corrigidos em 30 dias", "Dados"]} empty={!battle.length}>
+        {[...battle].sort((a, b) => {
+          const score = (company: BattleCompany) => company.case_count > 0 ? 1 - company.critical_high_count / company.case_count : -1;
+          return score(b) - score(a) || a.critical_high_count - b.critical_high_count || a.name.localeCompare(b.name, "pt-BR");
+        }).map((company, index) => <tr key={company.id}><td>{company.case_count > 0 ? `${index + 1}º` : "—"}</td><td><strong>{visibleText(company.name)}</strong><small>{company.slug}</small></td><td><strong>{company.case_count > 0 ? `${Math.round(100 * (1 - company.critical_high_count / company.case_count))}%` : "Sem dados"}</strong></td><td>{company.case_count.toLocaleString("pt-BR")}</td><td>{company.critical_high_count.toLocaleString("pt-BR")}</td><td>{company.in_progress_count.toLocaleString("pt-BR")}</td><td>{company.corrected_30.toLocaleString("pt-BR")}</td><td>{company.refreshed_at ? adminDate(company.refreshed_at) : "Aguardando publicação"}{company.stale && <small>Atualização pendente</small>}</td></tr>)}
+      </DataTable>}
+    </section>}
     {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar empresa, integração ou vínculo…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
     {section === "tenants" && <section className="panel admin-list-panel">
       {storageUsage && <Meter className="database-storage-meter" value={Math.min(storageUsage.database_bytes, DATABASE_LIMIT_BYTES)} maxValue={DATABASE_LIMIT_BYTES}
@@ -324,7 +348,7 @@ export function AdminSection({ section }: { section: Section }) {
         const compacting = deletion?.storage_status === "queued" || deletion?.storage_status === "running";
         const deleting = removing || compacting;
         return <tr key={c.id}>
-          <td><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small>
+          <td><div className="admin-company-identity">{c.logo_dark_path && <img src={client.storage.from("company-logos").getPublicUrl(c.logo_dark_path).data.publicUrl} alt="" />}<span><strong>{visibleText(c.name)}</strong><small>{visibleText(c.slug)}</small></span></div>
             {deletion && <small role="status">{removing ? `Limpeza ${deletion.status === "queued" ? "na fila" : "em andamento"} · ${deletion.findings_deleted.toLocaleString("pt-BR")} achados removidos` : compacting ? `Dados apagados · compactação ${deletion.storage_status === "queued" ? "na fila" : "em andamento"} · ${deletion.storage_tables_done ?? 0}/4 tabelas` : deletion.status === "failed" ? deletion.error_message : deletion.storage_status === "failed" ? deletion.storage_error : deletion.storage_status === "succeeded" ? `Limpeza concluída · ${formatStorageBytes(deletion.storage_reclaimed_bytes ?? 0)} recuperados nas tabelas compartilhadas` : "Última limpeza concluída"}</small>}
             {deletion && deletion.status !== "failed" && deletion.storage_status !== "failed" && <ProgressBar className="company-cleanup-progress" aria-label={`${compacting ? "Compactação" : "Limpeza"} de ${visibleText(c.name)}`}
               isIndeterminate={removing} value={compacting ? (deletion.storage_tables_done ?? 0) / 4 * 100 : deletion.status === "succeeded" ? 100 : 0} color={deleting ? "accent" : "success"} size="sm">
@@ -338,6 +362,7 @@ export function AdminSection({ section }: { section: Section }) {
           <td><div className="admin-row-actions">
             <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "company", company: c })}>Editar</button>
             <button className="button button-secondary" disabled={busy || deleting} onClick={() => setEditor({ kind: "toggle", entity: "company", id: c.id, name: visibleText(c.name), active: c.is_active })}>{c.is_active ? "Desativar" : "Reativar"}</button>
+            <button className="button button-secondary button-destructive" disabled={busy || deleting || c.user_count > 0 || c.connection_count > 0 || (usage?.finding_count ?? 0) > 0} title="Exclua apenas empresas sem usuários, conexões ou achados" onClick={() => setEditor({ kind: "delete-company", company: c })}>Excluir empresa</button>
             <button className="button button-secondary button-destructive" disabled={busy || deleting} onClick={() => setDeleteCompany(c)}>{compacting ? "Compactando…" : removing ? "Apagando…" : "Apagar dados"}</button>
           </div></td>
         </tr>;
@@ -466,8 +491,17 @@ function DataTable({ headings, empty, children }: { headings: string[]; empty: b
   return <div className="admin-table-scroll" role="region" aria-label={headings[0]} tabIndex={0}><table className="admin-table"><thead><tr>{headings.map((h) => <th scope="col" key={h}>{h}</th>)}</tr></thead><tbody>{empty ? <tr><td colSpan={headings.length}><div className="admin-empty">Nenhum registro encontrado para esta seleção.</div></td></tr> : children}</tbody></table></div>;
 }
 
+function imageDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Não foi possível ler a logo."));
+    reader.readAsDataURL(file);
+  });
+}
+
 function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
-  const { data, busy, run, notify, setIslandHost } = useAdmin();
+  const { client, data, busy, run, notify, setIslandHost } = useAdmin();
   const dialog = useRef<HTMLDialogElement>(null);
   const [inviteKind, setInviteKind] = useState("client");
   const [sharedCompanyTarget, setSharedCompanyTarget] = useState("new");
@@ -483,6 +517,7 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
   if (!data) return null;
   const activeCompanies = data.companies.filter((c) => c.is_active);
   const title = editor.kind === "company" ? editor.company ? "Editar empresa" : "Nova empresa"
+    : editor.kind === "delete-company" ? "Excluir empresa"
     : editor.kind === "connection" ? editor.connection ? "Editar integração" : "Nova integração"
     : editor.kind === "invite" ? "Convidar usuário" : editor.kind === "mapping" ? "Vínculo de agente, grupo ou prefixo"
     : editor.kind === "shared-company" ? "Adicionar empresa ao indexador compartilhado"
@@ -493,7 +528,32 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
     const form = new FormData(event.currentTarget);
     const field = (key: string) => String(form.get(key) ?? "").trim();
     let payload: Record<string, unknown>; let message: string;
-    if (editor.kind === "company") { payload = { action: editor.company ? "update_company" : "create_company", id: editor.company?.id, name: field("name") }; message = editor.company ? "Empresa atualizada." : "Empresa criada."; }
+    if (editor.kind === "company") {
+      for (const theme of ["dark", "light"] as const) {
+        const file = form.get(`logo_${theme}`);
+        if (file instanceof File && file.size > 0 && (file.size > 1_048_576 || !["image/png", "image/jpeg", "image/webp"].includes(file.type))) {
+          notify({ title: "Use logos PNG, JPG ou WebP de até 1 MB.", error: true }); return;
+        }
+      }
+      payload = { action: editor.company ? "update_company" : "create_company", id: editor.company?.id, name: field("name") };
+      message = editor.company ? "Empresa atualizada." : "Empresa criada.";
+      const result = await run(payload, message);
+      if (!result) return;
+      const companyId = editor.company?.id ?? String(result.id);
+      for (const theme of ["dark", "light"] as const) {
+        const file = form.get(`logo_${theme}`);
+        const remove = !(file instanceof File && file.size > 0) && form.get(`remove_${theme}`) === "on";
+        if (!(file instanceof File && file.size > 0) && !remove) continue;
+        try {
+          const image = remove ? null : await imageDataUrl(file as File);
+          if (!await run({ action: "set_company_logo", id: companyId, theme, image }, `Logo para tema ${theme === "dark" ? "escuro" : "claro"} atualizada.`)) {
+            close(); return;
+          }
+        } catch (error) { notify({ title: (error as Error).message, error: true }); close(); return; }
+      }
+      close(); return;
+    }
+    else if (editor.kind === "delete-company") { payload = { action: "delete_company", id: editor.company.id }; message = "Empresa excluída."; }
     else if (editor.kind === "connection") { payload = { action: editor.connection ? "update_connection" : "create_connection", id: editor.connection?.id, name: field("name"), endpointUrl: field("endpoint"), mode, tenantId: mode === "dedicated" ? field("company") : null }; message = editor.connection ? "Integração atualizada." : "Integração criada. Copie o segredo do conector."; }
     else if (editor.kind === "invite") { payload = inviteKind === "pier" ? { action: "invite_pier_user", fullName: field("name"), email: field("email") } : { action: "invite_user", email: field("email"), tenantId: field("company"), role: field("role") }; message = "Acesso liberado. Novos usuários recebem o convite por e-mail."; }
     else if (editor.kind === "membership") { payload = { action: "update_membership", id: editor.membership.id, role: field("role"), isActive: field("active") === "true" }; message = "Vínculo atualizado."; }
@@ -506,6 +566,15 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
     <div className="admin-dialog-header"><h2 id="admin-dialog-title">{title}</h2><button className="icon-button" aria-label="Fechar formulário" disabled={busy} onClick={cancel}>Fechar</button></div>
     <form onSubmit={(e) => void submit(e)} className="admin-editor-form"><fieldset disabled={busy}>
       {(editor.kind === "company" || editor.kind === "connection") && <label>Nome<input name="name" required minLength={2} maxLength={160} defaultValue={visibleText(editor.kind === "company" ? editor.company?.name : editor.connection?.name)} onInput={(e) => { e.currentTarget.value = visibleText(e.currentTarget.value); }} autoFocus /></label>}
+      {editor.kind === "company" && <div className="company-logo-fields">{(["dark", "light"] as const).map((theme) => {
+        const path = theme === "dark" ? editor.company?.logo_dark_path : editor.company?.logo_light_path;
+        const url = path ? client.storage.from("company-logos").getPublicUrl(path).data.publicUrl : null;
+        return <div className="company-logo-field" key={theme}>
+          <label>Logo para tema {theme === "dark" ? "escuro" : "claro"}<input name={`logo_${theme}`} type="file" accept="image/png,image/jpeg,image/webp" /><small>PNG, JPG ou WebP · até 1 MB</small></label>
+          {url && <div className={`company-logo-preview ${theme}`}><img src={url} alt={`Logo atual para tema ${theme === "dark" ? "escuro" : "claro"}`} /><label><input name={`remove_${theme}`} type="checkbox" /> Remover logo</label></div>}
+        </div>;
+      })}</div>}
+      {editor.kind === "delete-company" && <p>Excluir {visibleText(editor.company.name)}? Esta ação é permanente e só funciona quando a empresa não possui vínculos nem dados.</p>}
       {editor.kind === "connection" && <><label>Endpoint HTTPS do indexador<input name="endpoint" type="url" required maxLength={2048} placeholder="https://indexador.exemplo.com:9200" defaultValue={editor.connection?.endpoint_url} pattern="https://.*" /></label><label>Tipo<select value={mode} disabled={!!editor.connection} onChange={(e) => setMode(e.target.value)}><option value="dedicated">Dedicada a uma empresa</option><option value="shared">Compartilhada entre empresas</option></select></label>{mode === "dedicated" && <label>Empresa<select name="company" required disabled={!!editor.connection} defaultValue={editor.connection?.tenant_id ?? ""}><option value="">Selecione uma empresa</option>{(editor.connection ? data.companies : activeCompanies).map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}{editor.connection && <p className="muted-copy">O tipo e a empresa preservam a atribuição dos achados históricos.</p>}</>}
       {editor.kind === "shared-company" && <><label>Empresa<select value={sharedCompanyTarget} onChange={(e) => setSharedCompanyTarget(e.target.value)}><option value="new">Cadastrar nova empresa</option><option value="existing">Vincular empresa já cadastrada</option></select></label>{sharedCompanyTarget === "new" ? <label>Nome da empresa<input name="name" required minLength={2} maxLength={160} placeholder="Yamam" autoFocus onInput={(e) => { e.currentTarget.value = visibleText(e.currentTarget.value); }} /></label> : <label>Empresa cadastrada<select name="company" required defaultValue=""><option value="">Selecione uma empresa</option>{activeCompanies.map((company) => <option key={company.id} value={company.id}>{visibleText(company.name)}</option>)}</select></label>}<label>Prefixo de agent.name<input name="prefix" required maxLength={80} pattern="[A-Za-z0-9._-]+" placeholder="100" /><small>Informe o começo do nome, sem o asterisco. Exemplo: 100.</small></label><label>Grupo da empresa<input name="group" required maxLength={160} pattern="[A-Za-z0-9._-]+" placeholder="yamam-tenant" /></label><p className="muted-copy">O grupo e o prefixo serão vinculados juntos. A plataforma começa a exibir os achados depois da próxima sincronização completa.</p></>}
       {editor.kind === "invite" && <><label>Tipo de acesso<select value={inviteKind} onChange={(e) => setInviteKind(e.target.value)}><option value="client">Cliente</option><option value="pier">Equipe Pier (admin interno)</option></select></label>{inviteKind === "pier" && <><label>Nome completo<input name="name" required maxLength={160} autoComplete="name" /></label><p className="muted-copy">Todos os membros da equipe Pier têm acesso administrativo interno.</p></>}<label>E-mail<input name="email" type="email" required maxLength={320} autoComplete="email" /></label></>}
@@ -514,6 +583,6 @@ function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
       {editor.kind === "membership" && <><p className="muted-copy">{editor.email}</p><label>Estado do vínculo<select name="active" defaultValue={String(editor.membership.is_active)}><option value="true">Ativo</option><option value="false">Inativo</option></select></label><p className="muted-copy">Desativar impede o acesso pela empresa e preserva os casos e comentários.</p></>}
       {editor.kind === "mapping" && <><label>Tipo de vínculo<select name="matchType"><option value="agent_id">ID do agente</option><option value="group">Grupo</option><option value="agent_name_prefix">Prefixo de agent.name</option></select></label><label>Valor<input name="matchValue" required maxLength={256} placeholder="200*" onInput={(e) => { e.currentTarget.value = visibleText(e.currentTarget.value); }} /></label></>}
       {editor.kind === "toggle" && <p>{editor.active ? "O acesso será interrompido. Casos, vínculos e histórico serão preservados para uma futura reativação." : "O acesso será restaurado com os mesmos vínculos e histórico."}</p>}
-    </fieldset><div className="admin-dialog-footer"><button className="button button-secondary" type="button" disabled={busy} onClick={cancel}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? "Salvando…" : editor.kind === "toggle" ? editor.active ? "Desativar" : "Reativar" : editor.kind === "invite" ? "Liberar acesso" : editor.kind === "shared-company" ? "Cadastrar empresa" : "Salvar"}</button></div></form>
+    </fieldset><div className="admin-dialog-footer"><button className="button button-secondary" type="button" disabled={busy} onClick={cancel}>Cancelar</button><button className={`button ${editor.kind === "delete-company" ? "button-secondary button-destructive" : "button-primary"}`} disabled={busy}>{busy ? "Salvando…" : editor.kind === "delete-company" ? "Excluir empresa" : editor.kind === "toggle" ? editor.active ? "Desativar" : "Reativar" : editor.kind === "invite" ? "Liberar acesso" : editor.kind === "shared-company" ? "Cadastrar empresa" : "Salvar"}</button></div></form>
   </dialog>;
 }

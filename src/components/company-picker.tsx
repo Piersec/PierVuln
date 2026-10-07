@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { visibleText } from "@/src/lib/visible-text";
 
-type Company = { id: string; name: string; slug: string };
+type Company = { id: string; name: string; slug: string; logo_dark_path?: string | null; logo_light_path?: string | null };
 type Source = { id: string; name: string; mode: string; tenant_id: string | null };
 type Mapping = { connection_id: string; tenant_id: string };
 const logos: Record<string, string> = {
@@ -13,8 +13,15 @@ const logos: Record<string, string> = {
   "jean-piaget": "jean-piaget", maxipark: "maxipark", reliance: "reliance", unimar: "unimar", yamam: "yamam",
 };
 
-function CompanyLogo({ company }: { company: Company }) {
+function CompanyLogo({ company, client }: { company: Company; client: SupabaseClient }) {
   const [failed, setFailed] = useState(false);
+  const darkPath = company.logo_dark_path ?? company.logo_light_path;
+  const lightPath = company.logo_light_path ?? company.logo_dark_path;
+  if (darkPath && !failed) {
+    const darkUrl = client.storage.from("company-logos").getPublicUrl(darkPath).data.publicUrl;
+    const lightUrl = lightPath ? client.storage.from("company-logos").getPublicUrl(lightPath).data.publicUrl : darkUrl;
+    return <><img className="company-logo-dark" src={darkUrl} alt="" onError={() => setFailed(true)} /><img className="company-logo-light" src={lightUrl} alt="" onError={() => setFailed(true)} /></>;
+  }
   const key = company.slug.toLowerCase();
   const nameKey = company.name.toLowerCase().replace(/\s+/g, "-");
   const logo = logos[key] ?? logos[nameKey];
@@ -64,7 +71,7 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
   function choose(id: string) { onChange(id); setOpen(false); }
   function tile(company: Company, compact = false) {
     return <button type="button" key={company.id} className={`company-picker-tile${compact ? " compact" : ""}`} aria-label={`Selecionar ${visibleText(company.name)}`} aria-pressed={company.id === value} onClick={() => choose(company.id)}>
-      <span className="company-picker-logo"><CompanyLogo company={company} /></span>
+      <span className="company-picker-logo"><CompanyLogo company={company} client={client} /></span>
       <span className="company-picker-name">{visibleText(company.name)}</span>
       {company.id === value && <span className="company-picker-check" aria-hidden="true">✓</span>}
       {!compact && <small>{groups.dedicatedIds.has(company.id) ? "Fonte dedicada" : "Empresa"}</small>}
@@ -74,7 +81,7 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
   const compactPanel = groups.shared.length + groups.remaining.length <= 1;
   return <Popover isOpen={open} onOpenChange={setOpen}>
     <Button variant="secondary" className="company-picker-trigger" aria-label={`Selecionar empresa: ${selected ? visibleText(selected.name) : "Todas as empresas"}`}>
-      {selected && <span className="company-picker-trigger-logo"><CompanyLogo key={selected.id} company={selected} /></span>}
+      {selected && <span className="company-picker-trigger-logo"><CompanyLogo key={selected.id} company={selected} client={client} /></span>}
       <span>{selected ? visibleText(selected.name) : "Todas as empresas"}</span><span className="company-picker-chevron" aria-hidden="true">⌄</span>
     </Button>
     <Popover.Content placement="bottom end" offset={10} className="company-picker-content" data-compact={compactPanel}>
