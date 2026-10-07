@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { TriangleAlert } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AdminCompany } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
@@ -42,7 +43,7 @@ export function CompanyDataDeletionDialog({ company, client, close, onQueued }: 
   return <dialog ref={dialog} className="admin-dialog" aria-labelledby="delete-company-title"
     onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}>
     <div className="company-deletion-content">
-      <h2 id="delete-company-title">Apagar dados de {visibleText(company.name)}</h2>
+      <h2 id="delete-company-title" className="company-deletion-title"><TriangleAlert size={24} aria-hidden="true" />Apagar dados de {visibleText(company.name)}</h2>
       <p>Esta ação apaga permanentemente os achados, casos, histórico e comentários da empresa.</p>
       <p>A empresa será desativada e a coleta será desligada. O cadastro, os usuários e seus vínculos serão preservados.</p>
       <p className="muted-copy">A limpeza acontece em lotes no segundo plano. Você pode acompanhar o andamento na lista de empresas.</p>

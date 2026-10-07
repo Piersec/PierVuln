@@ -57,7 +57,7 @@
 .notification-empty p { max-width: 28ch; margin: 7px 0 0; color: var(--muted); font-size: 13px; }
 .notification-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .notification-item { min-width: 0; padding: 12px 14px 13px; border-radius: 12px; background: var(--surface-inset); animation: notification-item-in .28s ease-out both; }
-.notification-item.is-selected { outline: 2px solid var(--accent-strong); outline-offset: -2px; }
+.notification-item.is-selected { background: var(--surface-raised); }
 .notification-item-top { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .notification-item-status { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); }
 .notification-item.is-error .notification-item-status { background: var(--danger); }
@@ -209,7 +209,9 @@ a { color: inherit; text-decoration: none; }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { letter-spacing: -.025em; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
-:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+:focus, :focus-visible { outline: none; }
+button:focus-visible, [role="button"]:focus-visible { filter: brightness(1.18); }
+a:focus-visible { text-decoration: underline; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -292,7 +294,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .company-picker-loading, .company-picker-error { padding: 14px 0; color: var(--muted-strong); font-size: 13px; }
 .company-picker-error { display: grid; gap: 8px; }
 .company-picker-error button { justify-self: start; min-height: 44px; color: var(--accent-strong); }
-.company-picker-tile:focus-visible, .company-picker-all:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.company-picker-tile:focus-visible, .company-picker-all:focus-visible { outline: none; }
 @media (max-width: 600px) { .company-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .company-picker-dialog { padding: 16px; } .company-picker-trigger { min-width: 0; max-width: 65vw; } .company-picker-shared { padding: 10px; } .company-picker-shared-grid { gap: 7px; } .company-picker-tile.compact { border-radius: 14px; } .company-picker-tile.compact .company-picker-logo img { max-width: 44px; max-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .company-picker-tile { transition: none; } .company-picker-tile:hover { transform: none; } }
 .content-wrap { width: min(1680px, 100%); margin: 0 auto; padding: 27px clamp(20px, 2.4vw, 38px) 24px; }
@@ -449,7 +451,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .kanban-pagination > div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .kanban-pagination button { min-height: 36px; padding: 6px 9px; border: 0; border-radius: 7px; background: var(--surface); color: var(--accent-strong); font-size: 12px; }
 .kanban-pagination button:disabled { opacity: .45; cursor: not-allowed; }
-.kanban-pagination button:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.kanban-pagination button:focus-visible { outline: none; }
 .cve-dialog-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 72%); }
 .cve-dialog { width: min(1050px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 23px; border: 0; border-radius: 14px; background: var(--surface); box-shadow: 0 24px 70px rgb(0 0 0 / 40%); }
 .cve-dialog::backdrop { background: rgb(0 0 0 / 72%); }
@@ -475,8 +477,8 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .search-control { display: flex; order: 1; width: min(320px, 100%); min-height: 40px; align-items: center; gap: 9px; margin-left: auto; padding: 0 10px; border: 0; border-radius: 11px; background: var(--surface); }
 .search-control select { min-height: 36px; padding: 0 26px 0 4px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted-strong); font-size: 12px; }
 .search-control input { width: 100%; min-width: 0; min-height: 40px; border: 0; background: transparent; color: var(--ink); font-size: 13px; }
-.search-control:focus-within { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
-.search-control input:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 2px; }
+.search-control:focus-within { outline: none; }
+.search-control input:focus-visible { outline: none; }
 .search-control input::placeholder { color: var(--muted); }
 .filters > .dropdown { order: 0; }
 .filter-select { display: inline-flex; width: min(205px, 100%); min-height: 40px; align-items: center; justify-content: space-between; gap: 14px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 12px; white-space: nowrap; }
@@ -548,7 +550,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .admin-card label, .form-stack label, .visibility-picker { display: grid; gap: 6px; color: var(--muted-strong); font-size: 13px; font-weight: 500; }
 .admin-card input, .admin-card select { width: 100%; }
 .admin-card input::placeholder { color: var(--muted); }
-.admin-card input:focus, .admin-card select:focus, .form-stack input:focus, .comment-form textarea:focus { border-color: var(--accent-strong); outline: 3px solid var(--accent-strong); outline-offset: 2px; }
+.admin-card input:focus, .admin-card select:focus, .form-stack input:focus, .comment-form textarea:focus { border-color: var(--accent-strong); outline: none; }
 .admin-card .button { align-self: flex-start; }
 .archive-admin { margin: 22px 20px 0; padding-top: 19px; border-top: 1px solid var(--line); }
 .archive-admin-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -569,7 +571,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 /* Case detail dialog */
 .detail-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: flex-end; background: rgb(1 9 14 / 78%); }
 .detail-panel { width: min(600px, 100%); height: 100%; overflow-y: auto; padding: 24px clamp(18px, 3vw, 30px) 30px; border-left: 0; background: var(--surface); box-shadow: -18px 0 50px rgb(0 0 0 / 30%); }
-.detail-panel:focus { outline: 3px solid var(--accent-strong); outline-offset: -3px; }
+.detail-panel:focus { outline: none; }
 .detail-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .detail-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 23px 0 12px; }
 .detail-title h2 { margin: 0; color: var(--accent-strong); font-family: var(--font-code); font-size: 25px; }
@@ -1001,7 +1003,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   /* in once the pill has nearly arrived */
   animation: sig-said 320ms ease 420ms both;}
 
-.sig-pill:focus-visible { outline: 2px solid var(--signal, #2231dd); outline-offset: 2px; border-radius: 999px; }
+.sig-pill:focus-visible { outline: none; border-radius: 999px; }
 
 .sig-check {
   color: #30a46c;
@@ -1033,7 +1035,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 
 .sig-clear:active { scale: 0.94; }
 
-.sig-clear:focus-visible { outline: 2px solid var(--signal, #2231dd); outline-offset: 2px; }
+.sig-clear:focus-visible { outline: none; }
 
 .onboarding-shell { position: relative; display: flex; min-height: 100svh; overflow: hidden; flex-direction: column; background: var(--canvas); }
 .onboarding-rays, .onboarding-shade { position: absolute; inset: 0; pointer-events: none; }
@@ -1052,7 +1054,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .onboarding-form { display: grid; gap: 14px; margin-top: 26px; }
 .onboarding-form label { display: grid; gap: 6px; color: var(--muted-strong); font-size: 13px; }
 .onboarding-form input { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-inset); color: var(--ink); }
-.onboarding-form input:focus { border-color: var(--accent-strong); outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.onboarding-form input:focus { border-color: var(--accent-strong); outline: none; }
 .onboarding-notice { margin-top: 14px; color: var(--danger) !important; }
 .onboarding-signature { display: grid; width: 100%; min-height: 220px; place-items: center; margin: 20px 0 6px; border-radius: 18px; background: var(--surface-raised); }
 .onboarding-signature .sig-frame { max-width: 100%; }
@@ -1092,7 +1094,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .settings-form > label, .settings-password-form label { color: var(--muted-strong); font-size: 13px; font-weight: 500; }
 .settings-field-action { display: flex; gap: 9px; }
 .settings-field-action input, .settings-password-form input { width: 100%; min-width: 0; min-height: 44px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-inset); color: var(--ink); }
-.settings-field-action input:focus-visible, .settings-password-form input:focus-visible { border-color: var(--accent-strong); outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.settings-field-action input:focus-visible, .settings-password-form input:focus-visible { border-color: var(--accent-strong); outline: none; }
 .settings-field-action .button { flex: 0 0 auto; }
 .settings-feedback { margin: 12px 0 0; color: var(--accent-strong); font-size: 13px; }
 .settings-toggle-list { display: grid; max-width: 850px; border-top: 1px solid var(--line); }
@@ -1123,7 +1125,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .settings-delete-dialog .admin-editor-form strong { color: var(--ink); overflow-wrap: anywhere; }
 .settings-delete-dialog .admin-editor-form fieldset { margin-top: 5px; }
 .settings-delete-dialog .admin-editor-form input { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-raised); color: var(--ink); }
-.settings-delete-dialog .admin-editor-form input:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+.settings-delete-dialog .admin-editor-form input:focus-visible { outline: none; }
 .settings-delete-dialog .admin-editor-form .settings-delete-error { color: var(--danger); }
 .settings-delete-dialog .admin-dialog-footer { margin-top: 8px; }
 @media (max-width: 680px) {
@@ -1200,10 +1202,13 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
    confirmation — it unfurls leftward and fills what it crossed.
    See SlideConfirm.tsx for why the right edge stays put. */
 .sld {
+  --slide-track: #681625;
+  --slide-fill: #c52640;
+  --slide-foreground: #ffffff;
   flex-shrink: 0;
   box-sizing: border-box;
   font-family: var(--font-body);
-  color: var(--accent);}
+  color: var(--slide-foreground);}
 
 .sld-track {
   position: relative;
@@ -1225,7 +1230,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
      handle in light, near-black track with a light handle in
      dark. And on commit the handle fills the track, so the
      confirmed state is a solid ink pill in both. */
-  background: var(--surface-raised);
+  background: var(--slide-track);
   /* the drag is the component; the browser may not take the
      gesture for panning */
   touch-action: none;
@@ -1256,7 +1261,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   left: 4px;
   top: 4px;
   bottom: 4px;
-  background: var(--accent);
+  background: var(--slide-fill);
   /* ── above the label, so it WIPES it ─────────────────────
      Beneath it, the label's remaining ink sat on a surface its
      own colour and went muddy rather than away — the fade
@@ -1291,7 +1296,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   font-size: 14px;
   font-weight: 500;
   letter-spacing: -0.006em;
-  color: var(--muted-strong);
+  color: var(--slide-foreground);
   pointer-events: none;
   white-space: nowrap;}
 
@@ -1302,8 +1307,8 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   height: 48px;
   padding: 0;
   border: 0;
-  background: var(--accent);
-  color: var(--surface-raised);
+  background: var(--slide-fill);
+  color: var(--slide-foreground);
   cursor: grab;
   /* ── it takes the pointer now, and the track still wins ───
      It was `none`, so the track owned the gesture outright.
@@ -1327,13 +1332,17 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .sld-track[data-held] .sld-grip { cursor: grabbing; }
 .sld[data-disabled] { opacity: .5; }
 .sld-grip:disabled { cursor: default; }
-.sld-grip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sld-grip:focus-visible { outline: none; }
 .button-destructive, .company-deletion-error { color: var(--danger); }
 .company-deletion-content { display: grid; gap: 16px; padding: 24px; }
 .company-deletion-content label { display: block; font-size: 14px; }
-.company-deletion-content input { display: block; width: 100%; margin-top: 8px; }
+.company-deletion-content input { display: block; width: 100%; min-height: 48px; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-raised); color: var(--ink); font: inherit; }
+.company-deletion-content input:focus { border-color: var(--danger); background: var(--surface-inset); }
+.company-deletion-title { display: flex; align-items: center; gap: 10px; color: var(--danger); font-size: 19px; font-weight: 700; }
+.company-deletion-title svg { flex-shrink: 0; }
 .company-deletion-content h2, .company-deletion-content p { margin: 0; }
-.company-deletion-content .admin-dialog-footer { flex-wrap: wrap; }
+.company-deletion-content .admin-dialog-footer { flex-wrap: wrap; align-items: center; }
+.company-deletion-content .admin-dialog-footer > .button { height: 56px; min-height: 56px; padding-inline: 24px; }
 @media (max-width: 400px) { .company-deletion-content { padding: 16px; } }
 
 /* ── two contents, both ABSOLUTE ────────────────────────────
@@ -1367,4 +1376,3 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 @media (prefers-reduced-motion: reduce) {
   .sld-done { transition-duration: 1ms; }
 }
-
