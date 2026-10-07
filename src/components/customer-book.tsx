@@ -8,7 +8,7 @@ import { useSiteNotifications } from "@/src/components/site-notifications";
 import { useErrorNotice } from "@/src/lib/use-filter-notice";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
-import { UserAvatar } from "@/src/components/user-avatar";
+import { ProfileMenu } from "@/src/components/profile-menu";
 import {
   Bar,
   BarChart,
@@ -306,11 +306,8 @@ export function CustomerBook() {
           <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
           <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
           <Link className="nav-link active" href="/book" aria-current="page" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
-          <Link className="nav-link" href="/status" aria-label="Status" title="Status"><NavSymbol kind="status" /><span className="nav-label">Status</span></Link>
-          {isInternal && <Link className="nav-link" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}
-          <Link className="nav-link" href="/settings" aria-label="Configurações" title="Configurações"><NavSymbol kind="settings" /><span className="nav-label">Configurações</span></Link>
         </nav>
-        <div className="sidebar-bottom"><UserAvatar userId={session.user.id} fallback={session.user.email ?? "U"} /><div className="user-info"><strong>{session.user.email}</strong><span>{isInternal ? "Equipe Pier" : selectedCompanyName ?? "Cliente"}</span></div><button className="book-signout" onClick={() => void signOut()}>Sair</button></div>
+        <div className="sidebar-bottom"><ProfileMenu userId={session.user.id} fallback={session.user.email ?? "U"} isInternal={isInternal} /><div className="user-info"><strong>{session.user.email}</strong><span>{isInternal ? "Equipe Pier" : selectedCompanyName ?? "Cliente"}</span></div><button className="book-signout" onClick={() => void signOut()}>Sair</button></div>
       </aside>
 
       <section className="main-column book-main-column">
@@ -419,7 +416,7 @@ export function CustomerBook() {
           <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte ativa" : "fontes de dados"}</span></footer>
         </div>
       </section>
-      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/cases">Casos</Link><Link href="/book" aria-current="page">Book dos Clientes</Link><Link href="/status">Status</Link>{isInternal && <Link href="/admin">Administração</Link>}<Link href="/settings">Configurações</Link></nav>
+      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/cases">Casos</Link><Link href="/book" aria-current="page">Book dos Clientes</Link></nav>
     </main>
   );
 }

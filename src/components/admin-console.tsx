@@ -9,7 +9,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
-import { UserAvatar } from "@/src/components/user-avatar";
+import { ProfileMenu } from "@/src/components/profile-menu";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { useErrorNotice } from "@/src/lib/use-filter-notice";
 import { type NoticeInput } from "@/src/lib/admin-notifications";
@@ -153,10 +153,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
         <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
-        <Link className="nav-link" href="/status" aria-label="Status" title="Status"><NavSymbol kind="status" /></Link>
-        <Link className="nav-link active" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /></Link>
-        <Link className="nav-link" href="/settings" aria-label="Configurações" title="Configurações"><NavSymbol kind="settings" /></Link>
-      </nav><div className="sidebar-bottom"><UserAvatar userId={session.user.id} fallback={session.user.email ?? "U"} /><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>
+      </nav><div className="sidebar-bottom"><ProfileMenu userId={session.user.id} fallback={session.user.email ?? "U"} isInternal={true} /><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>
       <section className="main-column"><header className="topbar"><div className="breadcrumb">ADMIN <span>/</span><strong>{sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload(true)}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
         <div className="content-wrap admin-content" id="admin-content" tabIndex={-1}>
           <nav className="admin-tabs" aria-label="Administração">{sections.map((s) => <Link href={s.href} key={s.key} className={pathname === s.href ? "active" : ""} aria-current={pathname === s.href ? "page" : undefined}>{s.label}</Link>)}</nav>

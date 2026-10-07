@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "r
 import type { User } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { ProfileMenu } from "@/src/components/profile-menu";
 import { UserAvatar, profileUpdatedEvent } from "@/src/components/user-avatar";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { notificationTypes, type NotificationType } from "@/src/lib/notification-types";
@@ -239,11 +240,8 @@ export function UserSettings() {
         <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
         <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
         <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
-        <Link className="nav-link" href="/status" aria-label="Status" title="Status"><NavSymbol kind="status" /><span className="nav-label">Status</span></Link>
-        {isInternal && <Link className="nav-link" href="/admin" aria-label="Administração" title="Administração"><NavSymbol kind="admin" /><span className="nav-label">Administração</span></Link>}
-        <Link className="nav-link active" href="/settings" aria-current="page" aria-label="Configurações" title="Configurações"><NavSymbol kind="settings" /><span className="nav-label">Configurações</span></Link>
       </nav>
-      <div className="sidebar-bottom"><UserAvatar userId={user.id} fallback={name || user.email || "U"} /><div className="user-info"><strong>{name || user.email}</strong><span>{isInternal ? "Equipe Pier" : "Minha conta"}</span></div><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div>
+      <div className="sidebar-bottom"><ProfileMenu userId={user.id} fallback={name || user.email || "U"} isInternal={isInternal} /><div className="user-info"><strong>{name || user.email}</strong><span>{isInternal ? "Equipe Pier" : "Minha conta"}</span></div><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div>
     </aside>
 
     <section className="main-column" id="settings-content" tabIndex={-1}>
