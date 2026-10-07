@@ -1334,6 +1334,11 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .sld-grip:disabled { cursor: default; }
 .sld-grip:focus-visible { outline: none; }
 .button-destructive, .company-deletion-error { color: var(--danger); }
+.database-capacity-warning { display: flex; align-items: flex-start; gap: 12px; margin: 20px; padding: 16px; border-radius: 10px; background: #351e28; color: #ffd3d9; }
+.database-capacity-warning > svg { flex-shrink: 0; margin-top: 2px; }
+.database-capacity-warning strong { display: block; font-size: 15px; }
+.database-capacity-warning p { margin: 6px 0; font-size: 14px; }
+.database-capacity-warning small { font-size: 12px; }
 .company-deletion-content { display: grid; gap: 16px; padding: 24px; }
 .company-deletion-content label { display: block; font-size: 14px; }
 .company-deletion-content input { display: block; width: 100%; min-height: 48px; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-raised); color: var(--ink); font: inherit; }

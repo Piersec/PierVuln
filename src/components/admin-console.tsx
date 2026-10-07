@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
 import { trackSpotlight } from "@/src/components/ui/spotlight-card";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -17,6 +18,7 @@ import { visibleText } from "@/src/lib/visible-text";
 import { CompanyDataDeletionDialog } from "@/src/components/company-data-deletion-dialog";
 
 type Section = "dashboard" | "tenants" | "integrations" | "users" | "audit";
+const DATABASE_LIMIT_BYTES = 500_000_000;
 type SyncMeasurement = {
   id: string;
   status: string;
@@ -302,6 +304,10 @@ export function AdminSection({ section }: { section: Section }) {
     </>}
     {(section === "tenants" || section === "integrations") && <div className="admin-filters"><label><span className="sr-only">Buscar {section === "tenants" ? "empresa" : "integração"}</span><input type="search" placeholder={section === "tenants" ? "Buscar empresa…" : "Buscar empresa, integração ou vínculo…"} value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filtrar por status</span><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Todos os status</option><option value="true">Ativas</option><option value="false">Inativas</option></select></label>{section === "integrations" && <label><span className="sr-only">Filtrar por empresa</span><select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}><option value="">Todas as empresas</option>{data.companies.map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}</div>}
     {section === "tenants" && <section className="panel admin-list-panel">
+      {storageUsage && storageUsage.database_bytes > DATABASE_LIMIT_BYTES && <div className="database-capacity-warning" role="status">
+        <TriangleAlert size={22} aria-hidden="true" />
+        <div><strong>Limite de armazenamento ultrapassado</strong><p>O banco está usando {formatStorageBytes(storageUsage.database_bytes)} de 500 MB ({Math.round(storageUsage.database_bytes / DATABASE_LIMIT_BYTES * 100)}%). Excedente: {formatStorageBytes(storageUsage.database_bytes - DATABASE_LIMIT_BYTES)}.</p><small>Com base na medição de {adminDate(storageUsage.measured_at)}. Atualização a cada 5 minutos.</small></div>
+      </div>}
       <div className="panel-heading"><div><p>Uso estimado de achados, casos e histórico, incluindo índices e espaço reservado nas tabelas compartilhadas.</p><small className="muted-copy" role="status">
         {storageUsage ? `Banco: ${formatStorageBytes(storageUsage.database_bytes)} · Medição: ${adminDate(storageUsage.measured_at)} · Atualização a cada 5 minutos` : storageError ? "Não foi possível consultar os tamanhos. Nova tentativa automática em um minuto." : "Carregando a medição de armazenamento…"}
         {storageUsage && (storageError || storageNow - Date.parse(storageUsage.measured_at) > storageUsage.refresh_seconds * 2000) && " · Última medição mantida; aguardando atualização."}
