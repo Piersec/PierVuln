@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SpotlightCard } from "@/src/components/ui/spotlight-card";
+import { AnimatedCounter } from "@/src/components/ui/animated-counter";
 import { useLiveData } from "@/src/lib/use-live-data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSiteNotifications } from "@/src/components/site-notifications";
@@ -331,10 +332,10 @@ export function CustomerBook() {
 
           {!contextError && <>
             <BentoGrid className="book-overview" aria-label="Indicadores de exposição">
-              <BentoCard className="book-total"><span>Vulnerabilidades ativas</span><strong>{displayCount(metrics.total)}</strong><small>{selectedCompanyName ?? (selectedCompany ? "Empresa selecionada" : "Visão consolidada")}</small></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Críticas e altas</span><strong>{displayCount(metrics.criticalHigh)}</strong><p>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"} do total ativo.</p></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong>{displayCount(metrics.prolonged)}</strong><p>Achados ativos há mais de 90 dias.</p></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Hosts afetados</span><strong>{displayCount(metrics.affectedHosts)}</strong><p>Agentes distintos com vulnerabilidades ativas.</p></BentoCard>
+              <BentoCard className="book-total"><span>Vulnerabilidades ativas</span><strong><AnimatedCounter value={metrics.total} /></strong><small>{selectedCompanyName ?? (selectedCompany ? "Empresa selecionada" : "Visão consolidada")}</small></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Críticas e altas</span><strong><AnimatedCounter value={metrics.criticalHigh} /></strong><p>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"} do total ativo.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong><AnimatedCounter value={metrics.prolonged} /></strong><p>Achados ativos há mais de 90 dias.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Hosts afetados</span><strong><AnimatedCounter value={metrics.affectedHosts} /></strong><p>Agentes distintos com vulnerabilidades ativas.</p></BentoCard>
             </BentoGrid>
 
             <BentoGrid className="book-chart-grid" aria-label="Distribuição e evolução das vulnerabilidades">
@@ -376,7 +377,7 @@ export function CustomerBook() {
             </BentoGrid>
 
             <BentoGrid className="book-highlights" aria-label="Contexto do relatório">
-              <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong>{displayCount(metrics.previousMonth)}</strong></div><div><small>Mês vigente</small><strong>{displayCount(metrics.currentMonth)}</strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
+              <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong><AnimatedCounter value={metrics.previousMonth} /></strong></div><div><small>Mês vigente</small><strong><AnimatedCounter value={metrics.currentMonth} /></strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
               <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que a fonte ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
               <BentoCard className="book-reading"><span>Critério de leitura</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></BentoCard>
             </BentoGrid>
@@ -409,8 +410,8 @@ export function CustomerBook() {
             </BentoGrid>
 
             <BentoGrid className="book-footer-row" aria-label="Ativos e inventário técnico">
-              <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong>{displayCount(metrics.affectedHosts)}</strong><small>Agentes distintos com vulnerabilidades ativas</small></div>
-              <div className="book-foot-stat"><span>CVEs ÚNICOS</span><strong>{displayCount(metrics.uniqueCves)}</strong><small>Identificadores diferentes no total ativo</small></div>
+              <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong><AnimatedCounter value={metrics.affectedHosts} /></strong><small>Agentes distintos com vulnerabilidades ativas</small></div>
+              <div className="book-foot-stat"><span>CVEs ÚNICOS</span><strong><AnimatedCounter value={metrics.uniqueCves} /></strong><small>Identificadores diferentes no total ativo</small></div>
               <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/">Explorar inventário técnico</Link></div>
             </BentoGrid>
           </>}

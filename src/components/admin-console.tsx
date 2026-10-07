@@ -9,6 +9,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { AnimatedCounter } from "@/src/components/ui/animated-counter";
 import { ProfileMenu } from "@/src/components/profile-menu";
 import { useSiteNotifications } from "@/src/components/site-notifications";
 import { useErrorNotice } from "@/src/lib/use-filter-notice";
@@ -305,9 +306,9 @@ export function AdminSection({ section }: { section: Section }) {
     </div>
     {section === "dashboard" && <>
       <div className="admin-metrics">
-        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/tenants"><span>Empresas</span><strong>{data.stats.active_companies + data.stats.inactive_companies}</strong><small>{data.stats.active_companies} ativas · {data.stats.inactive_companies} inativas</small></Link>
-        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/users"><span>Usuários vinculados</span><strong>{data.stats.users}</strong><small>Equipe Pier e clientes</small></Link>
-        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/integrations"><span>Fontes de vulnerabilidades</span><strong>{data.stats.connections}</strong><small>{data.stats.active_connections} ativas · {data.stats.connections - data.stats.active_connections} inativas</small></Link>
+        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/tenants"><span>Empresas</span><strong><AnimatedCounter value={data.stats.active_companies + data.stats.inactive_companies} /></strong><small>{data.stats.active_companies} ativas · {data.stats.inactive_companies} inativas</small></Link>
+        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/users"><span>Usuários vinculados</span><strong><AnimatedCounter value={data.stats.users} /></strong><small>Equipe Pier e clientes</small></Link>
+        <Link className="admin-metric spotlight-card" onMouseMove={(event) => trackSpotlight(event)} href="/admin/integrations"><span>Fontes de vulnerabilidades</span><strong><AnimatedCounter value={data.stats.connections} /></strong><small>{data.stats.active_connections} ativas · {data.stats.connections - data.stats.active_connections} inativas</small></Link>
       </div>
       <section className="panel admin-list-panel"><div className="panel-heading"><div><h2>Última sincronização por conexão</h2><p>A média usa até cinco leituras completas; a previsão considera o ritmo da execução atual.</p></div><Link className="button button-secondary" href="/admin/integrations">Gerenciar integrações</Link></div>
         <DataTable headings={["Conexão", "Empresa", "Estado", "Última execução", "Documentos", "Ritmo de sincronização"]} empty={!data.connections.length}>

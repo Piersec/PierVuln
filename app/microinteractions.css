@@ -4,6 +4,8 @@
   --motion-ease: cubic-bezier(.22, 1, .36, 1);
 }
 
+.animated-counter { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* One quiet arrival per view; controls respond only to the person's action. */
 :is(.page-heading, .book-heading, .auth-card h1, .welcome-card h1, .onboarding-card h1, .login-card) {
   animation: view-arrive 300ms var(--motion-ease) both;

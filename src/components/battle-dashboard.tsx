@@ -6,6 +6,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Search, Swords } from "lucide-react";
 import { adminDate } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
+import { AnimatedCounter } from "@/src/components/ui/animated-counter";
 
 export type BattleCompany = {
   id: string; name: string; slug: string; case_count: number; critical_high_count: number;
@@ -49,15 +50,15 @@ export function BattleDashboard({ companies, error, onRetry }: { companies: Batt
     <section className="battle-overview" aria-labelledby="battle-overview-title">
       <div className="battle-overview-main">
         <div className="battle-overview-title"><Swords size={20} aria-hidden="true" /><h2 id="battle-overview-title">Panorama da Batalha</h2></div>
-        <div className="battle-score-line"><strong>{aggregateScore === null ? "—" : `${aggregateScore}%`}</strong><span>dos casos ativos sem severidade crítica ou alta</span></div>
+        <div className="battle-score-line"><strong>{aggregateScore === null ? "—" : <AnimatedCounter value={aggregateScore} suffix="%" />}</strong><span>dos casos ativos sem severidade crítica ou alta</span></div>
         <div className="battle-score-track" role="meter" aria-label="Índice consolidado" aria-valuemin={0} aria-valuemax={100} aria-valuenow={aggregateScore ?? undefined} aria-valuetext={aggregateScore === null ? "Sem dados publicados" : undefined}><span style={{ width: `${aggregateScore ?? 0}%` }} /></div>
         <p>Índice calculado pelo volume de casos, não pela média das empresas. {published.length} {published.length === 1 ? "empresa classificada" : "empresas classificadas"}.</p>
       </div>
       <div className="battle-overview-stats" aria-label="Resumo dos casos">
-        <div><span>Casos ativos</span><strong>{number(totalCases)}</strong></div>
-        <div><span>Críticos ou altos</span><strong className="battle-danger">{number(highCases)}</strong></div>
-        <div><span>Em tratamento</span><strong>{number(inProgress)}</strong></div>
-        <div><span>Corrigidos em 30 dias</span><strong className="battle-positive">{number(corrected)}</strong></div>
+        <div><span>Casos ativos</span><strong><AnimatedCounter value={totalCases} /></strong></div>
+        <div><span>Críticos ou altos</span><strong className="battle-danger"><AnimatedCounter value={highCases} /></strong></div>
+        <div><span>Em tratamento</span><strong><AnimatedCounter value={inProgress} /></strong></div>
+        <div><span>Corrigidos em 30 dias</span><strong className="battle-positive"><AnimatedCounter value={corrected} /></strong></div>
       </div>
     </section>
 
@@ -86,8 +87,8 @@ export function BattleDashboard({ companies, error, onRetry }: { companies: Batt
         {selected && <div key={selected.id} className="battle-focus-body">
           <div className="battle-focus-rank">{selected.case_count ? `${ranked.findIndex((company) => company.id === selected.id) + 1}º lugar` : "Sem classificação"}</div>
           <h3>{visibleText(selected.name)}</h3><p className="battle-focus-slug">{selected.slug}</p>
-          <div className="battle-focus-score"><strong>{selected.case_count ? `${Math.round(score(selected))}%` : "—"}</strong><span>índice da empresa</span></div>
-          <dl><div><dt>Casos ativos</dt><dd>{number(selected.case_count)}</dd></div><div><dt>Críticos ou altos</dt><dd>{number(selected.critical_high_count)}</dd></div><div><dt>Em tratamento</dt><dd>{number(selected.in_progress_count)}</dd></div><div><dt>Corrigidos em 30 dias</dt><dd>{number(selected.corrected_30)}</dd></div></dl>
+          <div className="battle-focus-score"><strong>{selected.case_count ? <AnimatedCounter value={Math.round(score(selected))} suffix="%" /> : "—"}</strong><span>índice da empresa</span></div>
+          <dl><div><dt>Casos ativos</dt><dd><AnimatedCounter value={selected.case_count} /></dd></div><div><dt>Críticos ou altos</dt><dd><AnimatedCounter value={selected.critical_high_count} /></dd></div><div><dt>Em tratamento</dt><dd><AnimatedCounter value={selected.in_progress_count} /></dd></div><div><dt>Corrigidos em 30 dias</dt><dd><AnimatedCounter value={selected.corrected_30} /></dd></div></dl>
           <p className="battle-data-time">{selected.refreshed_at ? `Publicado em ${adminDate(selected.refreshed_at)}` : "Aguardando publicação"}{selected.stale && <span>Atualização pendente</span>}</p>
         </div>}
       </section>
