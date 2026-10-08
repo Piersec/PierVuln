@@ -33,16 +33,6 @@ import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { visibleText } from "@/src/lib/visible-text";
 
 type Company = { id: string; name: string; slug: string; role: string };
-type BookFinding = {
-  id: string;
-  vulnerability_id: string;
-  severity: string;
-  agent_id: string | null;
-  agent_name: string | null;
-  first_detected_at: string;
-  last_seen_at: string;
-  source_state: string;
-};
 type SeverityDatum = { name: string; count: number; color: string };
 type AgeDatum = { name: string; count: number };
 type MonthDatum = { month: string; count: number; key: string };
@@ -66,9 +56,20 @@ type BookMetrics = {
   currentMonth: number;
   previousMonth: number;
 };
+type BookMetricsRow = {
+  total: number;
+  unique_cves: number;
+  affected_hosts: number;
+  critical_high: number;
+  other_severity: number;
+  prolonged: number;
+  severity: Record<string, number>;
+  ages: { over90: number; days61to90: number; days31to60: number; days0to30: number };
+  months: Record<string, number>;
+  top: TopVulnerability[];
+};
 type SyncSummary = { finishedAt: string | null; connections: number; missingSnapshots: number };
 
-const pageSize = 1000;
 const severityColors: Record<string, string> = {
   Critical: "#a90839",
   High: "#ef3438",
@@ -76,7 +77,6 @@ const severityColors: Record<string, string> = {
   Low: "#e5bf21",
 };
 const severityOrder = ["Critical", "High", "Medium", "Low"];
-const dayMs = 24 * 60 * 60 * 1000;
 
 export function CustomerBook() {
   const supabase = getSupabaseBrowserClient();
@@ -89,7 +89,7 @@ export function CustomerBook() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [isInternal, setIsInternal] = useState(false);
-  const [findings, setFindings] = useState<BookFinding[]>([]);
+  const [metrics, setMetrics] = useState<BookMetrics>(() => buildMetrics());
   const [latestSync, setLatestSync] = useState<SyncSummary>({ finishedAt: null, connections: 0, missingSnapshots: 0 });
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,36 +173,13 @@ export function CustomerBook() {
     return () => { active = false; };
   }, [userId, supabase]);
 
-  const loadFindings = useCallback(async (client: SupabaseClient, companyId: string) => {
-    const selection = "id,vulnerability_id,severity,agent_id,agent_name,first_detected_at,last_seen_at:finding_last_seen,source_state";
-    const createQuery = () => {
-      let query = client.from("wazuh_findings")
-        .select(selection, { count: "exact" })
-        .eq("source_state", "active")
-        .order("id", { ascending: true });
-      if (companyId) query = query.eq("tenant_id", companyId);
-      return query;
-    };
-
-    const first = await createQuery().range(0, pageSize - 1);
-    if (first.error) throw first.error;
-    const total = first.count ?? first.data?.length ?? 0;
-    const pages = Array.from({ length: Math.ceil(total / pageSize) - 1 }, (_, index) => index + 1);
-    const remaining = await Promise.all(pages.map((page) => {
-      const from = page * pageSize;
-      return createQuery().range(from, Math.min(from + pageSize - 1, total - 1));
-    }));
-    const failedPage = remaining.find((result) => result.error);
-    if (failedPage?.error) throw failedPage.error;
-    const allFindings = [
-      ...(first.data ?? []),
-      ...remaining.flatMap((result) => result.data ?? []),
-    ] as unknown as BookFinding[];
-    const uniqueFindings = new Map(allFindings.map((item) => [item.id, item]));
-    if (uniqueFindings.size !== total) {
-      throw new Error("A leitura mudou enquanto os dados eram carregados. Atualize o relatório para repetir a leitura completa.");
+  const loadMetrics = useCallback(async (client: SupabaseClient, companyId: string) => {
+    const { data, error: queryError } = await client.rpc("get_customer_book_metrics", { p_company_id: companyId || null });
+    if (queryError) throw queryError;
+    if (!data || typeof data !== "object" || typeof (data as BookMetricsRow).total !== "number") {
+      throw new Error("O relatório não retornou os indicadores esperados.");
     }
-    return [...uniqueFindings.values()];
+    return buildMetrics(data as BookMetricsRow);
   }, []);
 
   const loadSyncSummary = useCallback(async (client: SupabaseClient, companyId: string, internal: boolean): Promise<SyncSummary> => {
@@ -258,16 +235,16 @@ export function CustomerBook() {
     if (loadedScopeRef.current !== scope || refreshRequested.current) setLoading(true);
     setError("");
     void withConsistentInventoryRead(supabase, () => Promise.all([
-      loadFindings(supabase, selectedCompany),
+      loadMetrics(supabase, selectedCompany),
       loadSyncSummary(supabase, selectedCompany, isInternal),
-    ])).then(([nextFindings, nextSync]) => {
+    ])).then(([nextMetrics, nextSync]) => {
       if (!active) return;
       loadedScopeRef.current = scope;
-      setFindings((current) => JSON.stringify(current) === JSON.stringify(nextFindings) ? current : nextFindings);
+      setMetrics(nextMetrics);
       setLatestSync(nextSync);
       setLoadedAt(new Date().toISOString());
       if (refreshRequested.current) {
-        notify({ title: "Relatório atualizado.", detail: `${nextFindings.length.toLocaleString("pt-BR")} achados ativos consultados.`, key: "book-feedback" });
+        notify({ title: "Relatório atualizado.", detail: `${nextMetrics.total.toLocaleString("pt-BR")} achados ativos consultados.`, key: "book-feedback" });
         refreshRequested.current = false;
       }
     }).catch((loadError: unknown) => {
@@ -280,9 +257,8 @@ export function CustomerBook() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [contextError, contextReady, isInternal, live.revision, loadFindings, loadSyncSummary, notify, refreshKey, selectedCompany, userId, supabase]);
+  }, [contextError, contextReady, isInternal, live.revision, loadMetrics, loadSyncSummary, notify, refreshKey, selectedCompany, userId, supabase]);
 
-  const metrics = useMemo(() => buildMetrics(findings), [findings]);
   const selectedCompanyName = companies.find((company) => company.id === selectedCompany)?.name;
   const freshness = snapshotFreshness(latestSync.finishedAt, live.now);
   const isStale = latestSync.missingSnapshots > 0 || freshness === "stale";
@@ -425,97 +401,35 @@ export function CustomerBook() {
   );
 }
 
-function buildMetrics(findings: BookFinding[]): BookMetrics {
+function buildMetrics(row?: BookMetricsRow): BookMetrics {
   const now = new Date();
-  const severityCounts = new Map(severityOrder.map((severity) => [severity, 0]));
-  let otherSeverity = 0;
-  let criticalHigh = 0;
-  let prolonged = 0;
-  const hosts = new Set<string>();
-  const cves = new Map<string, { hosts: Set<string>; count: number; firstDetected: string }>();
   const monthStarts = Array.from({ length: 6 }, (_, index) => new Date(now.getFullYear(), now.getMonth() - (5 - index), 1));
   const months: MonthDatum[] = monthStarts.map((date) => ({
     key: monthKey(date),
     month: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""),
-    count: 0,
+    count: row?.months[monthKey(date)] ?? 0,
   }));
-  const byMonth = new Map(months.map((month) => [month.key, month]));
-
-  for (const finding of findings) {
-    const severity = normalizeSeverity(finding.severity);
-    if (severityCounts.has(severity)) severityCounts.set(severity, (severityCounts.get(severity) ?? 0) + 1);
-    else otherSeverity += 1;
-    if (severity === "Critical" || severity === "High") criticalHigh += 1;
-
-    const detectedAt = new Date(finding.first_detected_at);
-    if (!Number.isNaN(detectedAt.valueOf())) {
-      const ageDays = Math.max(0, Math.floor((now.valueOf() - detectedAt.valueOf()) / dayMs));
-      if (ageDays > 90) prolonged += 1;
-      const month = byMonth.get(monthKey(detectedAt));
-      if (month) month.count += 1;
-    }
-
-    const hostKey = finding.agent_id?.trim()
-      ? `id:${finding.agent_id.trim()}`
-      : finding.agent_name?.trim()
-        ? `name:${finding.agent_name.trim().toLocaleLowerCase("pt-BR")}`
-        : null;
-    if (hostKey) hosts.add(hostKey);
-
-    const cveId = finding.vulnerability_id?.trim();
-    if (!cveId) continue;
-    let group = cves.get(cveId);
-    if (!group) {
-      group = { hosts: new Set<string>(), count: 0, firstDetected: finding.first_detected_at };
-      cves.set(cveId, group);
-    }
-    group.count += 1;
-    if (hostKey) group.hosts.add(hostKey);
-    if (Date.parse(finding.first_detected_at) < Date.parse(group.firstDetected)) group.firstDetected = finding.first_detected_at;
-  }
-
   const currentKey = monthKey(now);
   const previousKey = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
-  const monthlyRows = [...byMonth.values()];
   return {
-    total: findings.length,
-    uniqueCves: cves.size,
-    affectedHosts: hosts.size,
-    criticalHigh,
-    otherSeverity,
-    prolonged,
-    severity: severityOrder.map((name) => ({ name, count: severityCounts.get(name) ?? 0, color: severityColors[name] })),
+    total: row?.total ?? 0,
+    uniqueCves: row?.unique_cves ?? 0,
+    affectedHosts: row?.affected_hosts ?? 0,
+    criticalHigh: row?.critical_high ?? 0,
+    otherSeverity: row?.other_severity ?? 0,
+    prolonged: row?.prolonged ?? 0,
+    severity: severityOrder.map((name) => ({ name, count: row?.severity[name] ?? 0, color: severityColors[name] })),
     ages: [
-      { name: ">90 dias", count: countAge(findings, 90, Number.POSITIVE_INFINITY, now) },
-      { name: "61–90 dias", count: countAge(findings, 60, 90, now) },
-      { name: "31–60 dias", count: countAge(findings, 30, 60, now) },
-      { name: "Até 30 dias", count: countAge(findings, -1, 30, now) },
+      { name: ">90 dias", count: row?.ages.over90 ?? 0 },
+      { name: "61–90 dias", count: row?.ages.days61to90 ?? 0 },
+      { name: "31–60 dias", count: row?.ages.days31to60 ?? 0 },
+      { name: "Até 30 dias", count: row?.ages.days0to30 ?? 0 },
     ],
-    months: monthlyRows,
-    top: [...cves.entries()]
-      .map(([id, group]) => ({ id, hosts: group.hosts.size, count: group.count, firstDetected: group.firstDetected }))
-      .sort((a, b) => b.hosts - a.hosts || b.count - a.count || a.id.localeCompare(b.id))
-      .slice(0, 3),
-    currentMonth: monthlyRows.find((month) => month.key === currentKey)?.count ?? 0,
-    previousMonth: monthlyRows.find((month) => month.key === previousKey)?.count ?? 0,
+    months,
+    top: row?.top ?? [],
+    currentMonth: row?.months[currentKey] ?? 0,
+    previousMonth: row?.months[previousKey] ?? 0,
   };
-}
-
-function countAge(findings: BookFinding[], lowerExclusive: number, upperInclusive: number, now: Date) {
-  return findings.reduce((total, finding) => {
-    const date = new Date(finding.first_detected_at);
-    if (Number.isNaN(date.valueOf())) return total;
-    const days = Math.max(0, Math.floor((now.valueOf() - date.valueOf()) / dayMs));
-    return days > lowerExclusive && days <= upperInclusive ? total + 1 : total;
-  }, 0);
-}
-
-function normalizeSeverity(value: string) {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "critical" || normalized === "high" || normalized === "medium" || normalized === "low") {
-    return `${normalized[0].toUpperCase()}${normalized.slice(1)}`;
-  }
-  return "Other";
 }
 
 function monthKey(date: Date) {
