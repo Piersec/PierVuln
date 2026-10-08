@@ -438,17 +438,14 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 /* Vulnerability landscape and CVE workflow */
 .landscape { display: grid; gap: 14px; margin: 18px 0 22px; }
 .landscape-dashboard { margin-top: 0; }
-.dashboard-period { display: grid; gap: 12px; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); }
-.dashboard-period-main { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
-.dashboard-period-main strong { color: var(--ink); font-size: 14px; }
-.dashboard-period-main p { margin: 3px 0 0; color: var(--muted-strong); font-size: 12px; }
-.dashboard-period-options { display: flex; flex-wrap: wrap; gap: 6px; }
-.dashboard-period-options button { min-height: 36px; }
-.dashboard-period-detail { display: flex; align-items: end; flex-wrap: wrap; gap: 12px 20px; padding-top: 12px; border-top: 1px solid var(--line-strong); }
-.dashboard-period-navigation { display: flex; align-items: center; gap: 10px; }
-.dashboard-period-navigation strong { min-width: 190px; color: var(--ink); font-size: 13px; text-align: center; }
-.dashboard-period-context { color: var(--muted-strong); font-size: 11px; }
-.dashboard-period [data-slot="date-field-group"] { max-width: 390px; }
+.dashboard-period-compact { display: flex; justify-content: flex-end; min-width: 0; }
+.dashboard-period-trigger { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: var(--ink); }
+.dashboard-period-trigger span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-period-trigger svg { flex: none; }
+.dashboard-period-dialog { color: var(--ink); }
+.dashboard-period-help { margin: 0 0 16px; color: var(--muted-strong); font-size: 13px; line-height: 1.5; }
+.dashboard-period-presets { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
+.dashboard-period-error { margin: 8px 0 0; color: var(--ink); font-size: 12px; }
 .landscape-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
 .landscape-heading h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.025em; }
 .landscape-heading p, .analysis-panel > p, .priority-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
