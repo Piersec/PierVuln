@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { visibleText } from "@/src/lib/visible-text";
 
-type Company = { id: string; name: string; slug: string; logo_dark_path?: string | null; logo_light_path?: string | null };
+type Company = { id: string; name: string; slug: string; is_active?: boolean; logo_dark_path?: string | null; logo_light_path?: string | null };
 type Source = { id: string; name: string; mode: string; tenant_id: string | null };
 type Mapping = { connection_id: string; tenant_id: string };
 const logos: Record<string, string> = {
@@ -46,7 +46,7 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
       try {
         const [sources, mappings] = await Promise.all([
           client.from("wazuh_connections").select("id,name,mode,tenant_id").eq("is_active", true),
-          isInternal ? client.from("wazuh_agent_mappings").select("connection_id,tenant_id").eq("is_active", true)
+          isInternal ? client.from("wazuh_agent_mappings").select("connection_id,tenant_id")
             : Promise.resolve({ data: [] as Mapping[], error: null }),
         ]);
         if (!active) return;
@@ -61,7 +61,8 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
     const used = new Set<string>();
     const shared = (topology?.sources ?? []).filter((source) => source.mode === "shared").flatMap((source) => {
       const mappedIds = new Set(topology?.mappings.filter((mapping) => mapping.connection_id === source.id).map((mapping) => mapping.tenant_id));
-      const members = companies.filter((company) => mappedIds.has(company.id) && !used.has(company.id));
+      const members = companies.filter((company) => mappedIds.has(company.id) && !used.has(company.id))
+        .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.name.localeCompare(b.name, "pt-BR"));
       members.forEach((company) => used.add(company.id));
       return members.length ? [{ source, members }] : [];
     });
@@ -70,7 +71,8 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
   }, [companies, topology]);
   function choose(id: string) { onChange(id); setOpen(false); }
   function tile(company: Company, compact = false) {
-    return <button type="button" key={company.id} className={`company-picker-tile${compact ? " compact" : ""}`} aria-label={`Selecionar ${visibleText(company.name)}`} aria-pressed={company.id === value} onClick={() => choose(company.id)}>
+    const inactive = company.is_active === false;
+    return <button type="button" key={company.id} className={`company-picker-tile${compact ? " compact" : ""}${inactive ? " is-inactive" : ""}`} aria-label={inactive ? `${visibleText(company.name)} — desativada` : `Selecionar ${visibleText(company.name)}`} aria-pressed={company.id === value} disabled={inactive} title={inactive ? "Empresa desativada" : undefined} onClick={() => choose(company.id)}>
       <span className="company-picker-logo"><CompanyLogo company={company} client={client} /></span>
       <span className="company-picker-name">{visibleText(company.name)}</span>
       {company.id === value && <span className="company-picker-check" aria-hidden="true">✓</span>}
@@ -78,7 +80,7 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
     </button>;
   }
   const selected = companies.find((company) => company.id === value);
-  const compactPanel = groups.shared.length + groups.remaining.length <= 1;
+  const compactPanel = companies.length <= 1;
   return <Popover isOpen={open} onOpenChange={setOpen}>
     <Button variant="secondary" className="company-picker-trigger" aria-label={`Selecionar empresa: ${selected ? visibleText(selected.name) : "Todas as empresas"}`}>
       {selected && <span className="company-picker-trigger-logo"><CompanyLogo key={selected.id} company={selected} client={client} /></span>}
@@ -91,7 +93,7 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
         {!topology && !error ? <div className="company-picker-loading" role="status">Carregando empresas e fontes…</div> : <>
           {error && <div className="company-picker-error"><span>Não foi possível agrupar as fontes. Você ainda pode selecionar uma empresa.</span><button type="button" onClick={() => { setError(false); setRetry((previous) => previous + 1); }}>Tentar novamente</button></div>}
           <div className="company-picker-grid">
-            {groups.shared.map(({ source, members }) => <section className="company-picker-shared" key={source.id} aria-label={visibleText(source.name)}><div className="company-picker-shared-grid">{members.map((company) => tile(company, true))}</div><span className="company-picker-group-label">Compartilhado<small>{visibleText(source.name)}</small></span></section>)}
+            {groups.shared.map(({ source, members }) => <section className="company-picker-shared" key={source.id} aria-label={visibleText(source.name)}><span className="company-picker-group-label">Compartilhado<small>{visibleText(source.name)}</small></span><div className="company-picker-shared-grid">{members.map((company) => tile(company, true))}</div></section>)}
             {groups.remaining.map((company) => tile(company))}
           </div>
         </>}
