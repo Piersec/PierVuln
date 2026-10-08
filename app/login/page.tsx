@@ -79,7 +79,7 @@ export default function LoginPage() {
       if (error) setNotice(error.code === "captcha_failed"
         ? "O desafio de segurança expirou ou já foi utilizado. Aguarde a nova confirmação e tente entrar novamente."
         : "Não foi possível entrar. Confira o e-mail e a senha ou peça um novo convite à equipe.");
-      else router.replace("/");
+      else router.replace("/dashboard");
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally {

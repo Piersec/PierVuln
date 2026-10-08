@@ -115,7 +115,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (step !== "preparing") return;
-    const timer = window.setTimeout(() => window.location.assign("/"), 3500);
+    const timer = window.setTimeout(() => window.location.assign("/dashboard"), 3500);
     return () => window.clearTimeout(timer);
   }, [step]);
 
@@ -168,7 +168,7 @@ export default function OnboardingPage() {
           {step === "welcome" && <><span className="onboarding-kicker">01 / BOAS-VINDAS</span><h1>Seja bem-vindo(a){name ? `, ${name}` : ""}.</h1><p>Seu espaço na equipe Pier está pronto para começar. Vamos proteger seu acesso em alguns passos.</p><Button className="button button-primary" onPress={() => setStep("password")}>Começar <span aria-hidden="true">→</span></Button></>}
           {step === "password" && <><span className="onboarding-kicker">02 / SEGURANÇA</span><h1>Crie uma senha forte.</h1><p>Use ao menos 12 caracteres, com letra maiúscula, minúscula, número e símbolo.</p><form className="onboarding-form" onSubmit={savePassword}><label>Senha<input required minLength={12} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><label>Confirme a senha<input required minLength={12} type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><Button className="button button-primary" type="submit" isDisabled={busy}>{busy ? "Salvando…" : "Salvar e continuar"}</Button></form>{notice && <p className="onboarding-notice" role="alert">{notice}</p>}</>}
           {step === "signature" && <><span className="onboarding-kicker">03 / SUA MARCA</span><h1>Deixe sua assinatura.</h1><p>Este gesto faz parte das boas-vindas. A assinatura não é salva nem enviada.</p><div className="onboarding-signature"><SignaturePad /></div><Button className="button button-primary" isDisabled={busy} onPress={() => void completeOnboarding()}>{busy ? "Concluindo…" : "Concluir"} <span aria-hidden="true">→</span></Button>{notice && <p className="onboarding-notice" role="alert">{notice}</p>}</>}
-          {step === "preparing" && <><span className="onboarding-kicker">04 / TUDO PRONTO</span><div className="onboarding-spinner" aria-hidden="true" /><h1>Estamos preparando tudo.</h1><p>Seu painel será aberto em instantes.</p><Link className="onboarding-direct" href="/">Abrir painel agora <span aria-hidden="true">→</span></Link></>}
+          {step === "preparing" && <><span className="onboarding-kicker">04 / TUDO PRONTO</span><div className="onboarding-spinner" aria-hidden="true" /><h1>Estamos preparando tudo.</h1><p>Seu painel será aberto em instantes.</p><Link className="onboarding-direct" href="/dashboard">Abrir painel agora <span aria-hidden="true">→</span></Link></>}
         </>}
       </section>
       <footer className="onboarding-footer">PierVuln <span>·</span> Acesso por convite</footer>

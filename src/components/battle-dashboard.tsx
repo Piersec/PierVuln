@@ -13,13 +13,11 @@ export type BattleCompany = {
   in_progress_count: number; corrected_30: number; refreshed_at: string | null; stale: boolean;
 };
 
-type ChartMode = "exposure" | "response";
 const number = (value: number) => value.toLocaleString("pt-BR");
 const score = (company: BattleCompany) => company.case_count ? Math.max(0, 100 * (1 - company.critical_high_count / company.case_count)) : -1;
 
 export function BattleDashboard({ companies, error, onRetry }: { companies: BattleCompany[] | null; error: string; onRetry: () => void }) {
   const reducedMotion = useReducedMotion();
-  const [mode, setMode] = useState<ChartMode>("exposure");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const ranked = useMemo(() => [...(companies ?? [])].sort((a, b) => score(b) - score(a) || a.critical_high_count - b.critical_high_count || a.name.localeCompare(b.name, "pt-BR")), [companies]);
@@ -29,14 +27,12 @@ export function BattleDashboard({ companies, error, onRetry }: { companies: Batt
   const totalCases = published.reduce((sum, company) => sum + company.case_count, 0);
   const highCases = published.reduce((sum, company) => sum + company.critical_high_count, 0);
   const inProgress = published.reduce((sum, company) => sum + company.in_progress_count, 0);
-  const corrected = published.reduce((sum, company) => sum + company.corrected_30, 0);
+  const corrected = ranked.reduce((sum, company) => sum + company.corrected_30, 0);
   const aggregateScore = totalCases ? Math.round(100 * (1 - highCases / totalCases)) : null;
-  const chartData = filtered.filter((company) => company.case_count > 0).slice(0, 12).map((company) => ({
+  const chartData = filtered.filter((company) => company.case_count > 0 || company.corrected_30 > 0).slice(0, 12).map((company) => ({
     name: visibleText(company.name),
     shortName: visibleText(company.name).length > 18 ? `${visibleText(company.name).slice(0, 17)}…` : visibleText(company.name),
-    high: company.critical_high_count,
-    other: Math.max(0, company.case_count - company.critical_high_count),
-    progress: company.in_progress_count,
+    active: company.case_count,
     corrected: company.corrected_30,
   }));
   const latest = ranked.reduce<string | null>((value, company) => !company.refreshed_at || (value && value > company.refreshed_at) ? value : company.refreshed_at, null);
@@ -64,18 +60,17 @@ export function BattleDashboard({ companies, error, onRetry }: { companies: Batt
 
     <div className="battle-content-grid">
       <section className="battle-chart-panel panel" aria-labelledby="battle-chart-title">
-        <div className="battle-panel-head"><div><h2 id="battle-chart-title">Comparação entre empresas</h2><p>{mode === "exposure" ? "Distribuição dos casos ativos por severidade." : "Casos em tratamento e correções nos últimos 30 dias."}</p></div>
-          <div className="battle-segmented" role="group" aria-label="Métrica do gráfico"><button type="button" aria-pressed={mode === "exposure"} onClick={() => setMode("exposure")}>Exposição</button><button type="button" aria-pressed={mode === "response"} onClick={() => setMode("response")}>Resposta</button></div>
-        </div>
+        <div className="battle-panel-head"><div><h2 id="battle-chart-title">Vulnerabilidades vs. resolvidos</h2><p>Comparação por empresa entre o estoque ativo e as correções dos últimos 30 dias.</p></div></div>
         {chartData.length ? <>
-          <div className="battle-chart-legend"><span><i className={mode === "exposure" ? "battle-key-danger" : "battle-key-cyan"} />{mode === "exposure" ? "Críticos ou altos" : "Em tratamento"}</span><span><i className={mode === "exposure" ? "battle-key-muted" : "battle-key-positive"} />{mode === "exposure" ? "Demais severidades" : "Corrigidos em 30 dias"}</span></div>
-          <div className="battle-chart" role="img" aria-label={mode === "exposure" ? "Gráfico de casos críticos ou altos e demais casos ativos por empresa" : "Gráfico de casos em tratamento e corrigidos em 30 dias por empresa"} style={{ height: Math.max(240, chartData.length * 58 + 46) }}>
+          <div className="battle-chart-legend"><span><i className="battle-key-danger" />Vulnerabilidades</span><span><i className="battle-key-positive" />Resolvidos em 30 dias</span></div>
+          <div className="battle-chart" role="img" aria-label="Comparação entre vulnerabilidades ativas e casos resolvidos em 30 dias por empresa" style={{ height: Math.max(240, chartData.length * 58 + 46) }}>
             <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 18, bottom: 4, left: 4 }} barCategoryGap="28%">
               <CartesianGrid stroke="var(--line)" horizontal={false} strokeDasharray="3 5" />
               <XAxis type="number" allowDecimals={false} tick={{ fill: "var(--muted-strong)", fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="shortName" width={116} tick={{ fill: "var(--muted-strong)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: "var(--surface-raised)", opacity: .55 }} contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--line-strong)", borderRadius: 10, color: "var(--ink)" }} labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ""} formatter={(value, name) => [number(Number(value)), name === "high" ? "Críticos ou altos" : name === "other" ? "Demais severidades" : name === "progress" ? "Em tratamento" : "Corrigidos em 30 dias"]} />
-              {mode === "exposure" ? <><Bar dataKey="high" stackId="active" fill="var(--danger)" radius={[0, 0, 0, 0]} isAnimationActive={!reducedMotion} animationDuration={450} /><Bar dataKey="other" stackId="active" fill="var(--accent)" radius={[0, 5, 5, 0]} isAnimationActive={!reducedMotion} animationDuration={450} /></> : <><Bar dataKey="progress" fill="var(--accent)" radius={[0, 5, 5, 0]} isAnimationActive={!reducedMotion} animationDuration={450} /><Bar dataKey="corrected" fill="var(--positive)" radius={[0, 5, 5, 0]} isAnimationActive={!reducedMotion} animationDuration={450} /></>}
+              <Tooltip cursor={{ fill: "var(--surface-raised)", opacity: .55 }} contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--line-strong)", borderRadius: 10, color: "var(--ink)" }} labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ""} formatter={(value, name) => [number(Number(value)), name === "active" ? "Vulnerabilidades" : "Resolvidos em 30 dias"]} />
+              <Bar dataKey="active" fill="var(--danger)" radius={[0, 5, 5, 0]} isAnimationActive={!reducedMotion} animationDuration={500} />
+              <Bar dataKey="corrected" fill="var(--positive)" radius={[0, 5, 5, 0]} isAnimationActive={!reducedMotion} animationDuration={500} />
             </BarChart></ResponsiveContainer>
           </div>
           {filtered.length > 12 && <p className="battle-chart-note">O gráfico mostra as 12 primeiras empresas da busca. A lista abaixo inclui todas.</p>}

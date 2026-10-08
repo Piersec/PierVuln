@@ -78,6 +78,8 @@
 @keyframes notification-item-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
 @media (max-width: 480px) { .notification-drawer-header { padding: 22px 18px 16px; } .notification-drawer-scroll { padding-inline: 12px; } .notification-drawer-actions { padding-inline: 12px; } .notification-launcher { right: 12px; } }
 @media (prefers-reduced-motion: reduce) { .notification-drawer[data-state], .notification-item { animation: none; } }
+
+
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
 .admin-tabs a { display: flex; min-height: 44px; align-items: center; padding: 0 17px; border-radius: 12px; background: var(--surface); color: var(--muted-strong); font-weight: 600; }
 .admin-tabs a.active { background: var(--nav-current); color: var(--accent-strong); }
@@ -1508,3 +1510,56 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 @media (prefers-reduced-motion: reduce) {
   .sld-done { transition-duration: 1ms; }
 }
+
+/* Inventory and asset tables share the same continuous row surface. */
+.case-table .table__content, .assets-table .table__content { border: 0; border-radius: 0; box-shadow: none; }
+.case-table .table__cell, .assets-table .table__cell { border-top: 0; border-bottom: 0; }
+.findings-panel .case-table .table__content { border-collapse: collapse; border-spacing: 0; }
+.findings-panel .case-table .table__row .table__cell { border-radius: 0; }
+.case-table .table__row:first-child .table__cell:first-child, .assets-table .table__row:first-child .table__cell:first-child { border-top-left-radius: 12px; }
+.case-table .table__row:first-child .table__cell:last-child, .assets-table .table__row:first-child .table__cell:last-child { border-top-right-radius: 12px; }
+.case-table .table__row:last-child .table__cell:first-child, .assets-table .table__row:last-child .table__cell:first-child { border-bottom-left-radius: 12px; }
+.case-table .table__row:last-child .table__cell:last-child, .assets-table .table__row:last-child .table__cell:last-child { border-bottom-right-radius: 12px; }
+.case-sort { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0; border: 0; background: transparent; color: var(--muted-strong); font: inherit; cursor: pointer; }
+.case-sort:hover { color: var(--ink); }
+.case-sort span { color: var(--muted); }
+.search-control .search-field-select { display: inline-flex; width: auto; min-width: 92px; min-height: 36px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font-size: 12px; }
+.search-control .search-field-select svg { position: static; flex: none; color: var(--muted-strong); }
+.search-field-popover { min-width: 130px; border: 0; border-radius: 12px; background: var(--surface-raised); color: var(--ink); box-shadow: 0 18px 44px rgb(0 0 0 / 45%); }
+.search-field-popover [data-slot="menu-item"] { min-height: 40px; color: var(--ink); }
+.detail-backdrop { z-index: 91; background: rgb(0 0 0 / 62%); }
+.detail-panel { width: min(450px, calc(100% - 10px)); height: calc(100dvh - 10px); margin: 5px; border-radius: 18px; background: var(--surface); animation: notification-slide-in .32s cubic-bezier(.22,1,.36,1) both; }
+.detail-top .eyebrow { color: var(--muted-strong); }
+.detail-panel .notification-close { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--muted-strong); }
+.detail-panel .notification-close:hover { background: var(--surface-raised); color: var(--ink); }
+.detail-workflow { display: grid; gap: 8px; }
+.detail-workflow label { color: var(--muted-strong); font-size: 12px; }
+.detail-workflow select { width: 100%; }
+.dashboard-period-slot { display: flex; align-items: center; }
+.resolution-total { display: block; margin-top: 18px; color: var(--ink); font-size: clamp(28px, 3vw, 42px); line-height: 1; }
+.resolution-comparison { display: grid; gap: 18px; margin-top: 28px; }
+.resolution-comparison > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; color: var(--muted-strong); font-size: 12px; }
+.resolution-comparison strong { color: var(--ink); }
+.resolution-comparison i { display: block; grid-column: 1 / -1; height: 12px; border-radius: 999px; transition: width .55s cubic-bezier(.22,1,.36,1); }
+.resolution-active { background: var(--danger); }
+.resolution-done { background: var(--positive); }
+.age-panel { margin-top: 10px; }
+.book-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.book-highlights > .book-month-highlight { grid-column: 1 / -1; }
+.kanban-selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; color: var(--muted-strong); font-size: 12px; }
+.kanban-card { position: relative; }
+.kanban-card-selection { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.kanban-card-open { padding-right: 44px; }
+.assets-page { padding-top: 22px; }
+.assets-toolbar { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; }
+.assets-toolbar input { width: min(430px, 100%); min-height: 42px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--surface-raised); color: var(--ink); }
+.assets-toolbar input::placeholder { color: var(--muted); }
+.assets-toolbar span { margin-left: auto; color: var(--muted-strong); font-size: 12px; }
+.assets-table .table__content { min-width: 980px; }
+.assets-table .table__cell { padding: 12px 14px; background: var(--surface); color: var(--muted-strong); }
+.assets-table .table__row:hover .table__cell { background: var(--surface-raised); }
+.assets-table .table__cell strong { color: var(--ink); font-weight: 600; }
+.asset-unavailable, .assets-data-note { color: var(--muted); }
+.assets-data-note { margin: 18px 0 0; font-size: 12px; }
+@media (max-width: 700px) { .assets-toolbar { flex-wrap: wrap; } .assets-toolbar input { flex: 1 1 100%; } .book-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .detail-panel { animation: none; } .resolution-comparison i { transition: none; } }

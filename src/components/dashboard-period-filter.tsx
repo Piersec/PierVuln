@@ -89,7 +89,7 @@ export function DashboardPeriodFilter({ onChange }: { onChange: (value: Dashboar
     <Popover.Content placement="bottom end" offset={8} className="dashboard-period-popover">
       <Popover.Dialog className="dashboard-period-panel" aria-label="Filtrar por período">
         <Popover.Heading>Filtrar por período</Popover.Heading>
-        <p className="dashboard-period-help">Mostra achados ainda ativos pela primeira detecção. Correções usam a data de resolução.</p>
+        <p className="dashboard-period-help">Mostra vulnerabilidades ainda ativas pela primeira detecção. Correções usam a data de resolução.</p>
         <div className="dashboard-period-presets" role="group" aria-label="Atalhos de período">
           {options.map(({ value, label }) => <Button key={value} size="sm" variant={draftPreset === value ? "primary" : "secondary"} aria-pressed={draftPreset === value} onPress={() => selectPreset(value)}>{label}</Button>)}
         </div>

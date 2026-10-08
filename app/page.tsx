@@ -1,10 +1,5 @@
-import { VulnerabilityDashboard } from "@/src/components/vulnerability-dashboard";
+import { redirect } from "next/navigation";
 
-export default async function HomePage({ searchParams }: {
-  searchParams: Promise<{ company?: string | string[] }>;
-}) {
-  const company = (await searchParams).company;
-  const initialCompanyId = typeof company === "string" && (company === "all" || /^[0-9a-f-]{36}$/i.test(company))
-    ? company : undefined;
-  return <VulnerabilityDashboard initialCompanyId={initialCompanyId} />;
+export default function HomePage() {
+  redirect("/login");
 }

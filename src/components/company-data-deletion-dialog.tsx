@@ -44,7 +44,7 @@ export function CompanyDataDeletionDialog({ company, client, close, onQueued }: 
     onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}>
     <div className="company-deletion-content">
       <h2 id="delete-company-title" className="company-deletion-title"><TriangleAlert size={24} aria-hidden="true" />Apagar dados de {visibleText(company.name)}</h2>
-      <p>Esta ação apaga permanentemente os achados, casos, histórico e comentários da empresa.</p>
+      <p>Esta ação apaga permanentemente as vulnerabilidades, casos, histórico e comentários da empresa.</p>
       <p>A empresa será desativada e a coleta será desligada. O cadastro, os usuários e seus vínculos serão preservados.</p>
       <p className="muted-copy">A limpeza apaga os registros em lotes e depois compacta as tabelas compartilhadas para recuperar espaço em disco. A compactação pode bloquear temporariamente consultas nessas tabelas. Acompanhe as duas etapas na lista de empresas.</p>
       <label>Digite <strong>{visibleText(company.name)}</strong> para confirmar

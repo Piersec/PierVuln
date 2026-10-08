@@ -9,6 +9,7 @@ import { notificationType, parseDisabledNotificationTypes, type NotificationType
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { visibleText } from "@/src/lib/visible-text";
 import { usePathname } from "next/navigation";
+import { usePresentationMode } from "@/src/lib/presentation-mode";
 
 type Notifications = {
   notify: (notice: NoticeInput) => void;
@@ -38,6 +39,7 @@ export function useSiteNotifications() {
 }
 
 export function SiteNotifications({ children }: { children: ReactNode }) {
+  const { presentationMode } = usePresentationMode();
   const client = getSupabaseBrowserClient();
   const pathname = usePathname();
   const [notices, setNotices] = useState<AdminNotice[]>([]);
@@ -60,6 +62,10 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
   const muted = useRef(new Set(mutedKinds));
   const disabled = useRef(new Set<NotificationType>());
 
+  useEffect(() => {
+    if (presentationMode) { setNotices([]); setInboxOpen(false); }
+  }, [presentationMode]);
+
   useEffect(() => { setStorageReady(true); }, []);
   useEffect(() => {
     if (!storageReady || ownerKey === "guest") return;
@@ -76,8 +82,8 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
     if (notice.secret) setSecret(notice.secret);
     const incoming: AdminNotice = { ...notice, title: visibleText(notice.title), detail: notice.detail ? visibleText(notice.detail) : undefined, secret: undefined, id: crypto.randomUUID() };
     setHistory((items) => [toInboxNotice(incoming), ...items].slice(0, MAX_INBOX_NOTICES));
-    if (!muted.current.has(noticeKind(incoming))) setNotices((queue) => enqueueNotice(queue, incoming));
-  }, [pathname]);
+    if (!presentationMode && !muted.current.has(noticeKind(incoming))) setNotices((queue) => enqueueNotice(queue, incoming));
+  }, [pathname, presentationMode]);
   const clear = useCallback(() => { setNotices([]); setSecret(null); }, []);
   const dismiss = useCallback((id: string) => setNotices((queue) => queue.filter((notice) => notice.id !== id)), []);
   const switchOwner = useCallback((next: string) => {
@@ -245,8 +251,8 @@ export function SiteNotifications({ children }: { children: ReactNode }) {
 
   return <Context.Provider value={{ notify, clear, setIslandHost, beginMutation, endMutation, revision, disabledNotificationTypes, setNotificationTypeEnabled }}>
     {children}
-    {authenticatedId && !isAuthRoute(pathname) && <SiteIsland notices={notices} dismiss={dismiss} host={host} openInbox={openInbox} inboxOpen={inboxOpen} />}
-    {storageReady && authenticatedId && !isAuthRoute(pathname) && <><NotificationLauncher unread={history.filter((item) => !item.read).length} open={() => openInbox()} />
+    {authenticatedId && !isAuthRoute(pathname) && !presentationMode && <SiteIsland notices={notices} dismiss={dismiss} host={host} openInbox={openInbox} inboxOpen={inboxOpen} />}
+    {storageReady && authenticatedId && !isAuthRoute(pathname) && !presentationMode && <><NotificationLauncher unread={history.filter((item) => !item.read).length} open={() => openInbox()} />
       <NotificationInbox open={inboxOpen} close={() => setInboxOpen(false)} notices={history} selectedId={selectedNoticeId} mutedKinds={mutedKinds} markRead={markRead} markAllRead={markAllRead} remove={removeHistory} clearAll={clearHistory} setKindMuted={setKindMuted} /></>}
     {secret && adminId && !isAuthRoute(pathname) && <ConnectorSecret secret={secret} close={() => setSecret(null)} />}
   </Context.Provider>;

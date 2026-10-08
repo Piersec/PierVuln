@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Dropdown, Label } from "@heroui/react";
-import { Check, ChevronDown } from "lucide-react";
+import { CompanyPicker } from "@/src/components/company-picker";
 import { SpotlightCard } from "@/src/components/ui/spotlight-card";
 import { AnimatedCounter } from "@/src/components/ui/animated-counter";
 import { useLiveData } from "@/src/lib/use-live-data";
@@ -244,7 +243,7 @@ export function CustomerBook() {
       setLatestSync(nextSync);
       setLoadedAt(new Date().toISOString());
       if (refreshRequested.current) {
-        notify({ title: "Relatório atualizado.", detail: `${nextMetrics.total.toLocaleString("pt-BR")} achados ativos consultados.`, key: "book-feedback" });
+        notify({ title: "Relatório atualizado.", detail: `${nextMetrics.total.toLocaleString("pt-BR")} vulnerabilidades ativas consultadas.`, key: "book-feedback" });
         refreshRequested.current = false;
       }
     }).catch((loadError: unknown) => {
@@ -272,18 +271,19 @@ export function CustomerBook() {
   }
 
   if (!supabase) return <BookConfigurationRequired />;
-  if (!authReady || (session && !contextReady)) return <main className="loading-screen"><Brand href="/" /><div className="spinner"/><p>Preparando o Book dos Clientes…</p></main>;
-  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand href="/" /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><BentoGrid className="welcome-bento" aria-label="Conteúdo do Book"><BentoCard className="welcome-feature welcome-feature-main"><span>Relatório por empresa</span><strong>Exposição atual</strong><small>Uma leitura vinculada aos dados do cliente.</small></BentoCard><BentoCard className="welcome-feature"><span>Criticidade</span><strong>Severidade</strong><small>Distribuição dos achados ativos.</small></BentoCard><BentoCard className="welcome-feature"><span>Prioridade</span><strong>Tempo de exposição</strong><small>Foco nos casos que persistem.</small></BentoCard></BentoGrid></aside></main>;
+  if (!authReady || (session && !contextReady)) return <main className="loading-screen"><Brand href="/dashboard" /><div className="spinner"/><p>Preparando o Book dos Clientes…</p></main>;
+  if (!session) return <main className="welcome-shell"><div className="welcome-card"><Brand href="/dashboard" /><span className="eyebrow">BOOK DOS CLIENTES</span><h1>Entre para consultar o relatório.</h1><p>O acesso ao Book respeita os vínculos e as permissões da sua empresa.</p><Link className="button button-primary" href="/login">Entrar com convite</Link></div><aside className="welcome-art"><BentoGrid className="welcome-bento" aria-label="Conteúdo do Book"><BentoCard className="welcome-feature welcome-feature-main"><span>Relatório por empresa</span><strong>Exposição atual</strong><small>Uma leitura vinculada aos dados do cliente.</small></BentoCard><BentoCard className="welcome-feature"><span>Criticidade</span><strong>Severidade</strong><small>Distribuição das vulnerabilidades ativas.</small></BentoCard><BentoCard className="welcome-feature"><span>Prioridade</span><strong>Tempo de exposição</strong><small>Foco nos casos que persistem.</small></BentoCard></BentoGrid></aside></main>;
 
   return (
     <main className="app-shell book-shell">
       <a className="skip-link" href="#book-overview">Pular para o conteúdo</a>
       <aside className="sidebar">
-        <Brand href="/" />
+        <Brand href="/dashboard" />
         <nav className="workspace-nav" aria-label="Navegação principal">
           <div className="nav-caption">WORKSPACE</div>
-          <Link className="nav-link" href="/" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
+          <Link className="nav-link" href="/dashboard" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
           <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
+          <Link className="nav-link" href="/assets" aria-label="Ativos" title="Ativos"><NavSymbol kind="assets" /><span className="nav-label">Ativos</span></Link>
           <Link className="nav-link active" href="/book" aria-current="page" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
           {isInternal && <Link className="nav-link" href="/battle" aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>}
         </nav>
@@ -291,11 +291,11 @@ export function CustomerBook() {
       </aside>
 
       <section className="main-column book-main-column">
-        <header className="topbar book-topbar">
+        <header className="topbar">
           <div className="breadcrumb">PierVuln <span>/</span> <strong>Book dos Clientes</strong></div>
           <div className="topbar-actions">
-            {isInternal ? <Dropdown><Button variant="secondary" className="book-company-select" aria-label={`Empresa do relatório: ${visibleText(selectedCompanyName ?? "Todas as empresas")}`}><span>{visibleText(selectedCompanyName ?? "Todas as empresas")}</span><ChevronDown size={16} aria-hidden="true" /></Button><Dropdown.Popover className="book-company-popover"><Dropdown.Menu onAction={(key) => setSelectedCompany(String(key) === "all" ? "" : String(key))}><Dropdown.Item id="all" textValue="Todas as empresas"><Label>Todas as empresas</Label>{!selectedCompany && <Check size={16} aria-hidden="true" />}</Dropdown.Item>{companies.map((company) => <Dropdown.Item key={company.id} id={company.id} textValue={visibleText(company.name)}><Label>{visibleText(company.name)}</Label>{selectedCompany === company.id && <Check size={16} aria-hidden="true" />}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown> : <span className="book-company-chip">{visibleText(selectedCompanyName ?? "Minha empresa")}</span>}
-            <button className="book-feedback" onClick={refresh} disabled={loading}>{loading ? "Atualizando…" : "Atualizar"}</button>
+            {isInternal ? <CompanyPicker client={supabase} companies={companies} value={selectedCompany} isInternal={isInternal} onChange={setSelectedCompany} /> : <span className="company-chip">{visibleText(selectedCompanyName ?? "Minha empresa")}</span>}
+            <button className="button button-secondary refresh-button" onClick={refresh} disabled={loading}>{loading ? "Atualizando…" : "Atualizar"}</button>
           </div>
         </header>
 
@@ -312,13 +312,12 @@ export function CustomerBook() {
             <BentoGrid className="book-overview" aria-label="Indicadores de exposição">
               <BentoCard className="book-total"><span>Vulnerabilidades ativas</span><strong><AnimatedCounter value={metrics.total} /></strong><small>{selectedCompanyName ?? (selectedCompany ? "Empresa selecionada" : "Visão consolidada")}</small></BentoCard>
               <BentoCard className="book-highlight-stat"><span className="book-section-tag">Críticas e altas</span><strong><AnimatedCounter value={metrics.criticalHigh} /></strong><p>{metrics.total ? `${Math.round(metrics.criticalHigh / metrics.total * 100)}%` : "0%"} do total ativo.</p></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong><AnimatedCounter value={metrics.prolonged} /></strong><p>Achados ativos há mais de 90 dias.</p></BentoCard>
-              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Hosts afetados</span><strong><AnimatedCounter value={metrics.affectedHosts} /></strong><p>Agentes distintos com vulnerabilidades ativas.</p></BentoCard>
+              <BentoCard className="book-highlight-stat"><span className="book-section-tag">Exposição prolongada</span><strong><AnimatedCounter value={metrics.prolonged} /></strong><p>Vulnerabilidades ativas há mais de 90 dias.</p></BentoCard>
             </BentoGrid>
 
             <BentoGrid className="book-chart-grid" aria-label="Distribuição e evolução das vulnerabilidades">
               <SpotlightCard className="book-chart-section">
-                <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Criticidade dos achados</h2></div><small>{displayCount(metrics.total)} ativas</small></div>
+                <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Criticidade das vulnerabilidades</h2></div><small>{displayCount(metrics.total)} ativas</small></div>
                 <div className="book-chart" role="img" aria-label={`Distribuição por severidade: ${metrics.severity.map((item) => `${item.name} ${displayCount(item.count)}`).join(", ")}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.severity} margin={{ top: 26, right: 12, bottom: 2, left: -16 }}>
@@ -350,14 +349,12 @@ export function CustomerBook() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="book-chart-note">Achados atualmente ativos agrupados pela data de primeira detecção — não é um snapshot mensal histórico.</p>
+                <p className="book-chart-note">Vulnerabilidades atualmente ativos agrupados pela data de primeira detecção — não é um snapshot mensal histórico.</p>
               </SpotlightCard>
             </BentoGrid>
 
             <BentoGrid className="book-highlights" aria-label="Contexto do relatório">
               <BentoCard className="book-month-highlight"><span className="book-section-tag">Vulnerabilidades ativas por detecção</span><div className="book-month-comparison"><div><small>Mês anterior</small><strong><AnimatedCounter value={metrics.previousMonth} /></strong></div><div><small>Mês vigente</small><strong><AnimatedCounter value={metrics.currentMonth} /></strong></div><div><small>Variação</small><strong className={monthVariation(metrics.currentMonth, metrics.previousMonth).className}>{monthVariation(metrics.currentMonth, metrics.previousMonth).label}</strong></div></div><p>Contagem atual agrupada pela data da primeira detecção.</p></BentoCard>
-              <BentoCard className="book-context"><span>Contexto da exposição</span><p>O volume representa os achados que a fonte ainda reporta como ativos. Use severidade, tempo de exposição e quantidade de hosts para priorizar a remediação.</p></BentoCard>
-              <BentoCard className="book-reading"><span>Critério de leitura</span><p>Os gráficos usam a última leitura completa disponível. A série mensal agrupa vulnerabilidades ativas pela primeira data de detecção registrada.</p><small>{loadedAt ? `Relatório consultado ${formatDate(loadedAt)}` : "Aguardando dados"}</small></BentoCard>
             </BentoGrid>
 
             <BentoGrid className="book-detail-grid" aria-label="Tempo de exposição e concentração por CVE">
@@ -383,20 +380,20 @@ export function CustomerBook() {
                 <div className="book-table-scroll"><table><thead><tr><th>CVE</th><th>DETECÇÃO INICIAL</th><th>VOLUME</th></tr></thead><tbody>
                   {metrics.top.length ? metrics.top.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{formatMonth(item.firstDetected)}</td><td><strong>{displayCount(item.hosts)}</strong><span>{item.hosts === 1 ? "host afetado" : "hosts afetados"}</span></td></tr>) : <tr><td colSpan={3} className="book-table-empty">Nenhuma vulnerabilidade ativa nesta seleção.</td></tr>}
                 </tbody></table></div>
-                <p className="book-table-note">Ordenado pelo número de hosts distintos afetados; o total conta apenas os achados ativos.</p>
+                <p className="book-table-note">Ordenado pelo número de hosts distintos afetados; o total conta apenas as vulnerabilidades ativas.</p>
               </SpotlightCard>
             </BentoGrid>
 
             <BentoGrid className="book-footer-row" aria-label="Ativos e inventário técnico">
               <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong><AnimatedCounter value={metrics.affectedHosts} /></strong><small>Agentes distintos com vulnerabilidades ativas</small></div>
               <div className="book-foot-stat"><span>CVEs ÚNICOS</span><strong><AnimatedCounter value={metrics.uniqueCves} /></strong><small>Identificadores diferentes no total ativo</small></div>
-              <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/">Explorar inventário técnico</Link></div>
+               <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/cases">Explorar inventário técnico</Link></div>
             </BentoGrid>
           </>}
           <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte ativa" : "fontes de dados"}</span></footer>
         </div>
       </section>
-      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/">Vulnerabilidades</Link><Link href="/cases">Casos</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/battle">Batalha</Link>}</nav>
+      <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/dashboard">Vulnerabilidades</Link><Link href="/cases">Casos</Link><Link href="/assets">Ativos</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/battle">Batalha</Link>}</nav>
     </main>
   );
 }
@@ -467,5 +464,5 @@ const tooltipStyle = {
 };
 
 function BookConfigurationRequired() {
-  return <main className="welcome-shell"><div className="auth-card"><Brand href="/"/><div className="eyebrow">CONFIGURAÇÃO NECESSÁRIA</div><h1>Conecte o projeto Supabase</h1><p>Configure a URL e a chave publicável do projeto PierGV para consultar o relatório.</p></div></main>;
+  return <main className="welcome-shell"><div className="auth-card"><Brand href="/dashboard"/><div className="eyebrow">CONFIGURAÇÃO NECESSÁRIA</div><h1>Conecte o projeto Supabase</h1><p>Configure a URL e a chave publicável do projeto PierGV para consultar o relatório.</p></div></main>;
 }
