@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, DateField, DateRangePicker, Label, Modal, RangeCalendar } from "@heroui/react";
+import { Button, DateField, DateRangePicker, Label, Popover, RangeCalendar } from "@heroui/react";
 import { CalendarDate, getDayOfWeek, today } from "@internationalized/date";
 import { CalendarDays } from "lucide-react";
 
@@ -55,10 +55,12 @@ export function DashboardPeriodFilter({ onChange }: { onChange: (value: Dashboar
     draftRange.end.compare(current) > 0
   );
 
-  function openDialog() {
-    setDraftPreset(appliedPreset);
-    setDraftRange(appliedRange);
-    setOpen(true);
+  function changeOpen(next: boolean) {
+    if (next) {
+      setDraftPreset(appliedPreset);
+      setDraftRange(appliedRange);
+    }
+    setOpen(next);
   }
 
   function selectPreset(value: Preset) {
@@ -80,41 +82,36 @@ export function DashboardPeriodFilter({ onChange }: { onChange: (value: Dashboar
     ? `${appliedPreset === "custom" ? "Personalizado" : options.find((option) => option.value === appliedPreset)?.label} · ${period(appliedRange.start, appliedRange.end).label}`
     : "Todos os períodos";
 
-  return <div className="dashboard-period-compact">
-    <Button variant="secondary" className="dashboard-period-trigger" onPress={openDialog} aria-label={`Filtrar por data: ${appliedLabel}`}>
+  return <div className="dashboard-period-compact"><Popover isOpen={open} onOpenChange={changeOpen}>
+    <Button variant="secondary" className="dashboard-period-trigger" aria-label={`Filtrar por data: ${appliedLabel}`}>
       <CalendarDays size={16} aria-hidden="true" /><span>{appliedLabel}</span><span aria-hidden="true">⌄</span>
     </Button>
-    <Modal.Backdrop isOpen={open} onOpenChange={setOpen}>
-      <Modal.Container size="sm">
-        <Modal.Dialog className="dashboard-period-dialog">
-          <Modal.CloseTrigger />
-          <Modal.Header><Modal.Heading>Filtrar por período</Modal.Heading></Modal.Header>
-          <Modal.Body>
-            <p className="dashboard-period-help">Mostra achados ainda ativos pela primeira detecção. Correções usam a data de resolução.</p>
-            <div className="dashboard-period-presets" role="group" aria-label="Atalhos de período">
-              {options.map(({ value, label }) => <Button key={value} size="sm" variant={draftPreset === value ? "primary" : "secondary"} aria-pressed={draftPreset === value} onPress={() => selectPreset(value)}>{label}</Button>)}
-            </div>
-            <DateRangePicker value={draftRange} onChange={(value) => {
-              setDraftPreset("custom");
-              setDraftRange(value ? { start: value.start as CalendarDate, end: value.end as CalendarDate } : null);
-            }} isInvalid={draftInvalid} shouldForceLeadingZeros>
-              <Label>Intervalo personalizado</Label>
-              <DateField.Group fullWidth>
-                <DateField.Input slot="start">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
-                <DateRangePicker.RangeSeparator />
-                <DateField.Input slot="end">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
-                <DateField.Suffix><DateRangePicker.Trigger><DateRangePicker.TriggerIndicator /></DateRangePicker.Trigger></DateField.Suffix>
-              </DateField.Group>
-              <DateRangePicker.Popover><RangeCalendar aria-label="Selecionar intervalo do dashboard">
-                <RangeCalendar.Header><RangeCalendar.YearPickerTrigger><RangeCalendar.YearPickerTriggerHeading /><RangeCalendar.YearPickerTriggerIndicator /></RangeCalendar.YearPickerTrigger><RangeCalendar.NavButton slot="previous" /><RangeCalendar.NavButton slot="next" /></RangeCalendar.Header>
-                <RangeCalendar.Grid><RangeCalendar.GridHeader>{(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}</RangeCalendar.GridHeader><RangeCalendar.GridBody>{(date) => <RangeCalendar.Cell date={date} />}</RangeCalendar.GridBody></RangeCalendar.Grid>
-              </RangeCalendar></DateRangePicker.Popover>
-            </DateRangePicker>
-            {draftInvalid && <p className="dashboard-period-error" role="alert">Selecione até um ano, sem datas futuras.</p>}
-          </Modal.Body>
-          <Modal.Footer><Button variant="secondary" onPress={() => setOpen(false)}>Cancelar</Button><Button isDisabled={draftInvalid || (draftPreset !== "all" && !draftRange)} onPress={apply}>Aplicar</Button></Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
-  </div>;
+    <Popover.Content placement="bottom end" offset={8} className="dashboard-period-popover">
+      <Popover.Dialog className="dashboard-period-panel" aria-label="Filtrar por período">
+        <Popover.Heading>Filtrar por período</Popover.Heading>
+        <p className="dashboard-period-help">Mostra achados ainda ativos pela primeira detecção. Correções usam a data de resolução.</p>
+        <div className="dashboard-period-presets" role="group" aria-label="Atalhos de período">
+          {options.map(({ value, label }) => <Button key={value} size="sm" variant={draftPreset === value ? "primary" : "secondary"} aria-pressed={draftPreset === value} onPress={() => selectPreset(value)}>{label}</Button>)}
+        </div>
+        <DateRangePicker value={draftRange} onChange={(value) => {
+          setDraftPreset("custom");
+          setDraftRange(value ? { start: value.start as CalendarDate, end: value.end as CalendarDate } : null);
+        }} isInvalid={draftInvalid} shouldForceLeadingZeros>
+          <Label>Intervalo personalizado</Label>
+          <DateField.Group fullWidth className="dashboard-period-date-group">
+            <DateField.Input slot="start">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
+            <DateRangePicker.RangeSeparator />
+            <DateField.Input slot="end">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
+            <DateField.Suffix><DateRangePicker.Trigger><DateRangePicker.TriggerIndicator /></DateRangePicker.Trigger></DateField.Suffix>
+          </DateField.Group>
+          <DateRangePicker.Popover className="dashboard-period-calendar-popover"><RangeCalendar aria-label="Selecionar intervalo do dashboard">
+            <RangeCalendar.Header><RangeCalendar.YearPickerTrigger><RangeCalendar.YearPickerTriggerHeading /><RangeCalendar.YearPickerTriggerIndicator /></RangeCalendar.YearPickerTrigger><RangeCalendar.NavButton slot="previous" /><RangeCalendar.NavButton slot="next" /></RangeCalendar.Header>
+            <RangeCalendar.Grid><RangeCalendar.GridHeader>{(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}</RangeCalendar.GridHeader><RangeCalendar.GridBody>{(date) => <RangeCalendar.Cell date={date} />}</RangeCalendar.GridBody></RangeCalendar.Grid>
+          </RangeCalendar></DateRangePicker.Popover>
+        </DateRangePicker>
+        {draftInvalid && <p className="dashboard-period-error" role="alert">Selecione até um ano, sem datas futuras.</p>}
+        <div className="dashboard-period-actions"><Button variant="secondary" onPress={() => setOpen(false)}>Cancelar</Button><Button isDisabled={draftInvalid || (draftPreset !== "all" && !draftRange)} onPress={apply}>Aplicar</Button></div>
+      </Popover.Dialog>
+    </Popover.Content>
+  </Popover></div>;
 }

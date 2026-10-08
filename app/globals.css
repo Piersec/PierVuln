@@ -444,13 +444,23 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .landscape { display: grid; gap: 14px; margin: 18px 0 22px; }
 .landscape-dashboard { margin-top: 0; }
 .dashboard-period-compact { display: flex; justify-content: flex-end; min-width: 0; }
-.dashboard-period-trigger { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: var(--ink); }
+.dashboard-period-compact .dashboard-period-trigger { --button-bg: var(--surface-raised); --button-bg-hover: #303235; --button-bg-pressed: #303235; --button-fg: var(--ink); display: inline-flex; align-items: center; gap: 8px; max-width: min(300px, 100%); border: 1px solid var(--line-strong); }
 .dashboard-period-trigger span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-period-trigger svg { flex: none; }
-.dashboard-period-dialog { color: var(--ink); }
-.dashboard-period-help { margin: 0 0 16px; color: var(--muted-strong); font-size: 13px; line-height: 1.5; }
-.dashboard-period-presets { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
-.dashboard-period-error { margin: 8px 0 0; color: var(--ink); font-size: 12px; }
+.dashboard-period-popover, .dashboard-period-calendar-popover { --overlay: var(--surface); --foreground: var(--ink); --default: var(--surface-raised); --default-hover: #303235; --accent-foreground: var(--accent-ink); --accent-soft: var(--nav-current); --accent-soft-foreground: var(--ink); --field: var(--surface-inset); --field-hover: var(--surface-raised); --field-focus: var(--surface-inset); --field-foreground: var(--ink); --field-border: var(--line-strong); --field-border-hover: var(--muted); --field-placeholder: var(--muted-strong); width: min(350px, calc(100vw - 24px)); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); box-shadow: 0 16px 38px rgb(0 0 0 / 40%); }
+.dashboard-period-popover { max-height: min(490px, calc(100dvh - 24px)); overflow-y: auto; }
+.dashboard-period-panel { padding: 15px; }
+.dashboard-period-panel .popover__heading { display: block; margin-bottom: 5px; color: var(--ink); font-size: 14px; font-weight: 600; }
+.dashboard-period-help { margin: 0 0 13px; color: var(--muted-strong); font-size: 12px; line-height: 1.45; }
+.dashboard-period-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
+.dashboard-period-popover .button--secondary { --button-bg: var(--surface-raised); --button-bg-hover: #303235; --button-bg-pressed: #303235; --button-fg: var(--ink); }
+.dashboard-period-popover .button--primary { --button-bg: var(--accent); --button-bg-hover: var(--accent-strong); --button-bg-pressed: var(--accent-strong); --button-fg: var(--accent-ink); }
+.dashboard-period-date-group { border: 1px solid var(--line-strong); background: var(--surface-inset); color: var(--ink); }
+.dashboard-period-date-group .date-input-group__segment { color: var(--ink); }
+.dashboard-period-date-group .date-input-group__segment[data-placeholder="true"] { color: var(--muted-strong); }
+.dashboard-period-calendar-popover { width: auto; }
+.dashboard-period-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.dashboard-period-error { margin: 8px 0 0; color: var(--danger); font-size: 12px; }
 .landscape-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
 .landscape-heading h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.025em; }
 .landscape-heading p, .analysis-panel > p, .priority-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
