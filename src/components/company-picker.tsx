@@ -2,6 +2,7 @@
 
 import { Button, Popover } from "@heroui/react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Building2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { visibleText } from "@/src/lib/visible-text";
 
@@ -82,9 +83,8 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
   const selected = companies.find((company) => company.id === value);
   const compactPanel = companies.length <= 1;
   return <Popover isOpen={open} onOpenChange={setOpen}>
-    <Button variant="secondary" className="company-picker-trigger" aria-label={`Selecionar empresa: ${selected ? visibleText(selected.name) : "Todas as empresas"}`}>
-      {selected && <span className="company-picker-trigger-logo"><CompanyLogo key={selected.id} company={selected} client={client} /></span>}
-      <span>{selected ? visibleText(selected.name) : "Todas as empresas"}</span><span className="company-picker-chevron" aria-hidden="true">⌄</span>
+    <Button variant="secondary" isIconOnly className="company-picker-trigger" aria-label={`Selecionar empresa: ${selected ? visibleText(selected.name) : "Todas as empresas"}`}>
+      <span className="company-picker-trigger-logo">{selected ? <CompanyLogo key={selected.id} company={selected} client={client} /> : <Building2 size={18} aria-hidden="true" />}</span>
     </Button>
     <Popover.Content placement="bottom end" offset={10} className="company-picker-content" data-compact={compactPanel}>
       <Popover.Dialog className="company-picker-dialog" aria-label="Selecionar empresa do dashboard">

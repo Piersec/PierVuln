@@ -84,7 +84,7 @@ export function DashboardPeriodFilter({ onChange }: { onChange: (value: Dashboar
 
   return <div className="dashboard-period-compact"><Popover isOpen={open} onOpenChange={changeOpen}>
     <Button variant="secondary" className="dashboard-period-trigger" aria-label={`Filtrar por data: ${appliedLabel}`}>
-      <CalendarDays size={16} aria-hidden="true" /><span>{appliedLabel}</span><span aria-hidden="true">⌄</span>
+      <CalendarDays size={16} aria-hidden="true" /><span>{appliedLabel}</span>
     </Button>
     <Popover.Content placement="bottom end" offset={8} className="dashboard-period-popover">
       <Popover.Dialog className="dashboard-period-panel" aria-label="Filtrar por período">
