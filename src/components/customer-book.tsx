@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Button, Dropdown, Label } from "@heroui/react";
+import { Check, ChevronDown } from "lucide-react";
 import { SpotlightCard } from "@/src/components/ui/spotlight-card";
 import { AnimatedCounter } from "@/src/components/ui/animated-counter";
 import { useLiveData } from "@/src/lib/use-live-data";
@@ -316,7 +318,7 @@ export function CustomerBook() {
         <header className="topbar book-topbar">
           <div className="breadcrumb">PierVuln <span>/</span> <strong>Book dos Clientes</strong></div>
           <div className="topbar-actions">
-            {isInternal ? <select aria-label="Empresa do relatório" value={selectedCompany} onChange={(event) => setSelectedCompany(event.target.value)}><option value="">Todas as empresas</option>{companies.map((company) => <option key={company.id} value={company.id}>{visibleText(company.name)}</option>)}</select> : <span className="book-company-chip">{visibleText(selectedCompanyName ?? "Minha empresa")}</span>}
+            {isInternal ? <Dropdown><Button variant="secondary" className="book-company-select" aria-label={`Empresa do relatório: ${visibleText(selectedCompanyName ?? "Todas as empresas")}`}><span>{visibleText(selectedCompanyName ?? "Todas as empresas")}</span><ChevronDown size={16} aria-hidden="true" /></Button><Dropdown.Popover className="book-company-popover"><Dropdown.Menu onAction={(key) => setSelectedCompany(String(key) === "all" ? "" : String(key))}><Dropdown.Item id="all" textValue="Todas as empresas"><Label>Todas as empresas</Label>{!selectedCompany && <Check size={16} aria-hidden="true" />}</Dropdown.Item>{companies.map((company) => <Dropdown.Item key={company.id} id={company.id} textValue={visibleText(company.name)}><Label>{visibleText(company.name)}</Label>{selectedCompany === company.id && <Check size={16} aria-hidden="true" />}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown> : <span className="book-company-chip">{visibleText(selectedCompanyName ?? "Minha empresa")}</span>}
             <button className="book-feedback" onClick={refresh} disabled={loading}>{loading ? "Atualizando…" : "Atualizar"}</button>
           </div>
         </header>

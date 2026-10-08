@@ -48,22 +48,20 @@
   .login-submit, .login-password-toggle, .login-recovery, .tile-link, .heading-link,
   .sidebar-signout, .book-signout, button[data-slot="button"], button[data-slot="toggle-button"]):focus-visible,
 :is(.button, .icon-button, .profile-menu-popover .menu-item)[data-focus-visible="true"] {
-  outline: 2px solid var(--accent-strong);
-  outline-offset: 2px;
-  filter: none;
+  filter: brightness(1.18);
 }
 
 :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea):focus-visible {
-  outline: 2px solid var(--accent-strong);
-  outline-offset: 2px;
+  border-color: var(--accent-strong);
+  background-color: var(--surface-raised);
   transition: border-color var(--motion-quick) ease-out, background-color var(--motion-quick) ease-out;
 }
 
 :is(.search-control, .battle-search):focus-within {
-  outline: 2px solid var(--accent-strong);
-  outline-offset: 2px;
+  background: #303235;
 }
-:is(.search-control, .battle-search) :is(input, select):focus-visible { outline: none; }
+:is(.search-control, .battle-search) :is(input, select):focus-visible { outline: none; background: transparent; }
+:is(*:focus-visible, [data-focus-visible="true"]) { outline: none !important; box-shadow: none !important; }
 
 :is(.refresh-button, .book-feedback, .admin-shell .topbar > .button):disabled::before {
   content: "";
@@ -103,8 +101,7 @@
 }
 :is(.admin-connection-details, .admin-company-details, .admin-agent-details)[open] > summary::after { rotate: 180deg; }
 :is(.admin-connection-details, .admin-company-details, .admin-agent-details) > summary:focus-visible {
-  outline: 2px solid var(--accent-strong);
-  outline-offset: 2px;
+  background: var(--surface-raised);
   border-radius: 4px;
 }
 
