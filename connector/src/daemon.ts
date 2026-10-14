@@ -17,7 +17,7 @@ const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
 const publishableKey = required("SUPABASE_PUBLISHABLE_KEY");
 const workerToken = required("WAZUH_WORKER_CONFIG_TOKEN");
 const syncIntervalSeconds = positiveInteger(process.env.SYNC_INTERVAL_SECONDS, 3600, "SYNC_INTERVAL_SECONDS");
-const configPollSeconds = positiveInteger(process.env.WORKER_CONFIG_POLL_SECONDS, 300, "WORKER_CONFIG_POLL_SECONDS");
+const configPollSeconds = positiveInteger(process.env.WORKER_CONFIG_POLL_SECONDS, 60, "WORKER_CONFIG_POLL_SECONDS");
 if (!/^https:\/\//i.test(supabaseUrl)) throw new Error("SUPABASE_URL precisa usar HTTPS.");
 if (syncIntervalSeconds < 60) throw new Error("SYNC_INTERVAL_SECONDS não pode ser menor que 60.");
 if (configPollSeconds < 30 || configPollSeconds > 3600) {
@@ -136,7 +136,8 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null): 
     WAZUH_INDEXER_USERNAME: connection.indexerUsername,
     WAZUH_INDEXER_PASSWORD: connection.indexerPassword,
   };
-  if (caFile) environment.NODE_EXTRA_CA_CERTS = caFile;
+  const extraCaCertificates = caFile ?? process.env.NODE_EXTRA_CA_CERTS;
+  if (extraCaCertificates) environment.NODE_EXTRA_CA_CERTS = extraCaCertificates;
   return environment;
 }
 
