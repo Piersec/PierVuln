@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
-import { encryptWazuhConfig, type WazuhConnectionCredentials } from "../_shared/wazuh-config-secrets.ts";
+import { decryptWazuhConfig, encryptWazuhConfig, type WazuhConnectionCredentials } from "../_shared/wazuh-config-secrets.ts";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -71,6 +71,15 @@ function readIndexerCredentials(input: Record<string, unknown>, ingestToken: str
     return null;
   }
   return { indexerUsername, indexerPassword, ingestToken, caCertificate };
+}
+
+function readCaCertificate(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim() || value.length > 65536) return null;
+  const pem = value.trim();
+  const certificates = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
+  if (!certificates?.length || pem.replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, "").trim()) return null;
+  if (certificates.some((certificate) => !/^-----BEGIN CERTIFICATE-----\s*[A-Za-z0-9+/=\r\n]+-----END CERTIFICATE-----$/.test(certificate))) return null;
+  return pem;
 }
 
 Deno.serve(async (request) => {
@@ -367,6 +376,25 @@ Deno.serve(async (request) => {
       if (!connection) return json(404, { error: "Fonte não encontrada." });
       await storeConnectionConfig(connectionId, credentials);
       return json(200, { connectionId, configured: true, tokenRotated: true });
+    }
+
+    if (action === "update_connection_ca") {
+      const connectionId = text(input.connectionId, 36);
+      const caCertificate = readCaCertificate(input.caCertificate);
+      if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId) || !caCertificate) {
+        return json(400, { error: "Informe uma conexão válida e um certificado CA em PEM." });
+      }
+      const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
+        .select("id").eq("id", connectionId).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection) return json(404, { error: "Fonte não encontrada." });
+      const { data: encrypted, error: secretError } = await admin.from("wazuh_connection_secrets")
+        .select("connection_id,nonce,ciphertext").eq("connection_id", connectionId).maybeSingle();
+      if (secretError) throw secretError;
+      if (!encrypted) return json(409, { error: "Configure as credenciais da conexão antes de trocar o certificado CA." });
+      const current = await decryptWazuhConfig(encrypted);
+      await storeConnectionConfig(connectionId, { ...current, caCertificate });
+      return json(200, { connectionId, configured: true, tokenRotated: false });
     }
 
     if (action === "set_agent_mapping") {
