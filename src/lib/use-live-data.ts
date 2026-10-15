@@ -34,7 +34,7 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
         lastRefreshAt = Date.now();
         if (busyRef.current) pending.current = true;
         else setRevision((value) => value + 1);
-      }, Math.max(1000, 30_000 - (Date.now() - lastRefreshAt)));
+      }, Math.max(1000, 5_000 - (Date.now() - lastRefreshAt)));
     };
     const channel = client.channel(`operational-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "sync_runs" }, request)
