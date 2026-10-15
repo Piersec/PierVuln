@@ -4,12 +4,15 @@ services:
       context: ..
       dockerfile: connector/Dockerfile
     restart: unless-stopped
+    mem_limit: 1g
     env_file:
       - .env
     environment:
       NODE_EXTRA_CA_CERTS: ${WAZUH_INDEXER_CA_FILE:-/etc/wazuh/certs/indexer-ca.pem}
+      TMPDIR: /var/lib/piervuln/spool
     volumes:
       - ./certs:/etc/wazuh/certs:ro
+      - ./spool:/var/lib/piervuln/spool
       - /etc/localtime:/etc/localtime:ro
     read_only: true
     tmpfs:

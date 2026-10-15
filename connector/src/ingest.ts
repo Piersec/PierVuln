@@ -132,7 +132,6 @@ export async function synchronizeSnapshot(
   let scrollId: string | null = null;
   let pages = 0;
   let documents = 0;
-  const documentIds = new Set<string>();
   try {
     const version = await indexer.getVersion(runSignal);
     let page: ScrollPage = await indexer.startScroll(pageSize, "5m", runSignal);
@@ -143,12 +142,7 @@ export async function synchronizeSnapshot(
 
     while (true) {
       const items = page.hits.map(normalizeHit);
-      for (const item of items) {
-        if (documentIds.has(item.documentId)) {
-          throw new Error(`O Indexer devolveu o _id ${item.documentId} mais de uma vez nesta conexão.`);
-        }
-        documentIds.add(item.documentId);
-      }
+      // Snapshot publication checks distinct IDs in staged pages; avoid retaining every ID in worker memory.
       if (items.length > 0 || pages === 0) {
         await spool.writeFile(JSON.stringify(items) + "\n");
         pages += 1;
