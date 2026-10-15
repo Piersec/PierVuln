@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isSyncBoundary } from "./live-events";
 
 export function useLiveData(client: SupabaseClient | null, userId: string | undefined, busy: boolean) {
   const [revision, setRevision] = useState(0);
@@ -38,11 +37,7 @@ export function useLiveData(client: SupabaseClient | null, userId: string | unde
       }, Math.max(1000, 30_000 - (Date.now() - lastRefreshAt)));
     };
     const channel = client.channel(`operational-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sync_runs" }, (payload) => {
-        // Progress updates arrive for every page; refresh only at run boundaries.
-        const next = payload.new as { status?: string };
-        if (isSyncBoundary(payload.eventType, next)) request();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sync_runs" }, request)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "finding_events" }, (payload) => {
         const eventType = (payload.new as { event_type?: string }).event_type;
         if (eventType !== "first_detected" && eventType !== "tenant_mapping_changed") request();
