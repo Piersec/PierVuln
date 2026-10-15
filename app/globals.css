@@ -321,6 +321,29 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .nav-link.active { background: var(--surface-raised); color: var(--accent-strong); }
 .sidebar-bottom { display: flex; width: 100%; min-width: 0; align-items: center; flex-direction: column; gap: 9px; margin-top: auto; padding: 14px 0 0; border-top: 1px solid var(--tile-line); }
 .sidebar-bottom .user-info { display: none; }
+.sidebar-sync-clock { position: relative; display: flex; flex: none; width: 48px; min-height: 60px; margin-bottom: 6px; align-items: center; flex-direction: column; gap: 3px; border-radius: 8px; color: var(--ink); }
+.sidebar-sync-ring { position: relative; display: grid; width: 48px; height: 48px; place-items: center; }
+.sidebar-sync-ring svg { position: absolute; inset: 0; width: 48px; height: 48px; transform: rotate(-90deg); }
+.sidebar-sync-ring circle { fill: none; stroke-width: 3; }
+.sidebar-sync-track { stroke: var(--line-strong); }
+.sidebar-sync-progress { stroke: var(--accent); stroke-linecap: round; }
+.sidebar-sync-time { color: var(--ink); font-family: var(--font-mono), monospace; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.sidebar-sync-label { color: var(--muted-strong); font-size: 10px; line-height: 1.2; }
+.sidebar-sync-clock[data-state="due"] .sidebar-sync-progress { stroke: var(--caution); }
+.sidebar-sync-clock[data-state="failed"] .sidebar-sync-track { stroke: var(--danger); }
+.sidebar-sync-clock[data-state="empty"] .sidebar-sync-time { color: var(--muted); }
+.sidebar-sync-clock[data-state="running"] .sidebar-sync-ring svg { animation: sidebar-sync-working 2s linear infinite; }
+.sidebar-sync-clock:hover, .sidebar-sync-clock:focus-visible { background: var(--surface-raised); }
+.sidebar-sync-clock:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.sidebar-sync-tooltip { position: absolute; z-index: 30; left: calc(100% + 14px); bottom: 0; display: grid; width: 260px; max-width: calc(100vw - 90px); gap: 7px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--muted-strong); font-size: 12px; line-height: 1.45; pointer-events: none; visibility: hidden; opacity: 0; }
+.sidebar-sync-tooltip strong { color: var(--ink); font-size: 13px; }
+.sidebar-sync-tooltip small { color: var(--accent); font-size: 11px; }
+.sidebar-sync-tooltip::before { position: absolute; top: 0; right: 100%; width: 14px; height: 100%; content: ""; }
+.sidebar-sync-clock:hover .sidebar-sync-tooltip, .sidebar-sync-clock:focus-visible .sidebar-sync-tooltip { pointer-events: auto; visibility: visible; opacity: 1; }
+.sidebar-sync-clock[data-tooltip-dismissed="true"] .sidebar-sync-tooltip { pointer-events: none; visibility: hidden; opacity: 0; }
+.sidebar:has(.sidebar-sync-clock:hover), .sidebar:has(.sidebar-sync-clock:focus-visible) { z-index: 9; }
+@keyframes sidebar-sync-working { to { transform: rotate(270deg); } }
+@media (prefers-reduced-motion: reduce) { .sidebar-sync-clock[data-state="running"] .sidebar-sync-ring svg { animation: none; } }
 .profile-menu-trigger { display: grid; width: 44px; height: 44px; padding: 4px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink); }
 .profile-menu-trigger:hover, .profile-menu-trigger[data-pressed="true"], .profile-menu-trigger[data-focus-visible="true"] { background: var(--nav-current); box-shadow: none; }
 .profile-menu-popover { width: 254px; min-width: 0; max-width: calc(100vw - 24px); z-index: 50; padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 12px 35px rgb(0 0 0 / 35%); }
@@ -887,6 +910,8 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .nav-symbol { width: 16px; height: 16px; }
   .sidebar-bottom { grid-column: 1 / -1; flex-direction: row; margin-top: 3px; padding: 7px 2px 0; }
   .sidebar-bottom .user-info { display: grid; }
+  .sidebar-sync-clock { width: 48px; min-height: 60px; margin: 0 5px 0 0; }
+  .sidebar-sync-tooltip { left: 0; top: calc(100% + 8px); bottom: auto; max-width: calc(100vw - 36px); }
   .content-wrap { padding-top: 26px; }
   .book-shell .workspace-nav { display: none; }
   .book-shell .sidebar { grid-template-columns: 1fr; }

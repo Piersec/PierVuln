@@ -7,6 +7,7 @@ import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { visibleText } from "@/src/lib/visible-text";
 import { usePresentationMode } from "@/src/lib/presentation-mode";
 import { Presentation } from "lucide-react";
+import { SidebarSyncClock } from "@/src/components/sidebar-sync-clock";
 
 const links = [
   { href: "/status", label: "Status", kind: "status" },
@@ -14,15 +15,15 @@ const links = [
   { href: "/settings", label: "Configurações", kind: "settings" },
 ] as const;
 
-export function ProfileMenu({ userId, fallback, isInternal }: {
-  userId: string; fallback: string; isInternal: boolean;
+export function ProfileMenu({ userId, fallback, isInternal, companyId }: {
+  userId: string; fallback: string; isInternal: boolean; companyId?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const items = links.filter((item) => isInternal || item.kind !== "admin");
   const { presentationMode, setPresentationMode } = usePresentationMode();
 
-  return <Dropdown>
+  return <><SidebarSyncClock userId={userId} isInternal={isInternal} companyId={companyId} /><Dropdown>
     <Dropdown.Trigger className="profile-menu-trigger" aria-label="Menu de perfil">
       <UserAvatar userId={userId} fallback={fallback} />
     </Dropdown.Trigger>
@@ -38,5 +39,5 @@ export function ProfileMenu({ userId, fallback, isInternal }: {
         </Dropdown.Item>
       </Dropdown.Menu>
     </Dropdown.Popover>
-  </Dropdown>;
+  </Dropdown></>;
 }
