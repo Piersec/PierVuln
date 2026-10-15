@@ -163,7 +163,7 @@ export class WazuhIndexerClient {
     username: string,
     password: string,
     private readonly indexPattern: string,
-    private readonly timeoutMs = 45_000,
+    private readonly timeoutMs = 180_000,
   ) {
     const parsed = new URL(baseUrl);
     if (parsed.protocol !== "https:") throw new Error("WAZUH_INDEXER_URL precisa usar HTTPS.");
@@ -196,7 +196,7 @@ export class WazuhIndexerClient {
     return count;
   }
 
-  async startScroll(pageSize: number, keepAlive = "2m", signal?: AbortSignal): Promise<ScrollPage> {
+  async startScroll(pageSize: number, keepAlive = "5m", signal?: AbortSignal): Promise<ScrollPage> {
     const query = new URLSearchParams({ scroll: keepAlive });
     const result = await this.requestJson("POST", `/${this.indexPattern}/_search?${query.toString()}`, {
       size: pageSize,
@@ -207,7 +207,7 @@ export class WazuhIndexerClient {
     return this.parseScrollPage(asRecord(result), true);
   }
 
-  async continueScroll(scrollId: string, keepAlive = "2m", signal?: AbortSignal): Promise<ScrollPage> {
+  async continueScroll(scrollId: string, keepAlive = "5m", signal?: AbortSignal): Promise<ScrollPage> {
     const result = await this.requestJson("POST", "/_search/scroll", {
       scroll: keepAlive,
       scroll_id: scrollId,

@@ -135,7 +135,7 @@ export async function synchronizeSnapshot(
   const documentIds = new Set<string>();
   try {
     const version = await indexer.getVersion(runSignal);
-    let page: ScrollPage = await indexer.startScroll(pageSize, "2m", runSignal);
+    let page: ScrollPage = await indexer.startScroll(pageSize, "5m", runSignal);
     scrollId = page.scrollId;
     const expectedDocuments = page.total;
     if (expectedDocuments === null) throw new Error("O snapshot scroll não devolveu uma contagem exata.");
@@ -158,7 +158,7 @@ export async function synchronizeSnapshot(
       if (page.hits.length === 0 || page.hits.length < pageSize) break;
 
       await wait(pageDelayMilliseconds, runSignal);
-      page = await indexer.continueScroll(scrollId, "2m", runSignal);
+      page = await indexer.continueScroll(scrollId, "5m", runSignal);
       scrollId = page.scrollId;
     }
 

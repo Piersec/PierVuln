@@ -92,7 +92,7 @@ Para iniciar uma primeira carga manual fora do horário de pico, execute `sudo b
 O conector percorre snapshots completos com scroll e ordenação `_doc`, em páginas
 de até 500 documentos, com intervalo de 250 ms. Ele conserva o `_id` do Indexer;
 se um ID aparecer mais de uma vez, a execução falha sem publicar. O contexto
-scroll usa keep-alive de 2 minutos, é fechado ao final e expira no Indexer se a
+scroll usa keep-alive de 5 minutos, é fechado ao final e expira no Indexer se a
 conexão cair. Cada execução tem limite de 30 minutos.
 
 O Wazuh documenta `wazuh-states-vulnerabilities-*` como índice de estado atual.
