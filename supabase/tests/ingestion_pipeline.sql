@@ -38,7 +38,7 @@ declare
     'sourceStatus', 'Active'
   ));
 begin
-  -- First full snapshot creates one finding and one case.
+  -- First full snapshot creates one finding; its default open status stays implicit.
   v_run := public.register_wazuh_sync('00000000-0000-4000-8000-000000000310', 'test-indexer');
   v_reply := public.ingest_wazuh_batch(
     '00000000-0000-4000-8000-000000000310', v_run, 0, repeat('a', 64), v_item
@@ -64,6 +64,10 @@ begin
   end if;
   select id into v_finding_id from public.wazuh_findings
   where connection_id = '00000000-0000-4000-8000-000000000310';
+  if (select count(*) from public.vulnerability_cases where finding_id = v_finding_id) <> 0
+     or (select workflow_status from public.vulnerability_case_records where finding_id = v_finding_id) <> 'open' then
+    raise exception 'Default open status was not kept implicit in the compact case view';
+  end if;
 
   -- A short page count cannot close a finding that was not read in the run.
   v_run := public.register_wazuh_sync('00000000-0000-4000-8000-000000000310', 'test-indexer');
@@ -75,7 +79,7 @@ begin
   );
   if (v_reply ->> 'completed')::boolean is distinct from false
      or (select source_state from public.wazuh_findings where id = v_finding_id) <> 'active'
-     or (select workflow_status from public.vulnerability_cases where finding_id = v_finding_id) <> 'open' then
+     or (select workflow_status from public.vulnerability_case_records where finding_id = v_finding_id) <> 'open' then
     raise exception 'Partial pagination closed a finding or case';
   end if;
 
@@ -89,11 +93,11 @@ begin
   );
   if (v_reply ->> 'completed')::boolean is distinct from true
      or (select source_state from public.wazuh_findings where id = v_finding_id) <> 'resolved'
-     or (select workflow_status from public.vulnerability_cases where finding_id = v_finding_id) <> 'resolved' then
+     or (select workflow_status from public.vulnerability_case_records where finding_id = v_finding_id) <> 'resolved' then
     raise exception 'Complete empty snapshot did not resolve the finding and case';
   end if;
 
-  -- When Wazuh reports the same source document again, its case reopens in place.
+  -- When the source reports the same document again, the compact case view reopens.
   v_run := public.register_wazuh_sync('00000000-0000-4000-8000-000000000310', 'test-indexer');
   perform public.ingest_wazuh_batch(
     '00000000-0000-4000-8000-000000000310', v_run, 0, repeat('d', 64), v_item
@@ -104,7 +108,7 @@ begin
   if (v_reply ->> 'completed')::boolean is distinct from true
      or (select count(*) from public.wazuh_findings where connection_id = '00000000-0000-4000-8000-000000000310') <> 1
      or (select source_state from public.wazuh_findings where id = v_finding_id) <> 'active'
-     or (select workflow_status from public.vulnerability_cases where finding_id = v_finding_id) <> 'open'
+     or (select workflow_status from public.vulnerability_case_records where finding_id = v_finding_id) <> 'open'
      or (select count(*) from public.finding_events where finding_id = v_finding_id and event_type = 'reopened') <> 1 then
     raise exception 'Reappearance did not reopen the existing finding and preserve its event';
   end if;

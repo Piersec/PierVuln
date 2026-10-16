@@ -27,7 +27,7 @@ begin
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v_user_id,'role','authenticated')::text,true);
   select public.current_user_context() into v_context;
   assert (v_context->>'is_internal_admin')::boolean, 'User context must recognize the granted admin';
-  perform set_config('piervuln.test_expected_cases',(select count(*)::text from public.vulnerability_cases),true);
+  perform set_config('piervuln.test_expected_cases',(select count(*)::text from public.vulnerability_case_records),true);
 end;
 $$;
 
@@ -36,7 +36,7 @@ do $$
 begin
   assert (public.current_user_context()->>'is_internal_admin')::boolean,
     'Authenticated admin must be recognized';
-  assert (select count(*) from public.vulnerability_cases)=current_setting('piervuln.test_expected_cases')::bigint,
+  assert (select count(*) from public.vulnerability_case_records)=current_setting('piervuln.test_expected_cases')::bigint,
     'Admin must read the complete inventory through RLS';
 end;
 $$;
@@ -49,7 +49,7 @@ do $$
 begin
   assert not (public.current_user_context()->>'is_internal_admin')::boolean,
     'An ordinary corporate signup must remain non-admin';
-  assert (select count(*) from public.vulnerability_cases)=0,
+  assert (select count(*) from public.vulnerability_case_records)=0,
     'A signup without membership must not read the inventory';
 end;
 $$;

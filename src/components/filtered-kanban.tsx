@@ -6,6 +6,7 @@ import { CveKanban, type RemoteKanbanColumn } from "@/src/components/cve-kanban"
 import { type KanbanFilters, type KanbanSummary } from "@/src/lib/kanban";
 import { visibleText } from "@/src/lib/visible-text";
 import { withRequestTimeout } from "@/src/lib/request-timeout";
+import { compactCaseColumns, isMissingCompactCaseView, normalizeCaseRows } from "@/src/lib/compact-case-record";
 
 const stages = ["open", "in_progress", "awaiting_validation", "resolved"];
 type Column = RemoteKanbanColumn & { items: KanbanSummary[] };
@@ -99,12 +100,20 @@ export function FilteredKanban({ client, companyId, accessToken, canManage, comp
     const controller = new AbortController();
     setDetailLoading(true); setError(""); setDetails([]);
     void (async () => {
-      const { data, error: queryError, count } = await client.from("vulnerability_cases")
-        .select("id,workflow_status,wazuh_findings!inner(agent_id,agent_name,package_name,package_version,cvss_base)", { count: "exact" })
-        .eq("tenant_id", selected.tenantId).eq("wazuh_findings.vulnerability_id", selected.cve)
-        .order("id").range(detailPage * 20, detailPage * 20 + 19).abortSignal(controller.signal);
+      const legacySelection = "id,finding_id,tenant_id,workflow_status,closed_at,wazuh_findings!inner(id,agent_id,agent_name,package_name,package_version,cvss_base,vulnerability_id,source_state)";
+      const compactSelection = compactCaseColumns;
+      const pageRange = [detailPage * 20, detailPage * 20 + 19] as const;
+      let detailResult: any = await client.from("vulnerability_case_records").select(compactSelection, { count: "exact" })
+        .eq("tenant_id", selected.tenantId).eq("finding_vulnerability_id", selected.cve)
+        .order("id").range(...pageRange).abortSignal(controller.signal);
+      if (isMissingCompactCaseView(detailResult.error)) {
+        detailResult = await client.from("vulnerability_cases").select(legacySelection, { count: "exact" })
+          .eq("tenant_id", selected.tenantId).eq("wazuh_findings.vulnerability_id", selected.cve)
+          .order("id").range(...pageRange).abortSignal(controller.signal);
+      }
+      const { data, error: queryError, count } = detailResult;
       if (queryError) throw queryError;
-      const rows = (data ?? []) as unknown as Detail[];
+      const rows = normalizeCaseRows<Detail>(data ?? []);
       const keys = [...new Set(rows.map((row) => row.wazuh_findings.agent_id || row.wazuh_findings.agent_name).filter((key): key is string => Boolean(key)))];
       const classification = keys.length ? await client.from("asset_classifications").select("agent_key,is_critical")
         .eq("tenant_id", selected.tenantId).in("agent_key", keys).abortSignal(controller.signal) : { data: [], error: null };
