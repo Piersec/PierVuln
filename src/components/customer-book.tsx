@@ -30,6 +30,7 @@ import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { visibleText } from "@/src/lib/visible-text";
+import { Download } from "lucide-react";
 
 type Company = { id: string; name: string; slug: string; role: string };
 type SeverityDatum = { name: string; count: number; color: string };
@@ -92,6 +93,7 @@ export function CustomerBook() {
   const [latestSync, setLatestSync] = useState<SyncSummary>({ finishedAt: null, connections: 0, missingSnapshots: 0 });
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshRequested = useRef(false);
@@ -103,6 +105,52 @@ export function CustomerBook() {
     refreshRequested.current = true;
     notify({ title: "Atualizando relatório…", key: "book-feedback" });
     setRefreshKey((value) => value + 1);
+  }
+
+  async function exportReport() {
+    if (!session || !selectedCompany || exporting) return;
+    setExporting(true);
+    notify({ title: "Preparando o Excel com todos os registros ativos…", key: "book-export" });
+    try {
+      const response = await fetch("/api/reports/export", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ companyId: selectedCompany }),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(result?.error || "Não foi possível exportar o relatório.");
+      }
+
+      const blob = await response.blob();
+      if (!blob.size) throw new Error("O arquivo exportado ficou vazio.");
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.download = `PierVuln-${companies.find((company) => company.id === selectedCompany)?.slug ?? "relatorio"}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+      const count = Number(response.headers.get("X-Report-Record-Count"));
+      notify({
+        title: "Excel exportado.",
+        detail: Number.isFinite(count) && count > 0 ? `${count.toLocaleString("pt-BR")} registros incluídos.` : undefined,
+        key: "book-export",
+      });
+    } catch (error) {
+      notify({
+        title: "Não foi possível exportar o relatório.",
+        detail: error instanceof Error ? error.message : "Tente novamente em instantes.",
+        error: true,
+        key: "book-export",
+      });
+    } finally {
+      setExporting(false);
+    }
   }
 
   useEffect(() => {
@@ -302,7 +350,13 @@ export function CustomerBook() {
         <div className="book-content" id="book-overview" tabIndex={-1}>
           <div className="book-heading">
             <div><h1>Book dos Clientes</h1><p>Exposição atual, criticidade e tempo de permanência das vulnerabilidades.</p></div>
-            <div className={`book-source-state ${isStale ? "book-source-stale" : isAging ? "book-source-aging" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : isAging ? "Atualização recomendada" : "Leitura atualizada") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Snapshot mais antigo: ${formatDate(latestSync.finishedAt)}${latestSync.missingSnapshots ? ` · ${latestSync.missingSnapshots} fonte(s) sem snapshot` : ""}` : "Nenhum snapshot completo disponível"} · recomendada após 1h; atrasada após 2h · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
+            <div className="book-heading-actions">
+              <button className="button button-secondary book-export-button" onClick={() => void exportReport()} disabled={exporting || loading || !selectedCompany} title={!selectedCompany ? "Selecione uma empresa para exportar" : undefined}>
+                <Download size={16} aria-hidden="true" />
+                {exporting ? "Preparando Excel…" : "Exportar Excel"}
+              </button>
+              <div className={`book-source-state ${isStale ? "book-source-stale" : isAging ? "book-source-aging" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : isAging ? "Atualização recomendada" : "Leitura atualizada") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Snapshot mais antigo: ${formatDate(latestSync.finishedAt)}${latestSync.missingSnapshots ? ` · ${latestSync.missingSnapshots} fonte(s) sem snapshot` : ""}` : "Nenhum snapshot completo disponível"} · recomendada após 1h; atrasada após 2h · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
+            </div>
           </div>
 
           {contextError && <div className="book-alert" role="alert">{contextError}</div>}

@@ -766,6 +766,8 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .book-content { width: min(1520px, 100%); margin: 0 auto; padding: 32px clamp(18px, 2.6vw, 38px) 22px; }
 .book-heading { align-items: center; margin-bottom: 20px; }
 .book-heading h1 { font-size: clamp(28px, 2.8vw, 36px); }
+.book-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.book-export-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
 .book-source-state { min-width: 190px; }
 .book-overview { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
 .book-overview > article { min-width: 0; min-height: 130px; padding: 15px 16px; }
@@ -934,6 +936,8 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .page-heading h1, .book-heading h1 { font-size: 29px; }
   .page-heading p, .book-heading p { font-size: 14px; }
   .sync-indicator, .book-source-state { width: 100%; }
+  .book-heading-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .book-heading-actions .button { width: 100%; }
   .heading-link { min-height: 30px; }
   .overview-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .overview-bento > .bento-card { min-height: 135px; padding: 15px; }
