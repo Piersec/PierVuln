@@ -9,7 +9,7 @@ import { pipeline } from "node:stream/promises";
 import { createGunzip, createGzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import ExcelJS from "exceljs";
-import type { CellValue, Worksheet } from "exceljs";
+import type { CellValue, Row, Worksheet } from "exceljs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -87,13 +87,27 @@ type CollectedInventory = {
 };
 
 const colors = {
-  dark: "FF111619",
-  panel: "FF20272B",
-  header: "FF293438",
-  cyan: "FF48E9FF",
-  white: "FFF6F7F7",
-  line: "FFD6DCE0",
+  dark: "FF262626",
+  panel: "FF353535",
+  header: "FF444444",
+  white: "FFFFFFFF",
+  line: "FF656565",
+  critical: "FF91243E",
+  high: "FFC83B42",
+  medium: "FFA65300",
+  low: "FF147568",
 };
+const cellBorders = {
+  top: { style: "thin" as const, color: { argb: colors.line } },
+  left: { style: "thin" as const, color: { argb: colors.line } },
+  bottom: { style: "thin" as const, color: { argb: colors.line } },
+  right: { style: "thin" as const, color: { argb: colors.line } },
+};
+const styleCache = new Map<string, {
+  fill: NonNullable<ExcelJS.Style["fill"]>;
+  font: NonNullable<ExcelJS.Style["font"]>;
+  alignment: NonNullable<ExcelJS.Style["alignment"]>;
+}>();
 
 class ExportError extends Error {
   constructor(message: string, readonly status: number) {
@@ -124,10 +138,6 @@ function severityFor(score: number | null): SeverityKey {
   if (score >= 4) return "Medium";
   if (score >= 1) return "Low";
   return "Informational";
-}
-
-function severityLabel(severity: SeverityKey): string {
-  return ({ Critical: "Crítica", High: "Alta", Medium: "Média", Low: "Baixa", Informational: "Informativa", Unknown: "Sem classificação" })[severity];
 }
 
 function dateValue(value: string | null | undefined): Date | null {
@@ -183,47 +193,40 @@ function formatPeriod(row: HistoryRow): string {
   return `Semana ${short.format(start)}–${short.format(end)}/${year}`;
 }
 
-function addTitle(sheet: Worksheet, title: string, width: number) {
-  const row = sheet.addRow([title, ...Array.from({ length: Math.max(0, width - 1) }, () => null)]);
-  row.height = 30;
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.dark } };
-    cell.font = { name: "Aptos Display", size: 17, bold: true, color: { argb: colors.white } };
-    cell.alignment = { vertical: "middle" };
-  });
+function styleCell(row: Row, column: number, options: { fill?: string; size?: number; bold?: boolean; align?: "left" | "center"; wrap?: boolean } = {}) {
+  const cell = row.getCell(column);
+  const key = `${options.fill ?? colors.panel}/${options.size ?? 12}/${options.bold ?? false}/${options.align ?? "center"}/${options.wrap ?? true}`;
+  let style = styleCache.get(key);
+  if (!style) {
+    style = {
+      fill: { type: "pattern", pattern: "solid", fgColor: { argb: options.fill ?? colors.panel } },
+      font: { name: "Trebuchet MS", size: options.size ?? 12, bold: options.bold ?? false, color: { argb: colors.white } },
+      alignment: { horizontal: options.align ?? "center", vertical: "middle", wrapText: options.wrap ?? true },
+    };
+    styleCache.set(key, style);
+  }
+  cell.fill = style.fill;
+  cell.font = style.font;
+  cell.alignment = style.alignment;
+  cell.border = cellBorders;
+}
+
+function styleRange(row: Row, start: number, end: number, options: Parameters<typeof styleCell>[2] = {}) {
+  for (let column = start; column <= end; column += 1) styleCell(row, column, options);
+}
+
+function titleRow(sheet: Worksheet, title: string, end: number, start = 3) {
+  const row = sheet.addRow([]);
+  row.height = 87;
+  styleRange(row, 1, end, { fill: colors.dark, size: 26, bold: true });
+  row.getCell(start).value = title;
+  sheet.mergeCells(1, start, 1, end);
   row.commit();
 }
 
-function addSection(sheet: Worksheet, title: string, width: number) {
-  const row = sheet.addRow([title, ...Array.from({ length: Math.max(0, width - 1) }, () => null)]);
-  row.height = 23;
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.panel } };
-    cell.font = { name: "Aptos", size: 12, bold: true, color: { argb: colors.cyan } };
-    cell.alignment = { vertical: "middle" };
-  });
-  row.commit();
-}
-
-function addHeader(sheet: Worksheet, values: CellValue[]) {
-  const row = sheet.addRow(values);
-  row.height = 29;
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.header } };
-    cell.font = { name: "Aptos", size: 10, bold: true, color: { argb: colors.white } };
-    cell.alignment = { vertical: "middle", wrapText: true };
-    cell.border = { bottom: { style: "thin", color: { argb: colors.cyan } } };
-  });
-  row.commit();
-}
-
-function addDataRow(sheet: Worksheet, values: CellValue[]) {
-  const row = sheet.addRow(values);
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.font = { name: "Aptos", size: 10, color: { argb: colors.dark } };
-    cell.alignment = { vertical: "top", wrapText: true };
-    cell.border = { bottom: { style: "hair", color: { argb: colors.line } } };
-  });
+function spacer(sheet: Worksheet, height = 33) {
+  const row = sheet.addRow([]);
+  row.height = height;
   row.commit();
 }
 
@@ -396,68 +399,87 @@ async function writeWorkbook(args: {
   workbook.modified = generatedAt;
 
   const selectedHistory = historyRowsForExcel(history, generatedAt);
-  const overview = workbook.addWorksheet("Visão Geral", { views: [{ state: "frozen", ySplit: 5 }] });
-  overview.columns = [{ width: 25 }, { width: 18 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 21 }, { width: 16 }, { width: 16 }, { width: 24 }];
-  addTitle(overview, "Gestão de Vulnerabilidades", 12);
-  addDataRow(overview, ["Empresa", companyName, "Gerado em", generatedAt]);
-  addDataRow(overview, ["Última leitura completa", dateValue(snapshot?.refreshed_at) ?? "Não disponível", "Estado da leitura", snapshot?.stale ? "Desatualizada" : "Atual"]);
-  addSection(overview, "Resumo atual por severidade", 3);
-  addHeader(overview, ["Severidade", "Quantidade", "% do total"]);
-  const overviewSeverityRows: [string, number][] = [
-    ["Crítica", inventory.totals.Critical],
-    ["Alta", inventory.totals.High],
-    ["Média", inventory.totals.Medium],
-    ["Baixa", inventory.totals.Low],
-    ["Informativa", inventory.totals.Informational],
-    ["Sem classificação", inventory.totals.Unknown],
-    ["Total exportado", inventory.rowCount],
+  const overview = workbook.addWorksheet("Visão Geral", { views: [{ state: "frozen", ySplit: 3 }] });
+  overview.columns = [15.7, 20.9, 20.9, 20.9, 15.7, 20.9, 20.9, 20.9, 20.9, 20.9, 15.7, 20.7, 20.7].map((width) => ({ width }));
+  titleRow(overview, "Gestão de Vulnerabilidades", 13, 4);
+  spacer(overview);
+  const overviewHeader = overview.addRow([null, "Severidade", "Quantidade", "% variação", null, "Mês", "Corrigidas", "Novas", "Total", "Variação", null, "Última alteração"]);
+  overviewHeader.height = 39;
+  styleRange(overviewHeader, 2, 4, { fill: colors.panel, bold: true });
+  styleRange(overviewHeader, 6, 10, { fill: colors.panel, bold: true });
+  styleRange(overviewHeader, 12, 13, { fill: colors.panel, bold: true });
+  overviewHeader.commit();
+  const severitySummary: [string, number, string][] = [
+    ["Low", inventory.totals.Low, colors.low],
+    ["Medium", inventory.totals.Medium, colors.medium],
+    ["High", inventory.totals.High, colors.high],
+    ["Critical", inventory.totals.Critical, colors.critical],
+    ["Informational", inventory.totals.Informational, colors.header],
+    ["Unknown", inventory.totals.Unknown, colors.header],
   ];
-  for (const [label, value] of overviewSeverityRows) {
-    const row = overview.addRow([label, value, inventory.rowCount ? value / inventory.rowCount : 0]);
-    row.getCell(2).numFmt = "#,##0";
-    row.getCell(3).numFmt = "0.0%";
+  const monthlyHistory = selectedHistory.filter((item) => item.granularity === "monthly").slice(-12);
+  const summaryRows = Math.max(severitySummary.length, monthlyHistory.length, 4);
+  for (let index = 0; index < summaryRows; index += 1) {
+    const severity = severitySummary[index];
+    const historyItem = monthlyHistory[index];
+    const row = overview.addRow([]);
+    row.height = 39;
+    if (severity) {
+      row.getCell(2).value = severity[0];
+      row.getCell(3).value = severity[1];
+      row.getCell(3).numFmt = "#,##0";
+      row.getCell(4).value = "—";
+      styleRange(row, 2, 4, { fill: severity[2], bold: true });
+    }
+    if (historyItem) {
+      row.getCell(6).value = formatPeriod(historyItem);
+      row.getCell(7).value = "—";
+      row.getCell(8).value = "—";
+      row.getCell(9).value = historyItem.total_findings;
+      row.getCell(9).numFmt = "#,##0";
+      row.getCell(10).value = "—";
+      styleRange(row, 6, 10, { fill: colors.panel });
+    }
+    if (index === 0) {
+      row.getCell(12).value = dateValue(snapshot?.refreshed_at) ?? "Não disponível";
+      row.getCell(12).numFmt = "dd/mm/yyyy hh:mm";
+      row.getCell(13).value = companyName;
+      styleRange(row, 12, 13);
+    }
     row.commit();
   }
-  addDataRow(overview, ["Hosts afetados", inventory.affectedHostKeys.size, "CVEs únicos", inventory.uniqueCves.size]);
-  addSection(overview, "Histórico de snapshots", 12);
-  addHeader(overview, ["Granularidade", "Período", "Total", "Crítica", "Alta", "Média", "Baixa", "Informativa", "Sem classificação", "Novas", "Corrigidas", "Origem"]);
-  for (const item of selectedHistory) {
-    addDataRow(overview, [
-      item.granularity === "monthly" ? "Mensal" : "Semanal",
-      formatPeriod(item),
-      item.total_findings,
-      item.critical_count,
-      item.high_count,
-      item.medium_count,
-      item.low_count,
-      item.informational_count,
-      item.unclassified_count,
-      null,
-      null,
-      item.source_kind === "report" ? "Relatório histórico" : "Snapshot agregado",
-    ]);
-  }
-  addDataRow(overview, ["Nota", "O histórico disponível guarda totais agregados; novas e corrigidas não são calculadas sem eventos históricos completos."]);
+  spacer(overview);
+  const overviewTotal = overview.addRow([null, "Total exportado", inventory.rowCount, null, null, "Hosts afetados", inventory.affectedHostKeys.size, null, "CVEs únicos", inventory.uniqueCves.size]);
+  overviewTotal.height = 39;
+  styleRange(overviewTotal, 2, 3, { fill: colors.header, bold: true });
+  styleRange(overviewTotal, 6, 7, { fill: colors.header, bold: true });
+  styleRange(overviewTotal, 9, 10, { fill: colors.header, bold: true });
+  overviewTotal.commit();
+  const overviewNote = overview.addRow([null, "Variação, novas e corrigidas aparecem como — quando não há histórico de eventos para calcular esses valores."]);
+  overviewNote.height = 39;
+  styleRange(overviewNote, 2, 10, { fill: colors.dark, align: "left" });
+  overview.mergeCells(overviewNote.number, 2, overviewNote.number, 10);
+  overviewNote.commit();
 
-  const assets = workbook.addWorksheet("Ativos e Softwares", { views: [{ state: "frozen", ySplit: 3 }] });
-  assets.columns = Array.from({ length: 18 }, (_, index) => ({ width: index === 0 || index === 10 ? 36 : index === 7 || index === 17 ? 15 : 14 }));
-  addTitle(assets, "Vulnerabilidades por ativo e software", 18);
-  addSection(assets, "Ativos e pacotes", 18);
-  const severityColumns = ["Low", "Medium", "High", "Critical", "Informational", "Unknown"] as const;
-  const leftHeaders = ["Host", "Baixa", "Média", "Alta", "Crítica", "Informativa", "Sem classificação", "Total"];
-  const rightHeaders = ["Componente vulnerável", "Baixa", "Média", "Alta", "Crítica", "Informativa", "Sem classificação", "Total"];
-  const headerValues = new Array<CellValue>(18).fill(null);
-  leftHeaders.forEach((value, index) => { headerValues[index] = value; });
-  rightHeaders.forEach((value, index) => { headerValues[index + 10] = value; });
-  const headers = assets.addRow(headerValues);
-  headers.height = 29;
-  headers.eachCell({ includeEmpty: true }, (cell, column) => {
-    if ((column >= 1 && column <= 8) || (column >= 11 && column <= 18)) {
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.header } };
-      cell.font = { name: "Aptos", size: 10, bold: true, color: { argb: colors.white } };
-      cell.alignment = { vertical: "middle", wrapText: true };
-    }
-  });
+  const assets = workbook.addWorksheet("Ativos e Softwares", { views: [{ state: "frozen", ySplit: 4 }] });
+  assets.columns = [13.7, 18.7, 18.7, 18.7, 18.7, 18.7, 18.7, 13.7, 27.7, 18.7, 18.7, 18.7, 18.7, 18.7].map((width) => ({ width }));
+  titleRow(assets, "Gestão de Vulnerabilidades", 14, 4);
+  spacer(assets);
+  const assetSection = assets.addRow([]);
+  assetSection.height = 39;
+  assetSection.getCell(2).value = "Vulnerabilidades por Host";
+  assetSection.getCell(9).value = "Vulnerabilidades por Software";
+  styleRange(assetSection, 2, 7, { fill: colors.dark, bold: true });
+  styleRange(assetSection, 9, 14, { fill: colors.dark, bold: true });
+  assets.mergeCells(3, 2, 3, 7);
+  assets.mergeCells(3, 9, 3, 14);
+  assetSection.commit();
+  const severityColumns = ["Low", "Medium", "High", "Critical"] as const;
+  const headers = assets.addRow([null, "Host", "Low", "Medium", "High", "Critical", "Total", null, "Pacote", "Low", "Medium", "High", "Critical", "Total"]);
+  headers.height = 39;
+  styleRange(headers, 2, 7, { fill: colors.panel, bold: true });
+  styleRange(headers, 9, 14, { fill: colors.panel, bold: true });
+  for (const [column, fill] of [[3, colors.low], [4, colors.medium], [5, colors.high], [6, colors.critical], [10, colors.low], [11, colors.medium], [12, colors.high], [13, colors.critical]] as const) styleCell(headers, column, { fill, bold: true });
   headers.commit();
 
   const hostRows = [...inventory.hosts.values()].sort(sortCounts);
@@ -465,9 +487,13 @@ async function writeWorkbook(args: {
   const countValues = (row: GroupedAsset) => [row.label, ...severityColumns.map((key) => row[key]), row.total];
   const alignedRows = Math.max(hostRows.length, softwareRows.length);
   for (let index = 0; index < alignedRows; index += 1) {
-    const left = hostRows[index] ? countValues(hostRows[index]) : Array<CellValue>(8).fill(null);
-    const right = softwareRows[index] ? countValues(softwareRows[index]) : Array<CellValue>(8).fill(null);
-    addDataRow(assets, [...left, null, null, ...right]);
+    const left = hostRows[index] ? countValues(hostRows[index]) : Array<CellValue>(6).fill(null);
+    const right = softwareRows[index] ? countValues(softwareRows[index]) : Array<CellValue>(6).fill(null);
+    const row = assets.addRow([null, ...left, null, ...right]);
+    row.height = 39;
+    if (hostRows[index]) styleRange(row, 2, 7);
+    if (softwareRows[index]) styleRange(row, 9, 14);
+    row.commit();
   }
   const hostTotals = emptySeverityCounts();
   const softwareTotals = emptySeverityCounts();
@@ -479,30 +505,40 @@ async function writeWorkbook(args: {
     for (const severity of severityKeys) softwareTotals[severity] += row[severity];
     softwareTotals.total += row.total;
   }
-  const assetTotalRow = assets.addRow(["Total Geral", ...severityColumns.map((key) => hostTotals[key]), hostTotals.total, null, null, "Total Geral", ...severityColumns.map((key) => softwareTotals[key]), softwareTotals.total]);
-  assetTotalRow.eachCell((cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.panel } };
-    cell.font = { name: "Aptos", size: 10, bold: true, color: { argb: colors.dark } };
-  });
+  const assetTotalRow = assets.addRow([null, "Total Geral", ...severityColumns.map((key) => hostTotals[key]), hostTotals.total, null, "Total Geral", ...severityColumns.map((key) => softwareTotals[key]), softwareTotals.total]);
+  assetTotalRow.height = 39;
+  styleRange(assetTotalRow, 2, 7, { fill: colors.header, bold: true });
+  styleRange(assetTotalRow, 9, 14, { fill: colors.header, bold: true });
   assetTotalRow.commit();
 
-  const exposure = workbook.addWorksheet("Tempo de Exposição", { views: [{ state: "frozen", ySplit: 5 }] });
-  exposure.columns = [{ width: 18 }, { width: 28 }, { width: 20 }, { width: 55 }, { width: 20 }, { width: 12 }, { width: 21 }, { width: 21 }];
-  addTitle(exposure, "Tempo de Exposição", 8);
-  addHeader(exposure, [">90 Dias", "61–90 Dias", "31–60 Dias", "<30 Dias", "Hosts afetados", "CVEs únicos", "Registros ativos", "Sem classificação"]);
-  const ageSummary = exposure.addRow([
-    inventory.ageCounts[0], inventory.ageCounts[1], inventory.ageCounts[2], inventory.ageCounts[3],
-    inventory.affectedHostKeys.size, inventory.uniqueCves.size, inventory.rowCount, inventory.totals.Unknown,
-  ]);
-  ageSummary.eachCell((cell) => { cell.font = { name: "Aptos", size: 12, bold: true, color: { argb: colors.dark } }; });
+  const exposure = workbook.addWorksheet("Tempo de Exposição", { views: [{ state: "frozen", ySplit: 6 }] });
+  exposure.columns = Array.from({ length: 8 }, () => ({ width: 30.7 }));
+  titleRow(exposure, "Tempo de Exposição", 8);
+  spacer(exposure);
+  const ageHeader = exposure.addRow([">90 Dias", "61-90 Dias", "31-60 Dias", "<30 Dias", null, null, "Hosts Afetados", "CVEs Únicos"]);
+  ageHeader.height = 45;
+  styleRange(ageHeader, 1, 4, { bold: true, size: 16 });
+  styleCell(ageHeader, 1, { fill: colors.critical, bold: true, size: 16 });
+  styleCell(ageHeader, 2, { fill: colors.high, bold: true, size: 16 });
+  styleCell(ageHeader, 3, { fill: colors.medium, bold: true, size: 16 });
+  styleCell(ageHeader, 4, { fill: colors.low, bold: true, size: 16 });
+  styleRange(ageHeader, 7, 8, { fill: colors.panel, bold: true, size: 16 });
+  ageHeader.commit();
+  const ageSummary = exposure.addRow([inventory.ageCounts[0], inventory.ageCounts[1], inventory.ageCounts[2], inventory.ageCounts[3], null, null, inventory.affectedHostKeys.size, inventory.uniqueCves.size]);
+  ageSummary.height = 45;
+  styleRange(ageSummary, 1, 4, { fill: colors.panel, bold: true, size: 18 });
+  styleRange(ageSummary, 7, 8, { fill: colors.panel, bold: true, size: 18 });
   ageSummary.commit();
-  addSection(exposure, "Detalhamento dos registros ativos", 8);
-  addHeader(exposure, ["Prioridade", "Host", "CVE", "Componente", "Severidade", "CVSS", "Primeira detecção", "Última detecção"]);
+  spacer(exposure);
+  const ageDetailHeader = exposure.addRow(["Prioridade", "Host", "CVE", "Componente", "Severidade", "CVSS", "Primeira Detecção", "Última Detecção"]);
+  ageDetailHeader.height = 39;
+  styleRange(ageDetailHeader, 1, 8, { fill: colors.panel, bold: true });
+  ageDetailHeader.commit();
 
-  const remediation = workbook.addWorksheet("Plano de Remediação", { views: [{ state: "frozen", ySplit: 7 }] });
-  remediation.columns = [{ width: 16 }, { width: 18 }, { width: 20 }, { width: 70 }, { width: 55 }, { width: 70 }, { width: 45 }, { width: 52 }, { width: 24 }, { width: 3 }, { width: 24 }, { width: 14 }];
+  const remediation = workbook.addWorksheet("Plano de Remediação", { views: [{ state: "frozen", ySplit: 3 }] });
+  remediation.columns = [25.7, 25.7, 25.7, 56.7, 35.7, 35.7, 25.7, 35.7, 20.7, 15.7, 20.7, 20.7].map((width) => ({ width }));
   const orderedGroups = [...inventory.cves.values()].sort((left, right) =>
-    priorityRank(right.ageDays) - priorityRank(left.ageDays)
+    priorityRank(left.ageDays) - priorityRank(right.ageDays)
     || severityRank(left.severity) - severityRank(right.severity)
     || right.ageDays - left.ageDays
     || left.cve.localeCompare(right.cve),
@@ -512,55 +548,56 @@ async function writeWorkbook(args: {
     const label = workflowLabel(group.statuses);
     statusTotals.set(label, (statusTotals.get(label) ?? 0) + 1);
   }
-  const planTitle = remediation.addRow(["Plano de Remediação", null, null, null, null, null, null, null, null, null, "Status das correções", null]);
-  planTitle.height = 30;
-  planTitle.eachCell({ includeEmpty: true }, (cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.dark } };
-    cell.font = { name: "Aptos Display", size: 15, bold: true, color: { argb: colors.white } };
-    cell.alignment = { vertical: "middle" };
-  });
+  const planTitle = remediation.addRow([]);
+  planTitle.height = 87;
+  styleRange(planTitle, 1, 12, { fill: colors.dark, size: 26, bold: true });
+  planTitle.getCell(3).value = "Plano de Remediação";
+  planTitle.getCell(11).value = "Status das correções";
+  remediation.mergeCells(1, 3, 1, 9);
+  planTitle.getCell(11).font = { name: "Trebuchet MS", size: 16, bold: true, color: { argb: colors.white } };
   planTitle.commit();
-  const statusHeader = remediation.addRow([null, null, null, null, null, null, null, null, null, null, "Status", "Quantidade"]);
-  statusHeader.height = 25;
-  statusHeader.eachCell({ includeEmpty: true }, (cell, column) => {
-    if (column >= 11) {
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.header } };
-      cell.font = { name: "Aptos", size: 10, bold: true, color: { argb: colors.white } };
-    }
-  });
-  statusHeader.commit();
-  for (const status of ["Pendente", "Em andamento", "Aguardando validação", "Resolvida pela fonte"]) {
-    addDataRow(remediation, [null, null, null, null, null, null, null, null, null, null, status, statusTotals.get(status) ?? 0]);
-  }
-  const planHeader = remediation.addRow(["Prioridade", "Severidade", "CVE", "Descrição", "Risco", "Solução", "Referência", "Hosts Afetados", "Status", null, null, null]);
-  planHeader.height = 29;
-  planHeader.eachCell({ includeEmpty: true }, (cell, column) => {
-    if (column <= 9 || column >= 11) {
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.header } };
-      cell.font = { name: "Aptos", size: 10, bold: true, color: { argb: colors.white } };
-      cell.alignment = { vertical: "middle", wrapText: true };
-    }
-  });
+  const planStatus = remediation.addRow([]);
+  planStatus.height = 45;
+  planStatus.getCell(11).value = "Pendente";
+  planStatus.getCell(12).value = statusTotals.get("Pendente") ?? 0;
+  styleCell(planStatus, 11, { fill: colors.critical, bold: true });
+  styleCell(planStatus, 12, { fill: colors.panel, bold: true });
+  planStatus.commit();
+  const planHeader = remediation.addRow(["Prioridade", "Severidade", "CVE", "Descrição", "Risco", "Solução", "Referência", "Hosts Afetados", "Status", null, "Em andamento", statusTotals.get("Em andamento") ?? 0]);
+  planHeader.height = 45;
+  styleRange(planHeader, 1, 9, { fill: colors.panel, bold: true });
+  styleCell(planHeader, 11, { fill: colors.medium, bold: true });
+  styleCell(planHeader, 12, { fill: colors.panel, bold: true });
   planHeader.commit();
 
-  const report = workbook.addWorksheet("Report", { views: [{ state: "frozen", ySplit: 5 }] });
-  report.columns = [{ width: 25 }, { width: 34 }, { width: 52 }, { width: 20 }, { width: 90 }, { width: 22 }, { width: 12 }, { width: 70 }];
-  addTitle(report, "Gestão de Vulnerabilidades", 8);
-  addHeader(report, ["Critical", "High", "Medium", "Low", "Informational", "Unclassified", "Ativos exportados", "Empresa"]);
+  const report = workbook.addWorksheet("Report", { views: [{ state: "frozen", ySplit: 7 }] });
+  report.columns = [28.7, 28.7, 28.7, 28.7, 80.9, 25.7, 25.7, 60.3].map((width) => ({ width }));
+  titleRow(report, "Gestão de Vulnerabilidades", 8);
+  spacer(report, 45);
+  const severityHeader = report.addRow(["Critical", "High", "Medium", "Low", null, "Última alteração"]);
+  severityHeader.height = 45;
+  for (const [column, fill] of [[1, colors.critical], [2, colors.high], [3, colors.medium], [4, colors.low]] as const) styleCell(severityHeader, column, { fill, bold: true, size: 16 });
+  styleRange(severityHeader, 6, 7, { fill: colors.panel, bold: true });
+  severityHeader.commit();
   const summaryRow = report.addRow([
-    inventory.totals.Critical,
-    inventory.totals.High,
-    inventory.totals.Medium,
-    inventory.totals.Low,
-    inventory.totals.Informational,
-    inventory.totals.Unknown,
-    inventory.rowCount,
-    companyName,
+    inventory.totals.Critical, inventory.totals.High, inventory.totals.Medium, inventory.totals.Low,
+    null, dateValue(snapshot?.refreshed_at) ?? "Não disponível", companyName,
   ]);
-  summaryRow.eachCell((cell, column) => { if (column <= 7) cell.numFmt = "#,##0"; });
+  summaryRow.height = 45;
+  styleRange(summaryRow, 1, 4, { fill: colors.panel, bold: true, size: 18 });
+  styleRange(summaryRow, 6, 7, { fill: colors.panel });
+  summaryRow.getCell(6).numFmt = "dd/mm/yyyy hh:mm";
   summaryRow.commit();
-  addSection(report, "REPORT DE VULNERABILIDADES (ENDPOINT)", 8);
-  addHeader(report, ["Hostname", "Sistema Operacional", "Componente Vulnerável", "CVE", "Descrição", "Severidade", "CVSS", "Referência"]);
+  spacer(report);
+  const reportSection = report.addRow(["REPORT DE VULNERABILIDADES (ENDPOINT)"]);
+  reportSection.height = 42;
+  styleRange(reportSection, 1, 8, { fill: colors.dark, bold: true, size: 16 });
+  report.mergeCells(6, 1, 6, 8);
+  reportSection.commit();
+  const reportHeader = report.addRow(["Hostname", "Sistema Operacional", "Componente Vulnerável", "CVE", "Descrição", "Severidade", "CVSS", "Referência"]);
+  reportHeader.height = 42;
+  styleRange(reportHeader, 1, 8, { fill: colors.panel, bold: true });
+  reportHeader.commit();
 
   const input = createReadStream(archivePath).pipe(createGunzip());
   const lines = createInterface({ input, crlfDelay: Infinity });
@@ -573,11 +610,14 @@ async function writeWorkbook(args: {
       row.component,
       row.cve,
       row.description,
-      severityLabel(row.severity),
+      row.severity,
       row.score,
       row.reference,
     ]);
-    detail.eachCell((cell) => { cell.alignment = { vertical: "top", wrapText: true }; });
+    detail.height = 36;
+    styleRange(detail, 1, 8);
+    detail.getCell(7).numFmt = "0.0";
+    if (/^https?:\/\//i.test(row.reference)) detail.getCell(8).value = { text: row.reference, hyperlink: row.reference };
     detail.commit();
 
     const age = exposure.addRow([
@@ -585,16 +625,16 @@ async function writeWorkbook(args: {
       row.hostName,
       row.cve,
       row.component,
-      severityLabel(row.severity),
+      row.severity,
       row.score,
       dateValue(row.firstDetected),
       dateValue(row.lastSeen),
     ]);
-    age.eachCell((cell, column) => {
-      cell.alignment = { vertical: "top", wrapText: column === 4 };
-      if (column === 6) cell.numFmt = "0.0";
-      if (column === 7 || column === 8) cell.numFmt = "dd/mm/yyyy hh:mm";
-    });
+    age.height = 39;
+    styleRange(age, 1, 8);
+    age.getCell(6).numFmt = "0.0";
+    age.getCell(7).numFmt = "mm-yyyy";
+    age.getCell(8).numFmt = "mm-yyyy";
     age.commit();
   }
 
@@ -608,7 +648,7 @@ async function writeWorkbook(args: {
       : "Aplicar a atualização de segurança recomendada pelo fabricante e validar a correção em ambiente controlado.";
     const detail = remediation.addRow([
       ageBand(group.ageDays),
-      severityLabel(group.severity),
+      group.severity,
       group.cve,
       group.description || "A fonte não disponibilizou uma descrição.",
       risk,
@@ -617,15 +657,26 @@ async function writeWorkbook(args: {
       [...group.hosts.values()].sort((a, b) => a.localeCompare(b)).join(", "),
       status,
     ]);
-    detail.eachCell((cell) => { cell.alignment = { vertical: "top", wrapText: true }; });
+    detail.height = Math.min(180, Math.max(39, Math.ceil(group.description.length / 56) * 15));
+    styleRange(detail, 1, 9);
+    const reference = [...group.references][0];
+    if (reference && /^https?:\/\//i.test(reference)) detail.getCell(7).value = { text: "Link Oficial", hyperlink: reference };
+    if (detail.number === 4) {
+      detail.getCell(11).value = "Aguardando validação";
+      detail.getCell(12).value = statusTotals.get("Aguardando validação") ?? 0;
+      styleRange(detail, 11, 12, { fill: colors.panel, bold: true });
+    }
+    if (detail.number === 5) {
+      detail.getCell(11).value = "Resolvida pela fonte";
+      detail.getCell(12).value = statusTotals.get("Resolvida pela fonte") ?? 0;
+      styleRange(detail, 11, 12, { fill: colors.panel, bold: true });
+    }
     detail.commit();
   }
 
-  overview.autoFilter = `A15:L${Math.max(15, selectedHistory.length + 15)}`;
-  assets.autoFilter = `A3:R${Math.max(3, alignedRows + 3)}`;
-  exposure.autoFilter = `A5:H${inventory.rowCount + 5}`;
-  remediation.autoFilter = `A7:I${orderedGroups.length + 7}`;
-  report.autoFilter = `A5:H${inventory.rowCount + 5}`;
+  exposure.autoFilter = `A6:H${inventory.rowCount + 6}`;
+  remediation.autoFilter = `A3:I${orderedGroups.length + 3}`;
+  report.autoFilter = `A7:H${inventory.rowCount + 7}`;
   overview.commit();
   assets.commit();
   exposure.commit();
