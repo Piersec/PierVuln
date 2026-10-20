@@ -122,7 +122,10 @@ export function CustomerBook() {
       });
       if (!response.ok) {
         const result = await response.json().catch(() => null) as { error?: string } | null;
-        throw new Error(result?.error || "Não foi possível exportar o relatório.");
+        const fallback = response.status === 504
+          ? "A exportação excedeu o tempo do servidor. Tente novamente em instantes."
+          : `Não foi possível exportar o relatório (HTTP ${response.status}).`;
+        throw new Error(result?.error || fallback);
       }
 
       const blob = await response.blob();

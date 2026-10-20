@@ -79,6 +79,7 @@ type GroupedCve = {
   statuses: Set<string>;
 };
 type CollectedInventory = {
+  archivePaths: string[];
   totals: SeverityCounts;
   hosts: Map<string, GroupedAsset>;
   software: Map<string, GroupedAsset>;
@@ -290,6 +291,7 @@ async function collectInventory(args: {
 }): Promise<CollectedInventory> {
   const { client, companyId, archivePath, generatedAt, signal } = args;
   const inventory: CollectedInventory = {
+    archivePaths: [],
     totals: emptySeverityCounts(),
     hosts: new Map(),
     software: new Map(),
@@ -299,18 +301,31 @@ async function collectInventory(args: {
     ageCounts: [0, 0, 0, 0],
     rowCount: 0,
   };
-  const gzip = createGzip({ level: 6 });
-  const outputDone = pipeline(gzip, createWriteStream(archivePath));
-  let afterId: string | null = null;
+  const boundaries = [
+    "3fffffff-ffff-ffff-ffff-ffffffffffff",
+    "7fffffff-ffff-ffff-ffff-ffffffffffff",
+    "bfffffff-ffff-ffff-ffff-ffffffffffff",
+  ];
+  const ranges = [null, ...boundaries].map((start, index) => ({
+    start,
+    end: boundaries[index] ?? null,
+    path: `${archivePath}.${index}`,
+  }));
+  const failure = new AbortController();
+  const combinedSignal = AbortSignal.any([signal, failure.signal]);
 
-  try {
+  async function collectRange(range: (typeof ranges)[number]) {
+    const gzip = createGzip({ level: 6 });
+    const outputDone = pipeline(gzip, createWriteStream(range.path));
+    let afterId = range.start;
+    try {
     while (true) {
-      if (signal.aborted) throw new ExportError("A exportação foi cancelada.", 499);
+      if (combinedSignal.aborted) throw new ExportError("A exportação foi cancelada.", 499);
       const { data, error } = await client.rpc("get_report_export_batch", {
         p_company_id: companyId,
         p_after_id: afterId,
         p_limit: batchSize,
-      }).abortSignal(signal);
+      }).abortSignal(combinedSignal);
       if (error) {
         console.error("[reports/export] batch read failed", { code: error.code });
         if (error.code === "57014") {
@@ -324,6 +339,7 @@ async function collectInventory(args: {
       const archiveLines: string[] = [];
 
       for (const finding of rows) {
+        if (range.end && finding.finding_id > range.end) break;
         const row = toExportRow(finding, generatedAt);
         archiveLines.push(JSON.stringify(row));
         inventory.rowCount += 1;
@@ -366,7 +382,8 @@ async function collectInventory(args: {
         }
       }
 
-      if (!gzip.write(`${archiveLines.join("\n")}\n`)) await once(gzip, "drain");
+      if (archiveLines.length && !gzip.write(`${archiveLines.join("\n")}\n`)) await once(gzip, "drain");
+      if (range.end && rows[rows.length - 1].finding_id > range.end) break;
       const nextId = rows[rows.length - 1]?.finding_id;
       if (!nextId || nextId === afterId) {
         throw new ExportError("A paginação dos registros não avançou.", 502);
@@ -376,12 +393,19 @@ async function collectInventory(args: {
     }
     gzip.end();
     await outputDone;
-    return inventory;
   } catch (error) {
+    failure.abort(error);
     gzip.destroy(error instanceof Error ? error : new Error("Falha ao preparar o arquivo temporário."));
     await outputDone.catch(() => undefined);
     throw error;
   }
+  }
+
+  const results = await Promise.allSettled(ranges.map(collectRange));
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (failed) throw failed.reason;
+  inventory.archivePaths = ranges.map((range) => range.path);
+  return inventory;
 }
 
 function sortCounts(a: GroupedAsset, b: GroupedAsset): number {
@@ -470,7 +494,7 @@ async function attachOverviewCharts(outputPath: string, totals: SeverityCounts, 
 }
 
 async function writeWorkbook(args: {
-  archivePath: string;
+  archivePaths: string[];
   outputPath: string;
   companyName: string;
   inventory: CollectedInventory;
@@ -478,7 +502,7 @@ async function writeWorkbook(args: {
   snapshot: { refreshed_at: string; stale: boolean } | null;
   generatedAt: Date;
 }) {
-  const { archivePath, outputPath, companyName, inventory, history, snapshot, generatedAt } = args;
+  const { archivePaths, outputPath, companyName, inventory, history, snapshot, generatedAt } = args;
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
     filename: outputPath,
     useStyles: true,
@@ -708,9 +732,10 @@ async function writeWorkbook(args: {
   styleRange(reportHeader, 1, 8, { fill: colors.panel, bold: true });
   reportHeader.commit();
 
-  const input = createReadStream(archivePath).pipe(createGunzip());
-  const lines = createInterface({ input, crlfDelay: Infinity });
-  for await (const line of lines) {
+  for (const archivePath of archivePaths) {
+    const input = createReadStream(archivePath).pipe(createGunzip());
+    const lines = createInterface({ input, crlfDelay: Infinity });
+    for await (const line of lines) {
     if (!line) continue;
     const row = JSON.parse(line) as ExportRow;
     const detail = report.addRow([
@@ -745,6 +770,7 @@ async function writeWorkbook(args: {
     age.getCell(7).style = denseMonthStyle;
     age.getCell(8).style = denseMonthStyle;
     age.commit();
+    }
   }
 
   for (const group of orderedGroups) {
@@ -861,7 +887,7 @@ export async function POST(request: Request) {
     if (markerBefore !== markerAfter) throw new ExportError("A leitura da empresa mudou durante a exportação. Tente gerar o arquivo novamente.", 409);
 
     await writeWorkbook({
-      archivePath,
+      archivePaths: inventory.archivePaths,
       outputPath: filePath,
       companyName: company.name,
       inventory,
