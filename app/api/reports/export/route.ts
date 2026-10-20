@@ -18,7 +18,7 @@ import chartTemplates from "../../../../src/lib/report-chart-templates.json";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const batchSize = 5_000;
+const batchSize = 1_000;
 const severityKeys = ["Critical", "High", "Medium", "Low", "Informational", "Unknown"] as const;
 type SeverityKey = (typeof severityKeys)[number];
 type SeverityCounts = Record<SeverityKey, number> & { total: number };
@@ -355,8 +355,12 @@ async function collectInventory(args: {
       }
 
       if (!gzip.write(`${archiveLines.join("\n")}\n`)) await once(gzip, "drain");
-      afterId = rows.reduce((cursor, row) => row.finding_id > cursor ? row.finding_id : cursor, afterId ?? "");
-      if (!afterId || rows.length < batchSize) break;
+      const nextId = rows[rows.length - 1]?.finding_id;
+      if (!nextId || nextId === afterId) {
+        throw new ExportError("A paginação dos registros não avançou.", 502);
+      }
+      // O limite de linhas da API pode ser menor que p_limit; só uma página vazia encerra a leitura.
+      afterId = nextId;
     }
     gzip.end();
     await outputDone;
