@@ -18,7 +18,7 @@ import chartTemplates from "../../../../src/lib/report-chart-templates.json";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const batchSize = 1_000;
+const batchSize = 250;
 const severityKeys = ["Critical", "High", "Medium", "Low", "Informational", "Unknown"] as const;
 type SeverityKey = (typeof severityKeys)[number];
 type SeverityCounts = Record<SeverityKey, number> & { total: number };
@@ -318,17 +318,25 @@ async function collectInventory(args: {
     const gzip = createGzip({ level: 6 });
     const outputDone = pipeline(gzip, createWriteStream(range.path));
     let afterId = range.start;
+    let pageSize = batchSize;
+    let timeoutRetries = 0;
     try {
     while (true) {
       if (combinedSignal.aborted) throw new ExportError("A exportação foi cancelada.", 499);
       const { data, error } = await client.rpc("get_report_export_batch", {
         p_company_id: companyId,
         p_after_id: afterId,
-        p_limit: batchSize,
+        p_limit: pageSize,
       }).abortSignal(combinedSignal);
       if (error) {
         console.error("[reports/export] batch read failed", { code: error.code });
         if (error.code === "57014") {
+          if (timeoutRetries < 3) {
+            timeoutRetries += 1;
+            pageSize = 100;
+            await new Promise((resolve) => setTimeout(resolve, 500 * timeoutRetries));
+            continue;
+          }
           throw new ExportError("A consulta excedeu o tempo do banco. Tente exportar novamente em instantes.", 503);
         }
         throw new ExportError("Não foi possível carregar todos os registros da empresa.", 503);
@@ -336,6 +344,8 @@ async function collectInventory(args: {
       if (!Array.isArray(data)) throw new ExportError("A leitura do relatório retornou um formato inválido.", 502);
       const rows = data as ExportFinding[];
       if (rows.length === 0) break;
+      timeoutRetries = 0;
+      pageSize = batchSize;
       const archiveLines: string[] = [];
 
       for (const finding of rows) {
