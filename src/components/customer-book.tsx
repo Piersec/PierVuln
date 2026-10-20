@@ -351,7 +351,7 @@ export function CustomerBook() {
           <div className="book-heading">
             <div><h1>Book dos Clientes</h1><p>Exposição atual, criticidade e tempo de permanência das vulnerabilidades.</p></div>
             <div className="book-heading-actions">
-              <button className="button button-secondary book-export-button" onClick={() => void exportReport()} disabled={exporting || loading || !selectedCompany} title={!selectedCompany ? "Selecione uma empresa para exportar" : undefined}>
+              <button className="button button-secondary book-export-button" onClick={() => void exportReport()} disabled={exporting || !selectedCompany} title={!selectedCompany ? "Selecione uma empresa para exportar" : undefined}>
                 <Download size={16} aria-hidden="true" />
                 {exporting ? "Preparando Excel…" : "Exportar Excel"}
               </button>
