@@ -106,6 +106,14 @@ const cellBorders = {
   bottom: { style: "thin" as const, color: { argb: colors.line } },
   right: { style: "thin" as const, color: { argb: colors.line } },
 };
+const denseCellStyle = {
+  fill: { type: "pattern", pattern: "solid", fgColor: { argb: colors.panel } },
+  font: { name: "Trebuchet MS", size: 12, color: { argb: colors.white } },
+  alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+  border: cellBorders,
+} as ExcelJS.Style;
+const denseScoreStyle = { ...denseCellStyle, numFmt: "0.0" } as ExcelJS.Style;
+const denseMonthStyle = { ...denseCellStyle, numFmt: "mm-yyyy" } as ExcelJS.Style;
 const styleCache = new Map<string, {
   fill: NonNullable<ExcelJS.Style["fill"]>;
   font: NonNullable<ExcelJS.Style["font"]>;
@@ -216,6 +224,10 @@ function styleCell(row: Row, column: number, options: { fill?: string; size?: nu
 
 function styleRange(row: Row, start: number, end: number, options: Parameters<typeof styleCell>[2] = {}) {
   for (let column = start; column <= end; column += 1) styleCell(row, column, options);
+}
+
+function styleDenseRow(row: Row) {
+  for (let column = 1; column <= 8; column += 1) row.getCell(column).style = denseCellStyle;
 }
 
 function titleRow(sheet: Worksheet, title: string, end: number, start = 3) {
@@ -712,8 +724,8 @@ async function writeWorkbook(args: {
       row.reference,
     ]);
     detail.height = 36;
-    styleRange(detail, 1, 8);
-    detail.getCell(7).numFmt = "0.0";
+    styleDenseRow(detail);
+    detail.getCell(7).style = denseScoreStyle;
     if (/^https?:\/\//i.test(row.reference)) detail.getCell(8).value = { text: row.reference, hyperlink: row.reference };
     detail.commit();
 
@@ -728,10 +740,10 @@ async function writeWorkbook(args: {
       dateValue(row.lastSeen),
     ]);
     age.height = 39;
-    styleRange(age, 1, 8);
-    age.getCell(6).numFmt = "0.0";
-    age.getCell(7).numFmt = "mm-yyyy";
-    age.getCell(8).numFmt = "mm-yyyy";
+    styleDenseRow(age);
+    age.getCell(6).style = denseScoreStyle;
+    age.getCell(7).style = denseMonthStyle;
+    age.getCell(8).style = denseMonthStyle;
     age.commit();
   }
 
