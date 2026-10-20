@@ -27,6 +27,7 @@
     "@marsidev/react-turnstile": "1.6.1",
     "@supabase/supabase-js": "2.117.2",
     "@tailwindcss/postcss": "^4.3.3",
+    "archiver": "5.3.2",
     "exceljs": "4.4.0",
     "framer-motion": "14.0.0",
     "gsap": "^3.15.0",
@@ -38,13 +39,16 @@
     "recharts": "3.10.1",
     "tailwind-variants": "^3.3.1",
     "tailwindcss": "^4.3.3",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "unzipper": "0.10.14"
   },
   "devDependencies": {
+    "@types/archiver": "^5.3.2",
     "@types/node": "24.6.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "^0.186.0",
+    "@types/unzipper": "^0.10.11",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   }

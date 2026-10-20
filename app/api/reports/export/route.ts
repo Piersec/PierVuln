@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rename, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -10,7 +10,10 @@ import { createGunzip, createGzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import ExcelJS from "exceljs";
 import type { CellValue, Row, Worksheet } from "exceljs";
+import archiver from "archiver";
+import { Open } from "unzipper";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import chartTemplates from "../../../../src/lib/report-chart-templates.json";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -376,6 +379,80 @@ function historyRowsForExcel(rows: HistoryRow[], generatedAt: Date): HistoryRow[
   }).sort((a, b) => a.period_start.localeCompare(b.period_start) || a.granularity.localeCompare(b.granularity));
 }
 
+function xmlValue(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function chartCache(values: (string | number)[], kind: "str" | "num"): string {
+  const points = values.map((value, index) => `<c:pt idx="${index}"><c:v>${xmlValue(String(value))}</c:v></c:pt>`).join("");
+  const format = kind === "num" ? "<c:formatCode>#,##0</c:formatCode>" : "";
+  return `<c:${kind}Cache>${format}<c:ptCount val="${values.length}"/>${points}</c:${kind}Cache>`;
+}
+
+async function attachOverviewCharts(outputPath: string, totals: SeverityCounts, monthlyHistory: HistoryRow[]) {
+  const patchedPath = `${outputPath}.charts`;
+  const chartParts: Record<string, string> = {
+    "xl/drawings/drawing1.xml": chartTemplates.drawing,
+    "xl/drawings/_rels/drawing1.xml.rels": chartTemplates.drawingRels,
+    "xl/charts/_rels/chart1.xml.rels": chartTemplates.chart1Rels,
+    "xl/charts/_rels/chart2.xml.rels": chartTemplates.chart2Rels,
+    "xl/charts/style1.xml": chartTemplates.style1,
+    "xl/charts/style2.xml": chartTemplates.style2,
+    "xl/charts/colors1.xml": chartTemplates.colors1,
+    "xl/charts/colors2.xml": chartTemplates.colors2,
+    "xl/worksheets/_rels/sheet1.xml.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>',
+  };
+  chartParts["xl/charts/chart1.xml"] = chartTemplates.chart1
+    .replace("{{categories}}", chartCache(["Low", "Medium", "High", "Critical"], "str"))
+    .replace("{{values}}", chartCache([totals.Low, totals.Medium, totals.High, totals.Critical], "num"));
+  const monthLabels = monthlyHistory.map(formatPeriod);
+  chartParts["xl/charts/chart2.xml"] = chartTemplates.chart2
+    .replace("{{categories}}", chartCache(monthLabels, "str"))
+    .replace("{{values}}", chartCache(monthlyHistory.map((item) => item.total_findings), "num"))
+    .replaceAll("$F$4:$F$8", `$F$4:$F$${3 + Math.max(1, monthlyHistory.length)}`)
+    .replaceAll("$I$4:$I$8", `$I$4:$I$${3 + Math.max(1, monthlyHistory.length)}`);
+
+  const contentTypes = [
+    ["/xl/drawings/drawing1.xml", "application/vnd.openxmlformats-officedocument.drawing+xml"],
+    ["/xl/charts/chart1.xml", "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"],
+    ["/xl/charts/chart2.xml", "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"],
+    ["/xl/charts/style1.xml", "application/vnd.ms-office.chartstyle+xml"],
+    ["/xl/charts/style2.xml", "application/vnd.ms-office.chartstyle+xml"],
+    ["/xl/charts/colors1.xml", "application/vnd.ms-office.chartcolorstyle+xml"],
+    ["/xl/charts/colors2.xml", "application/vnd.ms-office.chartcolorstyle+xml"],
+  ].map(([part, type]) => `<Override PartName="${part}" ContentType="${type}"/>`).join("");
+
+  try {
+    const input = await Open.file(outputPath);
+    const zip = archiver("zip", { zlib: { level: 6 } });
+    const output = createWriteStream(patchedPath);
+    const completed = pipeline(zip, output);
+    zip.on("warning", (error) => zip.emit("error", error));
+    for (const entry of input.files) {
+      if (entry.type === "Directory") continue;
+      if (entry.path === "xl/worksheets/sheet1.xml") {
+        const xml = (await entry.buffer()).toString("utf8");
+        if (!xml.includes("</worksheet>")) throw new Error("A planilha principal não pôde receber os gráficos.");
+        zip.append(xml.replace("</worksheet>", '<drawing xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId1"/></worksheet>'), { name: entry.path });
+      } else if (entry.path === "[Content_Types].xml") {
+        const xml = (await entry.buffer()).toString("utf8");
+        if (!xml.includes("</Types>")) throw new Error("O formato do arquivo não pôde ser atualizado.");
+        zip.append(xml.replace("</Types>", `${contentTypes}</Types>`), { name: entry.path });
+      } else {
+        zip.append(entry.stream(), { name: entry.path });
+      }
+    }
+    for (const [name, xml] of Object.entries(chartParts)) zip.append(xml, { name });
+    await zip.finalize();
+    await completed;
+    await rm(outputPath);
+    await rename(patchedPath, outputPath);
+  } catch (error) {
+    await rm(patchedPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
 async function writeWorkbook(args: {
   archivePath: string;
   outputPath: string;
@@ -417,7 +494,7 @@ async function writeWorkbook(args: {
     ["Informational", inventory.totals.Informational, colors.header],
     ["Unknown", inventory.totals.Unknown, colors.header],
   ];
-  const monthlyHistory = selectedHistory.filter((item) => item.granularity === "monthly").slice(-12);
+  const monthlyHistory = selectedHistory.filter((item) => item.granularity === "monthly").slice(-6);
   const summaryRows = Math.max(severitySummary.length, monthlyHistory.length, 4);
   for (let index = 0; index < summaryRows; index += 1) {
     const severity = severitySummary[index];
@@ -448,7 +525,7 @@ async function writeWorkbook(args: {
     }
     row.commit();
   }
-  spacer(overview);
+  for (let row = 10; row <= 20; row += 1) spacer(overview, 39);
   const overviewTotal = overview.addRow([null, "Total exportado", inventory.rowCount, null, null, "Hosts afetados", inventory.affectedHostKeys.size, null, "CVEs únicos", inventory.uniqueCves.size]);
   overviewTotal.height = 39;
   styleRange(overviewTotal, 2, 3, { fill: colors.header, bold: true });
@@ -460,6 +537,22 @@ async function writeWorkbook(args: {
   styleRange(overviewNote, 2, 10, { fill: colors.dark, align: "left" });
   overview.mergeCells(overviewNote.number, 2, overviewNote.number, 10);
   overviewNote.commit();
+  spacer(overview);
+  const historyHeader = overview.addRow(["Granularidade", "Período", "Total", "Crítica", "Alta", "Média", "Baixa", "Informativa", "Sem classificação", "Origem"]);
+  historyHeader.height = 39;
+  styleRange(historyHeader, 1, 10, { fill: colors.header, bold: true });
+  historyHeader.commit();
+  for (const item of selectedHistory) {
+    const row = overview.addRow([
+      item.granularity === "monthly" ? "Mensal" : "Semanal", formatPeriod(item), item.total_findings,
+      item.critical_count, item.high_count, item.medium_count, item.low_count,
+      item.informational_count, item.unclassified_count,
+      item.source_kind === "report" ? "Relatório histórico" : "Snapshot agregado",
+    ]);
+    row.height = 39;
+    styleRange(row, 1, 10);
+    row.commit();
+  }
 
   const assets = workbook.addWorksheet("Ativos e Softwares", { views: [{ state: "frozen", ySplit: 4 }] });
   assets.columns = [13.7, 18.7, 18.7, 18.7, 18.7, 18.7, 18.7, 13.7, 27.7, 18.7, 18.7, 18.7, 18.7, 18.7].map((width) => ({ width }));
@@ -683,6 +776,7 @@ async function writeWorkbook(args: {
   remediation.commit();
   report.commit();
   await workbook.commit();
+  await attachOverviewCharts(outputPath, inventory.totals, monthlyHistory);
 }
 
 export async function POST(request: Request) {
