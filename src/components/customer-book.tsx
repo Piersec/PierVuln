@@ -25,11 +25,11 @@ import {
   YAxis,
 } from "recharts";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
-import { withConsistentInventoryRead } from "@/src/lib/consistent-inventory";
 import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
 import { NavSymbol } from "@/src/components/ui/nav-symbol";
 import { visibleText } from "@/src/lib/visible-text";
+import type { VulnerabilityOverview } from "@/src/lib/vulnerability-overview";
 import { Download } from "lucide-react";
 
 type Company = { id: string; name: string; slug: string; role: string };
@@ -45,7 +45,7 @@ type TopVulnerability = {
 type BookMetrics = {
   total: number;
   uniqueCves: number;
-  affectedHosts: number;
+  affectedHosts: number | null;
   criticalHigh: number;
   otherSeverity: number;
   prolonged: number;
@@ -221,12 +221,17 @@ export function CustomerBook() {
   }, [userId, supabase]);
 
   const loadMetrics = useCallback(async (client: SupabaseClient, companyId: string) => {
-    const { data, error: queryError } = await client.rpc("get_customer_book_metrics", { p_company_id: companyId || null });
+    let query = client.from("vulnerability_overview_snapshots").select("overview,refreshed_at");
+    if (companyId) query = query.eq("tenant_id", companyId);
+    const { data, error: queryError } = await query;
     if (queryError) throw queryError;
-    if (!data || typeof data !== "object" || typeof (data as BookMetricsRow).total !== "number") {
-      throw new Error("O relatório não retornou os indicadores esperados.");
+    if (!data?.length) {
+      throw new Error("Ainda não há um resumo publicado para esta empresa.");
     }
-    return buildMetrics(data as BookMetricsRow);
+    return {
+      metrics: buildSnapshotMetrics(data.map((row) => row.overview as VulnerabilityOverview)),
+      refreshedAt: data.map((row) => row.refreshed_at as string).sort()[0] ?? null,
+    };
   }, []);
 
   const loadSyncSummary = useCallback(async (client: SupabaseClient, companyId: string, internal: boolean): Promise<SyncSummary> => {
@@ -281,15 +286,11 @@ export function CustomerBook() {
     const scope = `${userId}:${selectedCompany}:${isInternal}`;
     if (loadedScopeRef.current !== scope || refreshRequested.current) setLoading(true);
     setError("");
-    void withConsistentInventoryRead(supabase, () => Promise.all([
-      loadMetrics(supabase, selectedCompany),
-      loadSyncSummary(supabase, selectedCompany, isInternal),
-    ])).then(([nextMetrics, nextSync]) => {
+    void loadMetrics(supabase, selectedCompany).then(({ metrics: nextMetrics, refreshedAt }) => {
       if (!active) return;
       loadedScopeRef.current = scope;
       setMetrics(nextMetrics);
-      setLatestSync(nextSync);
-      setLoadedAt(new Date().toISOString());
+      setLoadedAt(refreshedAt);
       if (refreshRequested.current) {
         notify({ title: "Relatório atualizado.", detail: `${nextMetrics.total.toLocaleString("pt-BR")} vulnerabilidades ativas consultadas.`, key: "book-feedback" });
         refreshRequested.current = false;
@@ -297,11 +298,15 @@ export function CustomerBook() {
     }).catch((loadError: unknown) => {
       if (!active) return;
       refreshRequested.current = false;
-      setError(loadError instanceof Error
-        ? loadError.message
-        : "Não foi possível carregar os dados completos deste relatório.");
+      console.error("[book] metrics read failed", loadError);
+      setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar os indicadores deste relatório.");
     }).finally(() => {
       if (active) setLoading(false);
+    });
+    void loadSyncSummary(supabase, selectedCompany, isInternal).then((nextSync) => {
+      if (active) setLatestSync(nextSync);
+    }).catch((syncError: unknown) => {
+      console.error("[book] sync summary read failed", syncError);
     });
     return () => { active = false; };
   }, [contextError, contextReady, isInternal, live.revision, loadMetrics, loadSyncSummary, notify, refreshKey, selectedCompany, userId, supabase]);
@@ -355,7 +360,7 @@ export function CustomerBook() {
                 <Download size={16} aria-hidden="true" />
                 {exporting ? "Preparando Excel…" : "Exportar Excel"}
               </button>
-              <div className={`book-source-state ${isStale ? "book-source-stale" : isAging ? "book-source-aging" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : isAging ? "Atualização recomendada" : "Leitura atualizada") : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Snapshot mais antigo: ${formatDate(latestSync.finishedAt)}${latestSync.missingSnapshots ? ` · ${latestSync.missingSnapshots} fonte(s) sem snapshot` : ""}` : "Nenhum snapshot completo disponível"} · recomendada após 1h; atrasada após 2h · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
+              <div className={`book-source-state ${isStale ? "book-source-stale" : isAging ? "book-source-aging" : "book-source-fresh"}`}><span/>{latestSync.finishedAt ? (isStale ? "Coleta atrasada" : isAging ? "Atualização recomendada" : "Leitura atualizada") : loadedAt ? "Resumo salvo" : "Aguardando leitura"}<small>{latestSync.finishedAt ? `Snapshot mais antigo: ${formatDate(latestSync.finishedAt)}${latestSync.missingSnapshots ? ` · ${latestSync.missingSnapshots} fonte(s) sem snapshot` : ""}` : loadedAt ? `Indicadores salvos em ${formatDate(loadedAt)}` : "Nenhum resumo disponível"} · recomendada após 1h; atrasada após 2h · {live.connected ? "Relatório ao vivo" : "Atualização automática"}</small></div>
             </div>
           </div>
 
@@ -431,20 +436,20 @@ export function CustomerBook() {
               </SpotlightCard>
               <SpotlightCard className="book-top-table" id="concentracao">
                 <div className="book-section-heading"><div><span className="book-section-tag">CONCENTRAÇÃO POR VULNERABILIDADE</span><h2>Top 3 por ativos afetados</h2></div></div>
-                <div className="book-table-scroll"><table><thead><tr><th>CVE</th><th>DETECÇÃO INICIAL</th><th>VOLUME</th></tr></thead><tbody>
-                  {metrics.top.length ? metrics.top.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{formatMonth(item.firstDetected)}</td><td><strong>{displayCount(item.hosts)}</strong><span>{item.hosts === 1 ? "host afetado" : "hosts afetados"}</span></td></tr>) : <tr><td colSpan={3} className="book-table-empty">Nenhuma vulnerabilidade ativa nesta seleção.</td></tr>}
+                <div className="book-table-scroll"><table><thead><tr><th>CVE</th><th>REGISTROS</th><th>VOLUME</th></tr></thead><tbody>
+                  {metrics.top.length ? metrics.top.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{displayCount(item.count)}</td><td><strong>{displayCount(item.hosts)}</strong><span>{item.hosts === 1 ? "host afetado" : "hosts afetados"}</span></td></tr>) : <tr><td colSpan={3} className="book-table-empty">Nenhuma vulnerabilidade ativa nesta seleção.</td></tr>}
                 </tbody></table></div>
                 <p className="book-table-note">Ordenado pelo número de hosts distintos afetados; o total conta apenas as vulnerabilidades ativas.</p>
               </SpotlightCard>
             </BentoGrid>
 
             <BentoGrid className="book-footer-row" aria-label="Ativos e inventário técnico">
-              <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong><AnimatedCounter value={metrics.affectedHosts} /></strong><small>Agentes distintos com vulnerabilidades ativas</small></div>
+              <div className="book-foot-stat"><span>HOSTS AFETADOS</span><strong>{metrics.affectedHosts === null ? "—" : <AnimatedCounter value={metrics.affectedHosts} />}</strong><small>{metrics.affectedHosts === null ? "Contagem indisponível neste resumo" : "Agentes distintos com vulnerabilidades ativas"}</small></div>
               <div className="book-foot-stat"><span>CVEs ÚNICOS</span><strong><AnimatedCounter value={metrics.uniqueCves} /></strong><small>Identificadores diferentes no total ativo</small></div>
                <div className="book-inventory-cta"><span>APROFUNDAMENTO TÉCNICO</span><p>Abra o inventário completo para consultar ativos, pacotes e o fluxo de tratamento de cada caso.</p><Link href="/cases">Explorar inventário técnico</Link></div>
             </BentoGrid>
           </>}
-          <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : "Sem snapshot completo registrado"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte ativa" : "fontes de dados"}</span></footer>
+          <footer className="book-footer"><span>PierVuln</span><span>{latestSync.finishedAt ? `Último snapshot completo: ${formatDate(latestSync.finishedAt)}` : loadedAt ? `Resumo salvo: ${formatDate(loadedAt)}` : "Sem resumo disponível"}</span><span>{latestSync.connections} {latestSync.connections === 1 ? "fonte ativa" : "fontes de dados"}</span></footer>
         </div>
       </section>
       <nav className={`book-mobile-nav${isInternal ? " has-admin" : ""}`} aria-label="Navegação principal"><Link href="/dashboard">Vulnerabilidades</Link><Link href="/cases">Casos</Link><Link href="/assets">Ativos</Link><Link href="/book" aria-current="page">Book dos Clientes</Link>{isInternal && <Link href="/battle">Batalha</Link>}</nav>
@@ -483,6 +488,53 @@ function buildMetrics(row?: BookMetricsRow): BookMetrics {
   };
 }
 
+function buildSnapshotMetrics(overviews: VulnerabilityOverview[]): BookMetrics {
+  const total = overviews.reduce((sum, overview) => sum + overview.activeCount, 0);
+  const severity = Object.fromEntries(severityOrder.map((name) => [name, 0])) as Record<string, number>;
+  const bands = [0, 0, 0, 0];
+  const months: Record<string, number> = {};
+  const groups = new Map<string, { hosts: number; count: number }>();
+
+  for (const overview of overviews) {
+    for (const name of severityOrder) severity[name] += overview.severityCounts[name] ?? 0;
+    for (const entry of overview.ageCounts) {
+      if (entry.band >= 0 && entry.band < bands.length) bands[entry.band] += entry.count;
+    }
+    for (const entry of overview.monthCounts) months[entry.month] = (months[entry.month] ?? 0) + entry.count;
+    for (const group of overview.groups) {
+      const current = groups.get(group.cve) ?? { hosts: 0, count: 0 };
+      current.hosts += group.hostCount;
+      current.count += group.caseCount;
+      groups.set(group.cve, current);
+    }
+  }
+
+  const base = buildMetrics({
+    total,
+    unique_cves: groups.size,
+    affected_hosts: 0,
+    critical_high: severity.Critical + severity.High,
+    other_severity: total - severityOrder.reduce((sum, name) => sum + severity[name], 0),
+    prolonged: bands[3],
+    severity,
+    ages: { over90: bands[3], days61to90: 0, days31to60: bands[2], days0to30: bands[0] + bands[1] },
+    months,
+    top: [],
+  });
+  return {
+    ...base,
+    affectedHosts: null,
+    ages: [
+      { name: ">90 dias", count: bands[3] },
+      { name: "31–90 dias", count: bands[2] },
+      { name: "8–30 dias", count: bands[1] },
+      { name: "Até 7 dias", count: bands[0] },
+    ],
+    top: [...groups].sort((left, right) => right[1].hosts - left[1].hosts || right[1].count - left[1].count)
+      .slice(0, 3).map(([id, value]) => ({ id, hosts: value.hosts, count: value.count, firstDetected: "" })),
+  };
+}
+
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -502,11 +554,6 @@ function shortCount(value: number) {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? "—" : new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(date);
-}
-
-function formatMonth(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? "—" : new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric" }).format(date).replace(".", "");
 }
 
 const tooltipStyle = {
