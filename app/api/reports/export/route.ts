@@ -293,7 +293,13 @@ async function collectInventory(args: {
         p_after_id: afterId,
         p_limit: batchSize,
       }).abortSignal(signal);
-      if (error) throw new ExportError("Não foi possível carregar todos os registros da empresa.", 503);
+      if (error) {
+        console.error("[reports/export] batch read failed", { code: error.code });
+        if (error.code === "57014") {
+          throw new ExportError("A consulta excedeu o tempo do banco. Tente exportar novamente em instantes.", 503);
+        }
+        throw new ExportError("Não foi possível carregar todos os registros da empresa.", 503);
+      }
       if (!Array.isArray(data)) throw new ExportError("A leitura do relatório retornou um formato inválido.", 502);
       const rows = data as ExportFinding[];
       if (rows.length === 0) break;
@@ -343,7 +349,7 @@ async function collectInventory(args: {
       }
 
       if (!gzip.write(`${archiveLines.join("\n")}\n`)) await once(gzip, "drain");
-      afterId = rows[rows.length - 1]?.finding_id ?? null;
+      afterId = rows.reduce((cursor, row) => row.finding_id > cursor ? row.finding_id : cursor, afterId ?? "");
       if (!afterId || rows.length < batchSize) break;
     }
     gzip.end();
