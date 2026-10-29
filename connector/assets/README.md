@@ -12,6 +12,6 @@ export WAZUH_WORKER_CONFIG_TOKEN=SEGREDO_DO_WORKER_CONFIG
 docker compose -f connector/assets/docker-compose.yml up -d --build
 ```
 
-Use o mesmo `WAZUH_WORKER_CONFIG_TOKEN` configurado na função de configuração do coletor. No site, abra **Administração → Integrações** e configure a API dentro de cada cartão de empresa. O endpoint HTTPS é compartilhado pela integração; usuário, senha e certificado CA ficam exclusivos de cada empresa. O nome do endpoint deve corresponder ao certificado TLS. Use as credenciais da API, não o login da VPN. O site guarda as credenciais criptografadas e o coletor recebe a configuração automaticamente.
+Use o mesmo `WAZUH_WORKER_CONFIG_TOKEN` configurado na função de configuração do coletor. No site, abra **Administração → Integrações** e configure o endereço HTTPS uma vez na integração. Depois, configure usuário e senha dentro de cada cartão de empresa. O nome do endpoint deve corresponder ao certificado TLS. Use as credenciais da API, não o login da VPN. O site guarda as credenciais criptografadas e o coletor recebe a configuração automaticamente.
 
 O token de configuração não é a senha da API. Guarde-o somente no ambiente do contêiner.

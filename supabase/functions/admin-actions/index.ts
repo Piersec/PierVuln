@@ -424,6 +424,26 @@ Deno.serve(async (request) => {
       return json(200, { connectionId, configured: true, tokenRotated: true });
     }
 
+    if (action === "configure_asset_api_endpoint") {
+      const connectionId = text(input.connectionId, 36);
+      const endpoint = text(input.assetApiUrl, 2048);
+      if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId) || !endpoint) {
+        return json(400, { error: "Selecione uma integração e informe o endereço da API." });
+      }
+      let parsed: URL;
+      try { parsed = new URL(endpoint); } catch { return json(400, { error: "Endereço HTTPS inválido." }); }
+      if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+        return json(400, { error: "Informe um endereço HTTPS sem credenciais ou parâmetros." });
+      }
+      const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
+        .select("id").eq("id", connectionId).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection) return json(404, { error: "Integração não encontrada." });
+      const { error } = await admin.from("wazuh_connections").update({ asset_api_url: parsed.toString() }).eq("id", connectionId);
+      if (error) throw error;
+      return json(200, { configured: true, connectionId });
+    }
+
     if (action === "configure_asset_api" || action === "disable_asset_api") {
       const connectionId = text(input.connectionId, 36);
       if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId)) return json(400, { error: "Selecione uma integração válida." });
@@ -450,6 +470,7 @@ Deno.serve(async (request) => {
       if (tenantSecretError) throw tenantSecretError;
       if (connectionSecretError) throw connectionSecretError;
       if (action === "configure_asset_api" && !connectionSecret) return json(409, { error: "Configure as credenciais da integração antes da API de ativos." });
+      if (action === "configure_asset_api" && !connection.asset_api_url) return json(409, { error: "Configure o endereço comum da API antes das credenciais das empresas." });
       const legacySecret = connectionSecret;
       let existing: AssetApiCredentials | null = tenantSecret ? await decryptAssetApiCredentials(tenantSecret) : null;
       let legacyConfig: WazuhConnectionCredentials | null = null;
@@ -474,7 +495,6 @@ Deno.serve(async (request) => {
         }
         return json(200, { configured: false, connectionId, tenantId });
       }
-      const endpoint = text(input.assetApiUrl, 2048);
       if (typeof input.assetApiUsername === "string" && input.assetApiUsername.length > 256) {
         return json(400, { error: "O usuário da API excede o limite permitido." });
       }
@@ -485,12 +505,7 @@ Deno.serve(async (request) => {
       }
       const username = submittedUsername ?? existing?.username ?? null;
       const password = submittedPassword ?? existing?.password ?? null;
-      if (!endpoint || !username || !password) return json(400, { error: "Informe endpoint HTTPS, usuário e senha da API." });
-      let parsed: URL;
-      try { parsed = new URL(endpoint); } catch { return json(400, { error: "Endpoint HTTPS inválido." }); }
-      if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
-        return json(400, { error: "Informe uma URL HTTPS sem credenciais ou parâmetros." });
-      }
+      if (!username || !password) return json(400, { error: "Informe usuário e senha da API." });
       if (input.assetApiCaCertificate !== undefined && input.assetApiCaCertificate !== null
           && typeof input.assetApiCaCertificate !== "string") return json(400, { error: "Certificado CA inválido." });
       const submittedCa = typeof input.assetApiCaCertificate === "string" && input.assetApiCaCertificate.trim()
@@ -506,8 +521,6 @@ Deno.serve(async (request) => {
         nonce: encryptedApi.nonce, ciphertext: encryptedApi.ciphertext, updated_at: new Date().toISOString(),
       }, { onConflict: "connection_id,tenant_id" });
       if (storeApiError) throw storeApiError;
-      const { error } = await admin.from("wazuh_connections").update({ asset_api_url: parsed.toString() }).eq("id", connectionId);
-      if (error) throw error;
       return json(200, { configured: true, connectionId, tenantId });
     }
 
