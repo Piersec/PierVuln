@@ -16,6 +16,7 @@ type RemoteConnection = {
 };
 
 type RemoteAssetApiTenant = { tenantId: string; username: string; password: string; caCertificate: string | null };
+type SyncJob = { connection: RemoteConnection; tenant?: RemoteAssetApiTenant; key: string };
 
 const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
 const publishableKey = required("SUPABASE_PUBLISHABLE_KEY");
@@ -209,11 +210,11 @@ async function main() {
   while (!shutdown.signal.aborted) {
     try {
       const loaded = await loadConnections();
-      const jobs = loaded.connections.flatMap((connection) => assetOnly
+      const jobs = loaded.connections.flatMap<SyncJob>((connection) => assetOnly
         ? connection.assetApiUrl ? connection.assetApiTenants.map((tenant) => ({
           connection, tenant, key: `${connection.id}:${tenant.tenantId}`,
         })) : []
-        : [{ connection, tenant: undefined, key: connection.id }]);
+        : [{ connection, key: connection.id }]);
       const skipped = loaded.skipped;
       const activeIds = new Set(jobs.map((job) => job.key));
       for (const id of nextRunAt.keys()) {

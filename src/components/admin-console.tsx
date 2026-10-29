@@ -378,7 +378,7 @@ export function AdminSection({ section }: { section: Section }) {
         {data.archives.filter((a) => matches(`${a.id} ${a.object_path}`) && (!status || a.status === status)).map((a) => <tr key={a.id}><td className="admin-file"><strong>{a.object_path}</strong><small>{a.id}</small><code>{a.checksum_sha256}</code></td><td>{a.record_count.toLocaleString("pt-BR")}</td><td>{adminDate(a.archived_at)}</td><td>{adminDate(a.expires_at)}</td><td>{archiveLabels[a.status] ?? a.status}</td><td>{archiveLink?.id === a.id ? <a className="button button-primary" href={archiveLink.url} download rel="noreferrer">Baixar arquivo</a> : <button className="button button-secondary" disabled={a.status === "expired" || Date.parse(a.expires_at) <= Date.now() || downloadBusy !== null} onClick={() => void download(a)}>{downloadBusy === a.id ? "Preparando…" : "Preparar download"}</button>}</td></tr>)}
       </DataTable></section>
     </>}
-    {editor && <AdminEditor editor={editor} close={() => setEditor(null)} />}
+    {editor && <AdminEditor editor={editor} close={() => setEditor(null)} setEditor={(next) => setEditor(next)} />}
     {deleteCompany && <CompanyDataDeletionDialog company={deleteCompany} client={client} close={() => setDeleteCompany(null)} onQueued={() => {
       setDeleteCompany(null);
       notify({ title: "Limpeza iniciada. A empresa foi desativada e a coleta desligada." });
@@ -498,7 +498,7 @@ function imageDataUrl(file: File): Promise<string> {
   });
 }
 
-function AdminEditor({ editor, close }: { editor: Editor; close: () => void }) {
+function AdminEditor({ editor, close, setEditor }: { editor: Editor; close: () => void; setEditor: (editor: Editor) => void }) {
   const { client, data, busy, run, notify, setIslandHost } = useAdmin();
   const dialog = useRef<HTMLDialogElement>(null);
   const [inviteKind, setInviteKind] = useState("client");
