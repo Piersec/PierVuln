@@ -6,7 +6,6 @@ services:
     command: ["pnpm", "connector:daemon"]
     restart: unless-stopped
     network_mode: host
-    init: true
     mem_limit: 256m
     environment:
       SUPABASE_URL: ${SUPABASE_URL:?Defina SUPABASE_URL}
