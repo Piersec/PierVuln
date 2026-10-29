@@ -16,7 +16,8 @@ export function formatStorageBytes(bytes: number): string {
   return `${(bytes / 1000 ** unit).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
 export type AdminSync = { id: string; status: string; started_at: string; finished_at: string | null; full_snapshot: boolean; documents_received: number };
-export type AdminConnection = { id: string; name: string; mode: string; tenant_id: string | null; endpoint_url: string; is_active: boolean; latest_sync: AdminSync | null };
+export type AdminConnection = { id: string; name: string; mode: string; tenant_id: string | null; endpoint_url: string; is_active: boolean; latest_sync: AdminSync | null;
+  asset_api_url?: string | null; latest_asset_sync?: { status: string; finished_at: string | null; agents_received: number; agents_stored: number; error_summary: string | null } | null };
 export type AdminMapping = { id: string; connection_id: string; tenant_id: string; match_type: string; match_value: string; is_active: boolean };
 export type AdminMembership = { id: string; company_id: string; role: string; is_active: boolean };
 export type AdminUser = { id: string; email: string; display_name: string; is_internal: boolean; invited_at: string | null; email_confirmed_at: string | null; last_sign_in_at: string | null; memberships: AdminMembership[] };

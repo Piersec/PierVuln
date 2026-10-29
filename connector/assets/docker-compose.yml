@@ -1,0 +1,29 @@
+services:
+  asset-connector:
+    build:
+      context: ../..
+      dockerfile: connector/Dockerfile
+    command: ["pnpm", "connector:daemon"]
+    restart: unless-stopped
+    network_mode: host
+    init: true
+    mem_limit: 256m
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?Defina SUPABASE_URL}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Defina SUPABASE_PUBLISHABLE_KEY}
+      WAZUH_WORKER_CONFIG_TOKEN: ${WAZUH_WORKER_CONFIG_TOKEN:?Defina WAZUH_WORKER_CONFIG_TOKEN}
+      ASSET_ONLY: "true"
+      SYNC_INTERVAL_SECONDS: ${ASSET_SYNC_INTERVAL_SECONDS:-900}
+      WORKER_CONFIG_POLL_SECONDS: "60"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

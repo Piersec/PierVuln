@@ -3,6 +3,11 @@ export type WazuhConnectionCredentials = {
   indexerPassword: string;
   ingestToken: string;
   caCertificate: string | null;
+  assetApi?: {
+    username: string;
+    password: string;
+    caCertificate: string | null;
+  };
 };
 
 export type EncryptedWazuhConfig = {
@@ -59,6 +64,11 @@ export async function decryptWazuhConfig(
       || typeof value.ingestToken !== "string"
       || (value.caCertificate !== null && typeof value.caCertificate !== "string")) {
     throw new Error("Stored Wazuh credentials have an invalid shape");
+  }
+  if (value.assetApi && (typeof value.assetApi.username !== "string"
+      || typeof value.assetApi.password !== "string"
+      || (value.assetApi.caCertificate !== null && typeof value.assetApi.caCertificate !== "string"))) {
+    throw new Error("Stored asset API credentials have an invalid shape");
   }
   return value as WazuhConnectionCredentials;
 }

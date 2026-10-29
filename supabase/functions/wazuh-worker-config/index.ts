@@ -44,7 +44,7 @@ Deno.serve(async (request) => {
   try {
     const { data: connections, error: connectionError } = await admin
       .from("wazuh_connections")
-      .select("id,name,endpoint_url,index_pattern")
+      .select("id,name,endpoint_url,index_pattern,asset_api_url")
       .eq("is_active", true)
       .order("id")
       .range(parsedOffset, parsedOffset + pageSize - 1);
@@ -91,6 +91,7 @@ Deno.serve(async (request) => {
           name: connection.name,
           indexerUrl: endpoint.toString(),
           indexPattern: connection.index_pattern,
+          assetApiUrl: connection.asset_api_url,
           ...config,
         });
       } catch {

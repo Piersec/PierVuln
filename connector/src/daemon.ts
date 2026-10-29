@@ -11,11 +11,14 @@ type RemoteConnection = {
   indexerPassword: string;
   ingestToken: string;
   caCertificate: string | null;
+  assetApiUrl?: string | null;
+  assetApi?: { username: string; password: string; caCertificate: string | null };
 };
 
 const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
 const publishableKey = required("SUPABASE_PUBLISHABLE_KEY");
 const workerToken = required("WAZUH_WORKER_CONFIG_TOKEN");
+const assetOnly = process.env.ASSET_ONLY === "true";
 const syncIntervalSeconds = positiveInteger(process.env.SYNC_INTERVAL_SECONDS, 3600, "SYNC_INTERVAL_SECONDS");
 const configPollSeconds = positiveInteger(process.env.WORKER_CONFIG_POLL_SECONDS, 60, "WORKER_CONFIG_POLL_SECONDS");
 if (!/^https:\/\//i.test(supabaseUrl)) throw new Error("SUPABASE_URL precisa usar HTTPS.");
@@ -84,6 +87,12 @@ function validateConnection(value: unknown): RemoteConnection | null {
   if (connection.caCertificate && (connection.caCertificate.length > 65536
       || !connection.caCertificate.includes("-----BEGIN CERTIFICATE-----")
       || !connection.caCertificate.includes("-----END CERTIFICATE-----"))) return null;
+  if (connection.assetApiUrl) {
+    let assetEndpoint: URL;
+    try { assetEndpoint = new URL(connection.assetApiUrl); } catch { return null; }
+    if (assetEndpoint.protocol !== "https:" || assetEndpoint.username || assetEndpoint.password
+        || !connection.assetApi || !connection.assetApi.username || !connection.assetApi.password) return null;
+  }
   return { ...connection, indexerUrl: endpoint.toString() } as RemoteConnection;
 }
 
@@ -135,6 +144,9 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null): 
     WAZUH_INDEXER_URL: connection.indexerUrl,
     WAZUH_INDEXER_USERNAME: connection.indexerUsername,
     WAZUH_INDEXER_PASSWORD: connection.indexerPassword,
+    ASSET_API_URL: connection.assetApiUrl ?? undefined,
+    ASSET_API_USERNAME: connection.assetApi?.username,
+    ASSET_API_PASSWORD: connection.assetApi?.password,
   };
   const extraCaCertificates = caFile ?? process.env.NODE_EXTRA_CA_CERTS;
   if (extraCaCertificates) environment.NODE_EXTRA_CA_CERTS = extraCaCertificates;
@@ -142,14 +154,15 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null): 
 }
 
 async function runConnection(connection: RemoteConnection): Promise<void> {
-  const caFile = connection.caCertificate ? `/tmp/piervuln-indexer-${connection.id}.pem` : null;
+  const certificate = assetOnly ? connection.assetApi?.caCertificate : connection.caCertificate;
+  const caFile = certificate ? `/tmp/piervuln-${assetOnly ? "assets" : "indexer"}-${connection.id}.pem` : null;
   try {
     if (caFile) {
-      await writeFile(caFile, connection.caCertificate!, { encoding: "utf8", mode: 0o600 });
+      await writeFile(caFile, certificate!, { encoding: "utf8", mode: 0o600 });
       await chmod(caFile, 0o600);
     }
     await new Promise<void>((resolve, reject) => {
-      const entrypoint = fileURLToPath(new URL("./index.ts", import.meta.url));
+      const entrypoint = fileURLToPath(new URL(assetOnly ? "./assets.ts" : "./index.ts", import.meta.url));
       const child = spawn(process.execPath, ["--import", "tsx", entrypoint, "--once"], {
         cwd: process.cwd(),
         env: childEnvironment(connection, caFile),
@@ -179,7 +192,9 @@ async function main() {
   console.info(`[connector] Worker dinâmico iniciado; consulta de fontes a cada ${configPollSeconds}s; sincronização a cada ${syncIntervalSeconds}s por fonte.`);
   while (!shutdown.signal.aborted) {
     try {
-      const { connections, skipped } = await loadConnections();
+      const loaded = await loadConnections();
+      const connections = assetOnly ? loaded.connections.filter((connection) => connection.assetApiUrl && connection.assetApi) : loaded.connections;
+      const skipped = loaded.skipped;
       const activeIds = new Set(connections.map((connection) => connection.id));
       for (const id of nextRunAt.keys()) {
         if (!activeIds.has(id)) {

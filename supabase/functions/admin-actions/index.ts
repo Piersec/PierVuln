@@ -130,6 +130,23 @@ Deno.serve(async (request) => {
           connection.endpoint_url = endpoint.toString();
         } catch { connection.endpoint_url = "Endpoint indisponível"; }
       }
+      if (data.connections?.length) {
+        const ids = data.connections.map((connection: { id: string }) => connection.id);
+        const [{ data: assetSources, error: sourcesError }, { data: assetRuns, error: runsError }] = await Promise.all([
+          admin.from("wazuh_connections").select("id,asset_api_url").in("id", ids),
+          admin.from("asset_sync_runs").select("connection_id,status,finished_at,agents_received,agents_stored,error_summary")
+            .in("connection_id", ids).order("started_at", { ascending: false }).limit(ids.length * 3),
+        ]);
+        if (sourcesError) throw sourcesError;
+        if (runsError) throw runsError;
+        const sourceById = new Map((assetSources ?? []).map((source) => [source.id, source]));
+        const runById = new Map<string, NonNullable<typeof assetRuns>[number]>();
+        for (const run of assetRuns ?? []) if (!runById.has(run.connection_id)) runById.set(run.connection_id, run);
+        for (const connection of data.connections) {
+          connection.asset_api_url = sourceById.get(connection.id)?.asset_api_url ?? null;
+          connection.latest_asset_sync = runById.get(connection.id) ?? null;
+        }
+      }
       return json(200, data);
     }
 
@@ -376,6 +393,58 @@ Deno.serve(async (request) => {
       if (!connection) return json(404, { error: "Fonte não encontrada." });
       await storeConnectionConfig(connectionId, credentials);
       return json(200, { connectionId, configured: true, tokenRotated: true });
+    }
+
+    if (action === "configure_asset_api" || action === "disable_asset_api") {
+      const connectionId = text(input.connectionId, 36);
+      if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId)) return json(400, { error: "Selecione uma integração válida." });
+      const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
+        .select("id").eq("id", connectionId).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection) return json(404, { error: "Integração não encontrada." });
+      const { data: encrypted, error: secretError } = await admin.from("wazuh_connection_secrets")
+        .select("connection_id,nonce,ciphertext").eq("connection_id", connectionId).maybeSingle();
+      if (secretError) throw secretError;
+      if (!encrypted) return json(409, { error: "Configure a integração antes da API de ativos." });
+      const current = await decryptWazuhConfig(encrypted);
+      if (action === "disable_asset_api") {
+        const { error } = await admin.from("wazuh_connections").update({ asset_api_url: null }).eq("id", connectionId);
+        if (error) throw error;
+        delete current.assetApi;
+        await storeConnectionConfig(connectionId, current);
+        return json(200, { configured: false, connectionId });
+      }
+      const endpoint = text(input.assetApiUrl, 2048);
+      if (typeof input.assetApiUsername === "string" && input.assetApiUsername.length > 256) {
+        return json(400, { error: "O usuário da API excede o limite permitido." });
+      }
+      const submittedUsername = text(input.assetApiUsername, 256);
+      const submittedPassword = secret(input.assetApiPassword, 4096);
+      if (typeof input.assetApiPassword === "string" && input.assetApiPassword.trim() && !submittedPassword) {
+        return json(400, { error: "A senha da API excede o limite permitido." });
+      }
+      const username = submittedUsername ?? current.assetApi?.username ?? null;
+      const password = submittedPassword ?? current.assetApi?.password ?? null;
+      if (!endpoint || !username || !password) return json(400, { error: "Informe endpoint HTTPS, usuário e senha da API." });
+      let parsed: URL;
+      try { parsed = new URL(endpoint); } catch { return json(400, { error: "Endpoint HTTPS inválido." }); }
+      if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+        return json(400, { error: "Informe uma URL HTTPS sem credenciais ou parâmetros." });
+      }
+      if (input.assetApiCaCertificate !== undefined && input.assetApiCaCertificate !== null
+          && typeof input.assetApiCaCertificate !== "string") return json(400, { error: "Certificado CA inválido." });
+      const submittedCa = typeof input.assetApiCaCertificate === "string" && input.assetApiCaCertificate.trim()
+        ? readCaCertificate(input.assetApiCaCertificate)
+        : null;
+      if (typeof input.assetApiCaCertificate === "string" && input.assetApiCaCertificate.trim() && !submittedCa) {
+        return json(400, { error: "Certificado CA inválido." });
+      }
+      const caCertificate = submittedCa ?? current.assetApi?.caCertificate ?? null;
+      current.assetApi = { username, password, caCertificate };
+      await storeConnectionConfig(connectionId, current);
+      const { error } = await admin.from("wazuh_connections").update({ asset_api_url: parsed.toString() }).eq("id", connectionId);
+      if (error) throw error;
+      return json(200, { configured: true, connectionId });
     }
 
     if (action === "update_connection_ca") {

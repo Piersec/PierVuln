@@ -25,6 +25,27 @@ type Item = {
   sourceStatus: string | null;
 };
 
+type AssetItem = {
+  agentId: string; agentName: string; ipAddress: string | null; hostOs: string | null;
+  status: string; groups: string[]; registeredAt: string | null; lastKeepAliveAt: string | null;
+};
+
+function normalizeAsset(value: unknown): AssetItem {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid asset");
+  const row = value as Record<string, unknown>;
+  const agentId = str(row.agentId, 128);
+  const agentName = str(row.agentName, 256);
+  if (!agentId || !agentName) throw new Error("Missing asset identity");
+  const status = str(row.status, 32)?.toLowerCase() ?? "unknown";
+  const date = (input: unknown) => typeof input === "string" && !Number.isNaN(Date.parse(input)) ? new Date(input).toISOString() : null;
+  return {
+    agentId, agentName, ipAddress: str(row.ipAddress, 128), hostOs: str(row.hostOs, 256),
+    status: ["active", "disconnected", "never_connected", "pending"].includes(status) ? status : "unknown",
+    groups: stringArray(row.groups, 100, 256),
+    registeredAt: date(row.registeredAt), lastKeepAliveAt: date(row.lastKeepAliveAt),
+  };
+}
+
 function json(status: number, value: Record<string, unknown>) {
   return new Response(JSON.stringify(value), {
     status,
@@ -110,7 +131,7 @@ Deno.serve(async (request) => {
 
   const { data: connection, error: connectionError } = await service
     .from("wazuh_connections")
-    .select("id,is_active")
+    .select("id,is_active,mode,tenant_id,asset_api_url")
     .eq("id", connectionId)
     .maybeSingle();
   if (connectionError || !connection?.is_active) return json(404, { error: "Connection unavailable" });
@@ -124,6 +145,76 @@ Deno.serve(async (request) => {
 
   const action = payload.action;
   try {
+    if (action === "assets_start" || action === "assets_batch" || action === "assets_finish" || action === "assets_fail") {
+      if (!connection.asset_api_url) return json(409, { error: "Asset API is not configured" });
+      const assetRunId = str(payload.runId, 36);
+      if (!assetRunId || !/^[0-9a-f-]{36}$/i.test(assetRunId)) return json(400, { error: "Invalid asset run ID" });
+      if (action === "assets_start") {
+        const { error } = await service.from("asset_sync_runs").insert({ id: assetRunId, connection_id: connectionId, status: "running" });
+        if (error) throw error;
+        return json(201, { runId: assetRunId });
+      }
+      const { data: run, error: runError } = await service.from("asset_sync_runs")
+        .select("id,status,agents_received").eq("id", assetRunId).eq("connection_id", connectionId).maybeSingle();
+      if (runError) throw runError;
+      if (!run || run.status !== "running") return json(409, { error: "Asset run is not active" });
+      if (action === "assets_fail") {
+        await service.from("asset_sync_runs").update({ status: "failed", finished_at: new Date().toISOString(), error_summary: str(payload.error, 500) }).eq("id", assetRunId);
+        return json(200, { failed: true });
+      }
+      if (action === "assets_batch") {
+        if (!Array.isArray(payload.items) || payload.items.length < 1 || payload.items.length > 500) return json(400, { error: "Invalid asset batch" });
+        const items = payload.items.map(normalizeAsset);
+        const { data: mappings, error: mappingError } = await service.from("wazuh_agent_mappings")
+          .select("tenant_id,match_type,match_value").eq("connection_id", connectionId).eq("is_active", true);
+        if (mappingError) throw mappingError;
+        const tenantIds = [...new Set([connection.tenant_id, ...(mappings ?? []).map((mapping) => mapping.tenant_id)].filter(Boolean))];
+        const { data: companies, error: companyError } = await service.from("companies").select("id").in("id", tenantIds).eq("is_active", true);
+        if (companyError) throw companyError;
+        const activeTenants = new Set((companies ?? []).map((company) => company.id));
+        const rows = items.flatMap((item) => {
+          let tenantId: string | null = connection.mode === "dedicated" ? connection.tenant_id : null;
+          if (connection.mode === "shared") {
+            const agentMatches = (mappings ?? []).filter((mapping) => mapping.match_type === "agent_id" && mapping.match_value === item.agentId);
+            const matches = agentMatches.length ? agentMatches : (mappings ?? []).filter((mapping) =>
+              (mapping.match_type === "group" && item.groups.includes(mapping.match_value))
+              || (mapping.match_type === "agent_name_prefix" && mapping.match_value.endsWith("*")
+                && item.agentName.toLowerCase().startsWith(mapping.match_value.slice(0, -1).toLowerCase())));
+            const tenants = [...new Set(matches.map((mapping) => mapping.tenant_id))];
+            if (tenants.length === 1) tenantId = tenants[0];
+            if (tenantId && (mappings ?? []).some((mapping) => mapping.tenant_id === tenantId && mapping.match_type === "agent_name_prefix")
+                && !(mappings ?? []).some((mapping) => mapping.tenant_id === tenantId && mapping.match_type === "agent_name_prefix"
+                  && item.agentName.toLowerCase().startsWith(mapping.match_value.slice(0, -1).toLowerCase()))) tenantId = null;
+          }
+          if (!tenantId || !activeTenants.has(tenantId)) return [];
+          return [{ connection_id: connectionId, agent_id: item.agentId, tenant_id: tenantId,
+            agent_name: item.agentName, ip_address: item.ipAddress, host_os: item.hostOs,
+            status: item.status, agent_groups: item.groups, registered_at: item.registeredAt,
+            last_keep_alive_at: item.lastKeepAliveAt, seen_run_id: assetRunId, updated_at: new Date().toISOString() }];
+        });
+        if (rows.length) {
+          const { error } = await service.from("asset_agents").upsert(rows, { onConflict: "connection_id,agent_id" });
+          if (error) throw error;
+        }
+        const { error: countError } = await service.from("asset_sync_runs")
+          .update({ agents_received: run.agents_received + items.length }).eq("id", assetRunId).eq("status", "running");
+        if (countError) throw countError;
+        return json(200, { received: items.length, stored: rows.length });
+      }
+      const expected = Number(payload.expectedTotal);
+      if (!Number.isSafeInteger(expected) || expected < 0 || run.agents_received !== expected) {
+        return json(409, { error: "Incomplete asset snapshot" });
+      }
+      const { count, error: countError } = await service.from("asset_agents")
+        .select("agent_id", { head: true, count: "exact" }).eq("connection_id", connectionId).eq("seen_run_id", assetRunId);
+      if (countError) throw countError;
+      const { error: deleteError } = await service.from("asset_agents").delete().eq("connection_id", connectionId).neq("seen_run_id", assetRunId);
+      if (deleteError) throw deleteError;
+      const { error: finishError } = await service.from("asset_sync_runs")
+        .update({ status: "succeeded", finished_at: new Date().toISOString(), agents_stored: count ?? 0 }).eq("id", assetRunId);
+      if (finishError) throw finishError;
+      return json(200, { received: expected, stored: count ?? 0 });
+    }
     if (action === "protocol") {
       const { data, error } = await service.rpc("wazuh_snapshot_protocol");
       if (error) throw error;
