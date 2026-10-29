@@ -3,11 +3,13 @@ export type WazuhConnectionCredentials = {
   indexerPassword: string;
   ingestToken: string;
   caCertificate: string | null;
-  assetApi?: {
-    username: string;
-    password: string;
-    caCertificate: string | null;
-  };
+  assetApi?: AssetApiCredentials;
+};
+
+export type AssetApiCredentials = {
+  username: string;
+  password: string;
+  caCertificate: string | null;
 };
 
 export type EncryptedWazuhConfig = {
@@ -34,11 +36,9 @@ async function encryptionKey(): Promise<CryptoKey> {
   return await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-export async function encryptWazuhConfig(
-  credentials: WazuhConnectionCredentials,
-): Promise<EncryptedWazuhConfig> {
+async function encryptJson(value: unknown): Promise<EncryptedWazuhConfig> {
   const nonce = crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = new TextEncoder().encode(JSON.stringify(credentials));
+  const plaintext = new TextEncoder().encode(JSON.stringify(value));
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: nonce },
     await encryptionKey(),
@@ -50,25 +50,50 @@ export async function encryptWazuhConfig(
   };
 }
 
-export async function decryptWazuhConfig(
-  encrypted: EncryptedWazuhConfig,
-): Promise<WazuhConnectionCredentials> {
+async function decryptJson(encrypted: EncryptedWazuhConfig): Promise<unknown> {
   const plaintext = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: decodeBase64(encrypted.nonce) },
     await encryptionKey(),
     decodeBase64(encrypted.ciphertext),
   );
-  const value = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<WazuhConnectionCredentials>;
+  return JSON.parse(new TextDecoder().decode(plaintext)) as unknown;
+}
+
+function isAssetApiCredentials(value: unknown): value is AssetApiCredentials {
+  if (!value || typeof value !== "object") return false;
+  const credentials = value as Partial<AssetApiCredentials>;
+  return typeof credentials.username === "string"
+    && typeof credentials.password === "string"
+    && (credentials.caCertificate === null || typeof credentials.caCertificate === "string");
+}
+
+export async function encryptWazuhConfig(
+  credentials: WazuhConnectionCredentials,
+): Promise<EncryptedWazuhConfig> {
+  return await encryptJson(credentials);
+}
+
+export async function decryptWazuhConfig(
+  encrypted: EncryptedWazuhConfig,
+): Promise<WazuhConnectionCredentials> {
+  const value = await decryptJson(encrypted) as Partial<WazuhConnectionCredentials> | null;
+  if (!value || typeof value !== "object") throw new Error("Stored connection credentials have an invalid shape");
   if (typeof value.indexerUsername !== "string"
       || typeof value.indexerPassword !== "string"
       || typeof value.ingestToken !== "string"
       || (value.caCertificate !== null && typeof value.caCertificate !== "string")) {
     throw new Error("Stored Wazuh credentials have an invalid shape");
   }
-  if (value.assetApi && (typeof value.assetApi.username !== "string"
-      || typeof value.assetApi.password !== "string"
-      || (value.assetApi.caCertificate !== null && typeof value.assetApi.caCertificate !== "string"))) {
-    throw new Error("Stored asset API credentials have an invalid shape");
-  }
+  if (value.assetApi !== undefined && !isAssetApiCredentials(value.assetApi)) throw new Error("Stored asset API credentials have an invalid shape");
   return value as WazuhConnectionCredentials;
+}
+
+export async function encryptAssetApiCredentials(credentials: AssetApiCredentials): Promise<EncryptedWazuhConfig> {
+  return await encryptJson(credentials);
+}
+
+export async function decryptAssetApiCredentials(encrypted: EncryptedWazuhConfig): Promise<AssetApiCredentials> {
+  const value = await decryptJson(encrypted);
+  if (!isAssetApiCredentials(value)) throw new Error("Stored asset API credentials have an invalid shape");
+  return value;
 }

@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
-import { decryptWazuhConfig, encryptWazuhConfig, type WazuhConnectionCredentials } from "../_shared/wazuh-config-secrets.ts";
+import { decryptAssetApiCredentials, decryptWazuhConfig, encryptAssetApiCredentials, encryptWazuhConfig, type AssetApiCredentials, type WazuhConnectionCredentials } from "../_shared/wazuh-config-secrets.ts";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -132,19 +132,48 @@ Deno.serve(async (request) => {
       }
       if (data.connections?.length) {
         const ids = data.connections.map((connection: { id: string }) => connection.id);
-        const [{ data: assetSources, error: sourcesError }, { data: assetRuns, error: runsError }] = await Promise.all([
-          admin.from("wazuh_connections").select("id,asset_api_url").in("id", ids),
-          admin.from("asset_sync_runs").select("connection_id,status,finished_at,agents_received,agents_stored,error_summary")
-            .in("connection_id", ids).order("started_at", { ascending: false }).limit(ids.length * 3),
+        const [{ data: assetSources, error: sourcesError }, { data: tenantAssetSecrets, error: tenantSecretsError }, { data: connectionSecrets, error: connectionSecretsError }, { data: assetRuns, error: runsError }] = await Promise.all([
+          admin.from("wazuh_connections").select("id,mode,tenant_id,asset_api_url").in("id", ids),
+          admin.from("asset_api_tenant_secrets").select("connection_id,tenant_id").in("connection_id", ids),
+          admin.from("wazuh_connection_secrets").select("connection_id,nonce,ciphertext").in("connection_id", ids),
+          admin.from("asset_sync_runs").select("connection_id,tenant_id,status,finished_at,agents_received,agents_stored,error_summary")
+            .in("connection_id", ids).order("started_at", { ascending: false }).limit(Math.min(ids.length * 20, 1000)),
         ]);
         if (sourcesError) throw sourcesError;
+        if (tenantSecretsError) throw tenantSecretsError;
+        if (connectionSecretsError) throw connectionSecretsError;
         if (runsError) throw runsError;
         const sourceById = new Map((assetSources ?? []).map((source) => [source.id, source]));
+        const configuredByConnection = new Map<string, Set<string>>();
+        for (const item of tenantAssetSecrets ?? []) {
+          const configured = configuredByConnection.get(item.connection_id) ?? new Set<string>();
+          configured.add(item.tenant_id);
+          configuredByConnection.set(item.connection_id, configured);
+        }
+        const secretById = new Map((connectionSecrets ?? []).map((secret) => [secret.connection_id, secret]));
         const runById = new Map<string, NonNullable<typeof assetRuns>[number]>();
         for (const run of assetRuns ?? []) if (!runById.has(run.connection_id)) runById.set(run.connection_id, run);
+        const runsByTenant = new Map<string, Record<string, NonNullable<typeof assetRuns>[number]>>();
+        for (const run of assetRuns ?? []) {
+          if (!run.tenant_id) continue;
+          const byTenant = runsByTenant.get(run.connection_id) ?? {};
+          if (!byTenant[run.tenant_id]) byTenant[run.tenant_id] = run;
+          runsByTenant.set(run.connection_id, byTenant);
+        }
         for (const connection of data.connections) {
-          connection.asset_api_url = sourceById.get(connection.id)?.asset_api_url ?? null;
+          const source = sourceById.get(connection.id);
+          connection.asset_api_url = source?.asset_api_url ?? null;
+          const configured = configuredByConnection.get(connection.id) ?? new Set<string>();
+          const legacy = secretById.get(connection.id);
+          if (source?.mode === "dedicated" && source.tenant_id && legacy) {
+            try {
+              const config = await decryptWazuhConfig(legacy);
+              if (config.assetApi?.username && config.assetApi.password) configured.add(source.tenant_id);
+            } catch { /* Keep stored credentials hidden when decryption fails. */ }
+          }
+          connection.asset_api_configured_tenant_ids = [...configured];
           connection.latest_asset_sync = runById.get(connection.id) ?? null;
+          connection.latest_asset_sync_by_tenant = runsByTenant.get(connection.id) ?? {};
         }
       }
       return json(200, data);
@@ -399,20 +428,51 @@ Deno.serve(async (request) => {
       const connectionId = text(input.connectionId, 36);
       if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId)) return json(400, { error: "Selecione uma integração válida." });
       const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
-        .select("id").eq("id", connectionId).maybeSingle();
+        .select("id,mode,tenant_id,asset_api_url").eq("id", connectionId).maybeSingle();
       if (connectionError) throw connectionError;
       if (!connection) return json(404, { error: "Integração não encontrada." });
-      const { data: encrypted, error: secretError } = await admin.from("wazuh_connection_secrets")
-        .select("connection_id,nonce,ciphertext").eq("connection_id", connectionId).maybeSingle();
-      if (secretError) throw secretError;
-      if (!encrypted) return json(409, { error: "Configure a integração antes da API de ativos." });
-      const current = await decryptWazuhConfig(encrypted);
+      const tenantId = text(input.tenantId, 36);
+      if (!tenantId || !/^[0-9a-f-]{36}$/i.test(tenantId)) return json(400, { error: "Selecione uma empresa válida." });
+      let tenantLinked = connection.mode === "dedicated" && connection.tenant_id === tenantId;
+      if (connection.mode === "shared") {
+        const { data: mapping, error: mappingError } = await admin.from("wazuh_agent_mappings")
+          .select("id").eq("connection_id", connectionId).eq("tenant_id", tenantId).limit(1).maybeSingle();
+        if (mappingError) throw mappingError;
+        tenantLinked = Boolean(mapping);
+      }
+      if (!tenantLinked) return json(409, { error: "Empresa não vinculada a esta integração." });
+
+      const [{ data: tenantSecret, error: tenantSecretError }, { data: connectionSecret, error: connectionSecretError }] = await Promise.all([
+        admin.from("asset_api_tenant_secrets").select("connection_id,tenant_id,nonce,ciphertext")
+          .eq("connection_id", connectionId).eq("tenant_id", tenantId).maybeSingle(),
+        admin.from("wazuh_connection_secrets").select("connection_id,nonce,ciphertext").eq("connection_id", connectionId).maybeSingle(),
+      ]);
+      if (tenantSecretError) throw tenantSecretError;
+      if (connectionSecretError) throw connectionSecretError;
+      if (action === "configure_asset_api" && !connectionSecret) return json(409, { error: "Configure as credenciais da integração antes da API de ativos." });
+      const legacySecret = connectionSecret;
+      let existing: AssetApiCredentials | null = tenantSecret ? await decryptAssetApiCredentials(tenantSecret) : null;
+      let legacyConfig: WazuhConnectionCredentials | null = null;
+      if (legacySecret) {
+        legacyConfig = await decryptWazuhConfig(legacySecret);
+        if (!existing && connection.mode === "dedicated") existing = legacyConfig.assetApi ?? null;
+      }
       if (action === "disable_asset_api") {
-        const { error } = await admin.from("wazuh_connections").update({ asset_api_url: null }).eq("id", connectionId);
-        if (error) throw error;
-        delete current.assetApi;
-        await storeConnectionConfig(connectionId, current);
-        return json(200, { configured: false, connectionId });
+        const { error: deleteError } = await admin.from("asset_api_tenant_secrets").delete()
+          .eq("connection_id", connectionId).eq("tenant_id", tenantId);
+        if (deleteError) throw deleteError;
+        if (connection.mode === "dedicated" && legacyConfig?.assetApi && legacySecret) {
+          delete legacyConfig.assetApi;
+          await storeConnectionConfig(connectionId, legacyConfig);
+        }
+        const { count, error: countError } = await admin.from("asset_api_tenant_secrets")
+          .select("tenant_id", { count: "exact", head: true }).eq("connection_id", connectionId);
+        if (countError) throw countError;
+        if ((count ?? 0) === 0) {
+          const { error: endpointError } = await admin.from("wazuh_connections").update({ asset_api_url: null }).eq("id", connectionId);
+          if (endpointError) throw endpointError;
+        }
+        return json(200, { configured: false, connectionId, tenantId });
       }
       const endpoint = text(input.assetApiUrl, 2048);
       if (typeof input.assetApiUsername === "string" && input.assetApiUsername.length > 256) {
@@ -423,8 +483,8 @@ Deno.serve(async (request) => {
       if (typeof input.assetApiPassword === "string" && input.assetApiPassword.trim() && !submittedPassword) {
         return json(400, { error: "A senha da API excede o limite permitido." });
       }
-      const username = submittedUsername ?? current.assetApi?.username ?? null;
-      const password = submittedPassword ?? current.assetApi?.password ?? null;
+      const username = submittedUsername ?? existing?.username ?? null;
+      const password = submittedPassword ?? existing?.password ?? null;
       if (!endpoint || !username || !password) return json(400, { error: "Informe endpoint HTTPS, usuário e senha da API." });
       let parsed: URL;
       try { parsed = new URL(endpoint); } catch { return json(400, { error: "Endpoint HTTPS inválido." }); }
@@ -439,12 +499,16 @@ Deno.serve(async (request) => {
       if (typeof input.assetApiCaCertificate === "string" && input.assetApiCaCertificate.trim() && !submittedCa) {
         return json(400, { error: "Certificado CA inválido." });
       }
-      const caCertificate = submittedCa ?? current.assetApi?.caCertificate ?? null;
-      current.assetApi = { username, password, caCertificate };
-      await storeConnectionConfig(connectionId, current);
+      const caCertificate = submittedCa ?? existing?.caCertificate ?? null;
+      const encryptedApi = await encryptAssetApiCredentials({ username, password, caCertificate });
+      const { error: storeApiError } = await admin.from("asset_api_tenant_secrets").upsert({
+        connection_id: connectionId, tenant_id: tenantId,
+        nonce: encryptedApi.nonce, ciphertext: encryptedApi.ciphertext, updated_at: new Date().toISOString(),
+      }, { onConflict: "connection_id,tenant_id" });
+      if (storeApiError) throw storeApiError;
       const { error } = await admin.from("wazuh_connections").update({ asset_api_url: parsed.toString() }).eq("id", connectionId);
       if (error) throw error;
-      return json(200, { configured: true, connectionId });
+      return json(200, { configured: true, connectionId, tenantId });
     }
 
     if (action === "update_connection_ca") {

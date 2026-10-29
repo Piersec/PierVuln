@@ -9,6 +9,7 @@ const supabaseUrl = env("SUPABASE_URL").replace(/\/$/, "");
 const apiUrl = env("ASSET_API_URL").replace(/\/$/, "");
 const username = env("ASSET_API_USERNAME");
 const password = env("ASSET_API_PASSWORD");
+const tenantId = env("ASSET_TENANT_ID");
 const connectionId = env("WAZUH_CONNECTION_ID");
 const ingestToken = env("WAZUH_INGEST_TOKEN");
 const publishableKey = env("SUPABASE_PUBLISHABLE_KEY");
@@ -67,7 +68,7 @@ async function main() {
   }), "Asset API authentication");
   const token = (auth.data as { token?: unknown } | undefined)?.token;
   if (typeof token !== "string" || !token) throw new Error("Asset API did not provide a token");
-  await postIngest({ action: "assets_start", runId });
+  await postIngest({ action: "assets_start", runId, tenantId });
   try {
     let offset = 0;
     let total: number | null = null;
@@ -83,16 +84,16 @@ async function main() {
       if (total !== data.total_affected_items || data.affected_items.length > pageSize
           || (data.affected_items.length === 0 && offset < total)) throw new Error("Asset API changed during pagination");
       if (data.affected_items.length) {
-        await postIngest({ action: "assets_batch", runId, items: data.affected_items.map((item) => toAsset(item as ApiAgent)) });
+        await postIngest({ action: "assets_batch", runId, tenantId, items: data.affected_items.map((item) => toAsset(item as ApiAgent)) });
       }
       offset += data.affected_items.length;
       console.info(`[assets] connectionId=${connectionId} received=${offset}/${total}`);
     }
     if (offset !== total) throw new Error("Incomplete asset API snapshot");
-    const done = await postIngest({ action: "assets_finish", runId, expectedTotal: total });
+    const done = await postIngest({ action: "assets_finish", runId, tenantId, expectedTotal: total });
     console.info(`[assets] connectionId=${connectionId} status=succeeded received=${offset} stored=${done.stored}`);
   } catch (error) {
-    await postIngest({ action: "assets_fail", runId, error: error instanceof Error ? error.message.slice(0, 500) : "Unknown error" }).catch(() => undefined);
+    await postIngest({ action: "assets_fail", runId, tenantId, error: error instanceof Error ? error.message.slice(0, 500) : "Unknown error" }).catch(() => undefined);
     throw error;
   }
 }

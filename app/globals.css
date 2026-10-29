@@ -143,6 +143,7 @@
 .admin-connection-body .admin-endpoint { min-width: 0; max-width: none; margin: 5px 0 14px; }
 .admin-company-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; margin-top: 12px; }
 .admin-integration-company { min-width: 0; padding: 16px 18px; border-radius: 12px; background: var(--surface-inset); }
+.admin-integration-company > .admin-integration-actions { justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .admin-integration-company h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .admin-company-routing { display: grid; gap: 7px; margin: 14px 0 10px; font-size: 13px; }
 .admin-company-routing > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }

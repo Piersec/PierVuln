@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
-import { decryptWazuhConfig } from "../_shared/wazuh-config-secrets.ts";
+import { decryptAssetApiCredentials, decryptWazuhConfig } from "../_shared/wazuh-config-secrets.ts";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -44,7 +44,7 @@ Deno.serve(async (request) => {
   try {
     const { data: connections, error: connectionError } = await admin
       .from("wazuh_connections")
-      .select("id,name,endpoint_url,index_pattern,asset_api_url")
+      .select("id,name,endpoint_url,index_pattern,asset_api_url,mode,tenant_id")
       .eq("is_active", true)
       .order("id")
       .range(parsedOffset, parsedOffset + pageSize - 1);
@@ -53,15 +53,33 @@ Deno.serve(async (request) => {
     const ids = (connections ?? []).map((connection) => connection.id);
     if (!ids.length) return json(200, { connections: [], hasMore: false, skipped: 0 });
 
-    const [{ data: secrets, error: secretsError }, { data: credentials, error: credentialsError }] = await Promise.all([
+    const [{ data: secrets, error: secretsError }, { data: credentials, error: credentialsError }, { data: mappings, error: mappingsError }, { data: tenantSecrets, error: tenantSecretsError }] = await Promise.all([
       admin.from("wazuh_connection_secrets").select("connection_id,nonce,ciphertext").in("connection_id", ids),
       admin.from("wazuh_ingest_credentials").select("connection_id,token_sha256").in("connection_id", ids),
+      admin.from("wazuh_agent_mappings").select("connection_id,tenant_id").in("connection_id", ids).eq("is_active", true),
+      admin.from("asset_api_tenant_secrets").select("connection_id,tenant_id,nonce,ciphertext").in("connection_id", ids),
     ]);
     if (secretsError) throw secretsError;
     if (credentialsError) throw credentialsError;
+    if (mappingsError) throw mappingsError;
+    if (tenantSecretsError) throw tenantSecretsError;
+
+    const tenantIds = [...new Set([
+      ...(connections ?? []).flatMap((connection) => connection.mode === "dedicated" && connection.tenant_id ? [connection.tenant_id] : []),
+      ...(mappings ?? []).map((mapping) => mapping.tenant_id),
+    ])];
+    const { data: activeCompanies, error: companiesError } = tenantIds.length
+      ? await admin.from("companies").select("id").in("id", tenantIds).eq("is_active", true)
+      : { data: [], error: null };
+    if (companiesError) throw companiesError;
 
     const secretById = new Map((secrets ?? []).map((secret) => [secret.connection_id, secret]));
     const digestById = new Map((credentials ?? []).map((credential) => [credential.connection_id, credential.token_sha256]));
+    const activeTenantIds = new Set((activeCompanies ?? []).map((company) => company.id));
+    const tenantSecretsByConnection = new Map<string, typeof tenantSecrets>();
+    for (const secret of tenantSecrets ?? []) {
+      tenantSecretsByConnection.set(secret.connection_id, [...(tenantSecretsByConnection.get(secret.connection_id) ?? []), secret]);
+    }
     const configured = [];
     let skipped = 0;
 
@@ -86,13 +104,32 @@ Deno.serve(async (request) => {
           skipped += 1;
           continue;
         }
+        const linkedTenantIds = connection.mode === "dedicated" && connection.tenant_id
+          ? [connection.tenant_id]
+          : [...new Set((mappings ?? []).filter((mapping) => mapping.connection_id === connection.id).map((mapping) => mapping.tenant_id))];
+        const assetApiTenants = [];
+        for (const tenantId of linkedTenantIds) {
+          if (!activeTenantIds.has(tenantId)) continue;
+          const encryptedTenantSecret = tenantSecretsByConnection.get(connection.id)?.find((secret) => secret.tenant_id === tenantId);
+          if (encryptedTenantSecret) {
+            try {
+              assetApiTenants.push({ tenantId, ...await decryptAssetApiCredentials(encryptedTenantSecret) });
+            } catch {
+              skipped += 1;
+            }
+          } else if (connection.mode === "dedicated" && tenantId === connection.tenant_id && config.assetApi) {
+            assetApiTenants.push({ tenantId, ...config.assetApi });
+          }
+        }
+        const { assetApi: _legacyAssetApi, ...workerCredentials } = config;
         configured.push({
           id: connection.id,
           name: connection.name,
           indexerUrl: endpoint.toString(),
           indexPattern: connection.index_pattern,
           assetApiUrl: connection.asset_api_url,
-          ...config,
+          assetApiTenants,
+          ...workerCredentials,
         });
       } catch {
         skipped += 1;

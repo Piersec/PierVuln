@@ -46,6 +46,19 @@ function normalizeAsset(value: unknown): AssetItem {
   };
 }
 
+async function assetTenantIsLinked(connectionId: string, connection: { mode: string; tenant_id: string | null }, tenantId: string): Promise<boolean> {
+  const { data: company, error: companyError } = await service.from("companies")
+    .select("id").eq("id", tenantId).eq("is_active", true).maybeSingle();
+  if (companyError) throw companyError;
+  if (!company) return false;
+  if (connection.mode === "dedicated") return connection.tenant_id === tenantId;
+  if (connection.mode !== "shared") return false;
+  const { data: mapping, error: mappingError } = await service.from("wazuh_agent_mappings")
+    .select("id").eq("connection_id", connectionId).eq("tenant_id", tenantId).eq("is_active", true).limit(1).maybeSingle();
+  if (mappingError) throw mappingError;
+  return Boolean(mapping);
+}
+
 function json(status: number, value: Record<string, unknown>) {
   return new Response(JSON.stringify(value), {
     status,
@@ -146,34 +159,45 @@ Deno.serve(async (request) => {
   const action = payload.action;
   try {
     if (action === "assets_start" || action === "assets_batch" || action === "assets_finish" || action === "assets_fail") {
-      if (!connection.asset_api_url) return json(409, { error: "Asset API is not configured" });
+      if (!connection.asset_api_url && action !== "assets_fail") return json(409, { error: "Asset API is not configured" });
       const assetRunId = str(payload.runId, 36);
       if (!assetRunId || !/^[0-9a-f-]{36}$/i.test(assetRunId)) return json(400, { error: "Invalid asset run ID" });
+      const tenantId = str(payload.tenantId, 36);
+      if (!tenantId || !/^[0-9a-f-]{36}$/i.test(tenantId)) {
+        if (action !== "assets_start") {
+          await service.from("asset_sync_runs").update({ status: "failed", finished_at: new Date().toISOString(), error_summary: "Reinicie a coleta por empresa." })
+            .eq("id", assetRunId).eq("connection_id", connectionId).is("tenant_id", null).eq("status", "running");
+        }
+        return json(400, { error: "Invalid tenant ID" });
+      }
+      if (action !== "assets_fail" && !await assetTenantIsLinked(connectionId, connection, tenantId)) {
+        return json(409, { error: "Tenant is not active for this connection" });
+      }
       if (action === "assets_start") {
-        const { error } = await service.from("asset_sync_runs").insert({ id: assetRunId, connection_id: connectionId, status: "running" });
+        const { error } = await service.from("asset_sync_runs").insert({ id: assetRunId, connection_id: connectionId, tenant_id: tenantId, status: "running" });
         if (error) throw error;
-        return json(201, { runId: assetRunId });
+        return json(201, { runId: assetRunId, tenantId });
       }
       const { data: run, error: runError } = await service.from("asset_sync_runs")
-        .select("id,status,agents_received").eq("id", assetRunId).eq("connection_id", connectionId).maybeSingle();
+        .select("id,status,tenant_id,agents_received").eq("id", assetRunId).eq("connection_id", connectionId).maybeSingle();
       if (runError) throw runError;
-      if (!run || run.status !== "running") return json(409, { error: "Asset run is not active" });
+      if (!run || run.status !== "running" || run.tenant_id !== tenantId) return json(409, { error: "Asset run is not active for this tenant" });
       if (action === "assets_fail") {
-        await service.from("asset_sync_runs").update({ status: "failed", finished_at: new Date().toISOString(), error_summary: str(payload.error, 500) }).eq("id", assetRunId);
+        const { error } = await service.from("asset_sync_runs").update({ status: "failed", finished_at: new Date().toISOString(), error_summary: str(payload.error, 500) })
+          .eq("id", assetRunId).eq("tenant_id", tenantId).eq("status", "running");
+        if (error) throw error;
         return json(200, { failed: true });
       }
       if (action === "assets_batch") {
         if (!Array.isArray(payload.items) || payload.items.length < 1 || payload.items.length > 500) return json(400, { error: "Invalid asset batch" });
         const items = payload.items.map(normalizeAsset);
-        const { data: mappings, error: mappingError } = await service.from("wazuh_agent_mappings")
-          .select("tenant_id,match_type,match_value").eq("connection_id", connectionId).eq("is_active", true);
+        const { data: mappings, error: mappingError } = connection.mode === "shared"
+          ? await service.from("wazuh_agent_mappings").select("tenant_id,match_type,match_value")
+            .eq("connection_id", connectionId).eq("is_active", true)
+          : { data: [], error: null };
         if (mappingError) throw mappingError;
-        const tenantIds = [...new Set([connection.tenant_id, ...(mappings ?? []).map((mapping) => mapping.tenant_id)].filter(Boolean))];
-        const { data: companies, error: companyError } = await service.from("companies").select("id").in("id", tenantIds).eq("is_active", true);
-        if (companyError) throw companyError;
-        const activeTenants = new Set((companies ?? []).map((company) => company.id));
         const rows = items.flatMap((item) => {
-          let tenantId: string | null = connection.mode === "dedicated" ? connection.tenant_id : null;
+          let matchedTenantId: string | null = connection.mode === "dedicated" ? connection.tenant_id : null;
           if (connection.mode === "shared") {
             const agentMatches = (mappings ?? []).filter((mapping) => mapping.match_type === "agent_id" && mapping.match_value === item.agentId);
             const matches = agentMatches.length ? agentMatches : (mappings ?? []).filter((mapping) =>
@@ -181,12 +205,12 @@ Deno.serve(async (request) => {
               || (mapping.match_type === "agent_name_prefix" && mapping.match_value.endsWith("*")
                 && item.agentName.toLowerCase().startsWith(mapping.match_value.slice(0, -1).toLowerCase())));
             const tenants = [...new Set(matches.map((mapping) => mapping.tenant_id))];
-            if (tenants.length === 1) tenantId = tenants[0];
-            if (tenantId && (mappings ?? []).some((mapping) => mapping.tenant_id === tenantId && mapping.match_type === "agent_name_prefix")
-                && !(mappings ?? []).some((mapping) => mapping.tenant_id === tenantId && mapping.match_type === "agent_name_prefix"
-                  && item.agentName.toLowerCase().startsWith(mapping.match_value.slice(0, -1).toLowerCase()))) tenantId = null;
+            if (tenants.length === 1) matchedTenantId = tenants[0];
+            if (matchedTenantId && (mappings ?? []).some((mapping) => mapping.tenant_id === matchedTenantId && mapping.match_type === "agent_name_prefix")
+                && !(mappings ?? []).some((mapping) => mapping.tenant_id === matchedTenantId && mapping.match_type === "agent_name_prefix"
+                  && item.agentName.toLowerCase().startsWith(mapping.match_value.slice(0, -1).toLowerCase()))) matchedTenantId = null;
           }
-          if (!tenantId || !activeTenants.has(tenantId)) return [];
+          if (matchedTenantId !== tenantId) return [];
           return [{ connection_id: connectionId, agent_id: item.agentId, tenant_id: tenantId,
             agent_name: item.agentName, ip_address: item.ipAddress, host_os: item.hostOs,
             status: item.status, agent_groups: item.groups, registered_at: item.registeredAt,
@@ -206,12 +230,14 @@ Deno.serve(async (request) => {
         return json(409, { error: "Incomplete asset snapshot" });
       }
       const { count, error: countError } = await service.from("asset_agents")
-        .select("agent_id", { head: true, count: "exact" }).eq("connection_id", connectionId).eq("seen_run_id", assetRunId);
+        .select("agent_id", { head: true, count: "exact" }).eq("connection_id", connectionId).eq("tenant_id", tenantId).eq("seen_run_id", assetRunId);
       if (countError) throw countError;
-      const { error: deleteError } = await service.from("asset_agents").delete().eq("connection_id", connectionId).neq("seen_run_id", assetRunId);
+      const { error: deleteError } = await service.from("asset_agents").delete()
+        .eq("connection_id", connectionId).eq("tenant_id", tenantId).neq("seen_run_id", assetRunId);
       if (deleteError) throw deleteError;
       const { error: finishError } = await service.from("asset_sync_runs")
-        .update({ status: "succeeded", finished_at: new Date().toISOString(), agents_stored: count ?? 0 }).eq("id", assetRunId);
+        .update({ status: "succeeded", finished_at: new Date().toISOString(), agents_stored: count ?? 0 })
+        .eq("id", assetRunId).eq("tenant_id", tenantId).eq("status", "running");
       if (finishError) throw finishError;
       return json(200, { received: expected, stored: count ?? 0 });
     }

@@ -1,6 +1,6 @@
 # Coletor de ativos no host Docker
 
-Este contêiner lê do site as integrações ativas e a configuração criptografada da API de ativos. A cada 15 minutos, busca os agentes em páginas de 500 e envia um snapshot para o Supabase. A VPN do computador não participa da coleta.
+Este contêiner lê do site as integrações ativas e as credenciais criptografadas da API de ativos. A cada 15 minutos, busca os agentes em páginas de 500 e envia snapshots separados por empresa ao Supabase. Uma empresa sem credenciais não bloqueia as outras nem tem os ativos apagados.
 
 Implante uma vez no host Docker que alcança a API privada:
 
@@ -12,6 +12,6 @@ export WAZUH_WORKER_CONFIG_TOKEN=SEGREDO_DO_WORKER_CONFIG
 docker compose -f connector/assets/docker-compose.yml up -d --build
 ```
 
-Use o mesmo `WAZUH_WORKER_CONFIG_TOKEN` configurado na função de configuração do coletor. No site, abra **Administração → Integrações** e clique em **Configurar API do Manager** no cartão da integração. Informe endpoint HTTPS, usuário, senha e certificado CA público, se necessário. O nome do endpoint deve corresponder ao certificado TLS. Use as credenciais da API, não o login da VPN. O site guarda as credenciais criptografadas e o coletor recebe a configuração automaticamente.
+Use o mesmo `WAZUH_WORKER_CONFIG_TOKEN` configurado na função de configuração do coletor. No site, abra **Administração → Integrações** e configure a API dentro de cada cartão de empresa. O endpoint HTTPS é compartilhado pela integração; usuário, senha e certificado CA ficam exclusivos de cada empresa. O nome do endpoint deve corresponder ao certificado TLS. Use as credenciais da API, não o login da VPN. O site guarda as credenciais criptografadas e o coletor recebe a configuração automaticamente.
 
 O token de configuração não é a senha da API. Guarde-o somente no ambiente do contêiner.

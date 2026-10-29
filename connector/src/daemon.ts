@@ -12,8 +12,10 @@ type RemoteConnection = {
   ingestToken: string;
   caCertificate: string | null;
   assetApiUrl?: string | null;
-  assetApi?: { username: string; password: string; caCertificate: string | null };
+  assetApiTenants: RemoteAssetApiTenant[];
 };
+
+type RemoteAssetApiTenant = { tenantId: string; username: string; password: string; caCertificate: string | null };
 
 const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
 const publishableKey = required("SUPABASE_PUBLISHABLE_KEY");
@@ -78,7 +80,8 @@ function validateConnection(value: unknown): RemoteConnection | null {
       || typeof connection.indexerUsername !== "string" || !connection.indexerUsername
       || typeof connection.indexerPassword !== "string" || !connection.indexerPassword
       || typeof connection.ingestToken !== "string" || connection.ingestToken.length < 16 || connection.ingestToken.length > 512
-      || (connection.caCertificate !== null && typeof connection.caCertificate !== "string")) return null;
+      || (connection.caCertificate !== null && typeof connection.caCertificate !== "string")
+      || !Array.isArray(connection.assetApiTenants)) return null;
 
   let endpoint: URL;
   try { endpoint = new URL(connection.indexerUrl); } catch { return null; }
@@ -90,10 +93,22 @@ function validateConnection(value: unknown): RemoteConnection | null {
   if (connection.assetApiUrl) {
     let assetEndpoint: URL;
     try { assetEndpoint = new URL(connection.assetApiUrl); } catch { return null; }
-    if (assetEndpoint.protocol !== "https:" || assetEndpoint.username || assetEndpoint.password
-        || !connection.assetApi || !connection.assetApi.username || !connection.assetApi.password) return null;
+    if (assetEndpoint.protocol !== "https:" || assetEndpoint.username || assetEndpoint.password) return null;
   }
-  return { ...connection, indexerUrl: endpoint.toString() } as RemoteConnection;
+  const assetApiTenants: RemoteAssetApiTenant[] = [];
+  for (const value of connection.assetApiTenants) {
+    if (!value || typeof value !== "object") return null;
+    const tenant = value as Partial<RemoteAssetApiTenant>;
+    if (typeof tenant.tenantId !== "string" || !/^[0-9a-f-]{36}$/i.test(tenant.tenantId)
+        || typeof tenant.username !== "string" || !tenant.username || tenant.username.length > 256
+        || typeof tenant.password !== "string" || !tenant.password || tenant.password.length > 4096
+        || (tenant.caCertificate !== null && typeof tenant.caCertificate !== "string")) return null;
+    if (tenant.caCertificate && (tenant.caCertificate.length > 65536
+        || !tenant.caCertificate.includes("-----BEGIN CERTIFICATE-----")
+        || !tenant.caCertificate.includes("-----END CERTIFICATE-----"))) return null;
+    assetApiTenants.push(tenant as RemoteAssetApiTenant);
+  }
+  return { ...connection, indexerUrl: endpoint.toString(), assetApiTenants } as RemoteConnection;
 }
 
 async function loadConnections(): Promise<{ connections: RemoteConnection[]; skipped: number }> {
@@ -128,7 +143,7 @@ async function loadConnections(): Promise<{ connections: RemoteConnection[]; ski
   return { connections, skipped };
 }
 
-function childEnvironment(connection: RemoteConnection, caFile: string | null): NodeJS.ProcessEnv {
+function childEnvironment(connection: RemoteConnection, caFile: string | null, assetTenant?: RemoteAssetApiTenant): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
@@ -144,18 +159,19 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null): 
     WAZUH_INDEXER_URL: connection.indexerUrl,
     WAZUH_INDEXER_USERNAME: connection.indexerUsername,
     WAZUH_INDEXER_PASSWORD: connection.indexerPassword,
-    ASSET_API_URL: connection.assetApiUrl ?? undefined,
-    ASSET_API_USERNAME: connection.assetApi?.username,
-    ASSET_API_PASSWORD: connection.assetApi?.password,
+    ASSET_API_URL: assetTenant ? connection.assetApiUrl ?? undefined : undefined,
+    ASSET_TENANT_ID: assetTenant?.tenantId,
+    ASSET_API_USERNAME: assetTenant?.username,
+    ASSET_API_PASSWORD: assetTenant?.password,
   };
   const extraCaCertificates = caFile ?? process.env.NODE_EXTRA_CA_CERTS;
   if (extraCaCertificates) environment.NODE_EXTRA_CA_CERTS = extraCaCertificates;
   return environment;
 }
 
-async function runConnection(connection: RemoteConnection): Promise<void> {
-  const certificate = assetOnly ? connection.assetApi?.caCertificate : connection.caCertificate;
-  const caFile = certificate ? `/tmp/piervuln-${assetOnly ? "assets" : "indexer"}-${connection.id}.pem` : null;
+async function runConnection(connection: RemoteConnection, assetTenant?: RemoteAssetApiTenant): Promise<void> {
+  const certificate = assetOnly ? assetTenant?.caCertificate : connection.caCertificate;
+  const caFile = certificate ? `/tmp/piervuln-${assetOnly ? `assets-${assetTenant?.tenantId}` : "indexer"}-${connection.id}.pem` : null;
   try {
     if (caFile) {
       await writeFile(caFile, certificate!, { encoding: "utf8", mode: 0o600 });
@@ -165,7 +181,7 @@ async function runConnection(connection: RemoteConnection): Promise<void> {
       const entrypoint = fileURLToPath(new URL(assetOnly ? "./assets.ts" : "./index.ts", import.meta.url));
       const child = spawn(process.execPath, ["--import", "tsx", entrypoint, "--once"], {
         cwd: process.cwd(),
-        env: childEnvironment(connection, caFile),
+        env: childEnvironment(connection, caFile, assetTenant),
         stdio: "inherit",
       });
       activeChild = child;
@@ -193,9 +209,13 @@ async function main() {
   while (!shutdown.signal.aborted) {
     try {
       const loaded = await loadConnections();
-      const connections = assetOnly ? loaded.connections.filter((connection) => connection.assetApiUrl && connection.assetApi) : loaded.connections;
+      const jobs = loaded.connections.flatMap((connection) => assetOnly
+        ? connection.assetApiUrl ? connection.assetApiTenants.map((tenant) => ({
+          connection, tenant, key: `${connection.id}:${tenant.tenantId}`,
+        })) : []
+        : [{ connection, tenant: undefined, key: connection.id }]);
       const skipped = loaded.skipped;
-      const activeIds = new Set(connections.map((connection) => connection.id));
+      const activeIds = new Set(jobs.map((job) => job.key));
       for (const id of nextRunAt.keys()) {
         if (!activeIds.has(id)) {
           nextRunAt.delete(id);
@@ -204,26 +224,28 @@ async function main() {
       }
       if (skipped > 0) console.warn(`[connector] ${skipped} fonte(s) sem configuração válida foram ignoradas.`);
 
-      for (const connection of connections) {
+      for (const job of jobs) {
         if (shutdown.signal.aborted) break;
-        if ((nextRunAt.get(connection.id) ?? 0) > Date.now()) continue;
-        console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=starting.`);
+        const { connection, tenant, key } = job;
+        if ((nextRunAt.get(key) ?? 0) > Date.now()) continue;
+        const tenantLog = tenant ? ` tenantId=${tenant.tenantId}` : "";
+        console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id}${tenantLog} status=starting.`);
         try {
-          await runConnection(connection);
-          failuresByConnection.delete(connection.id);
-          nextRunAt.set(connection.id, Date.now() + syncIntervalSeconds * 1000);
-          if (!shutdown.signal.aborted) console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=completed.`);
+          await runConnection(connection, tenant);
+          failuresByConnection.delete(key);
+          nextRunAt.set(key, Date.now() + syncIntervalSeconds * 1000);
+          if (!shutdown.signal.aborted) console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id}${tenantLog} status=completed.`);
         } catch (error) {
           if (shutdown.signal.aborted) break;
-          const consecutiveFailures = (failuresByConnection.get(connection.id) ?? 0) + 1;
-          failuresByConnection.set(connection.id, consecutiveFailures);
+          const consecutiveFailures = (failuresByConnection.get(key) ?? 0) + 1;
+          failuresByConnection.set(key, consecutiveFailures);
           const backoff = Math.min(15 * 60_000, 30_000 * 2 ** Math.min(consecutiveFailures - 1, 5));
           const nextDelay = backoff + Math.round(backoff * Math.random() * 0.2);
-          nextRunAt.set(connection.id, Date.now() + nextDelay);
-          console.error(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=failed consecutiveFailures=${consecutiveFailures} nextRetryMs=${nextDelay} error=${safeMessage(error)}`);
+          nextRunAt.set(key, Date.now() + nextDelay);
+          console.error(`[connector] ${new Date().toISOString()} connectionId=${connection.id}${tenantLog} status=failed consecutiveFailures=${consecutiveFailures} nextRetryMs=${nextDelay} error=${safeMessage(error)}`);
         }
       }
-      if (connections.length === 0) console.info("[connector] Nenhuma fonte ativa e configurada no momento.");
+      if (jobs.length === 0) console.info("[connector] Nenhuma fonte ativa e configurada no momento.");
     } catch (error) {
       console.error(`[connector] Não foi possível atualizar as configurações: ${safeMessage(error)}.`);
     }
