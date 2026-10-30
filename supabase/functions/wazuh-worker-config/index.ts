@@ -93,6 +93,7 @@ Deno.serve(async (request) => {
 
       try {
         const config = await decryptWazuhConfig(encrypted);
+        if (connection.mode === "shared" && new URL(request.url).searchParams.get("workerProtocol") !== "3") { skipped += 1; continue; }
         const tokenDigest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(config.ingestToken)))]
           .map((part) => part.toString(16).padStart(2, "0")).join("");
         if (tokenDigest !== digest) {
@@ -122,6 +123,12 @@ Deno.serve(async (request) => {
           }
         }
         const { assetApi: _legacyAssetApi, ...workerCredentials } = config;
+        const indexerTenants = connection.mode === "shared"
+          ? linkedTenantIds.filter((id) => activeTenantIds.has(id)).map((tenantId) => ({ tenantId, ...config.indexerTenants?.[tenantId] })).filter((item) => item.username && item.password)
+          : undefined;
+        const expectedTenants = linkedTenantIds.filter((id) => activeTenantIds.has(id)).length;
+        const indexerReady = indexerTenants ? expectedTenants > 0 && indexerTenants.length === expectedTenants : Boolean(config.indexerUsername && config.indexerPassword);
+        const { indexerTenants: _storedTenantCredentials, ...safeWorkerCredentials } = workerCredentials;
         configured.push({
           id: connection.id,
           name: connection.name,
@@ -129,7 +136,10 @@ Deno.serve(async (request) => {
           indexPattern: connection.index_pattern,
           assetApiUrl: connection.asset_api_url,
           assetApiTenants,
-          ...workerCredentials,
+          ...safeWorkerCredentials,
+          indexerTenants, indexerReady,
+          indexerUsername: connection.mode === "shared" ? indexerTenants?.[0]?.username ?? "" : config.indexerUsername,
+          indexerPassword: connection.mode === "shared" ? indexerTenants?.[0]?.password ?? "" : config.indexerPassword,
         });
       } catch {
         skipped += 1;

@@ -13,6 +13,8 @@ type RemoteConnection = {
   caCertificate: string | null;
   assetApiUrl?: string | null;
   assetApiTenants: RemoteAssetApiTenant[];
+  indexerTenants?: RemoteAssetApiTenant[];
+  indexerReady?: boolean;
 };
 
 type RemoteAssetApiTenant = { tenantId: string; username: string; password: string; caCertificate: string | null };
@@ -78,8 +80,8 @@ function validateConnection(value: unknown): RemoteConnection | null {
       || typeof connection.name !== "string" || connection.name.length > 160
       || typeof connection.indexerUrl !== "string"
       || typeof connection.indexPattern !== "string"
-      || typeof connection.indexerUsername !== "string" || !connection.indexerUsername
-      || typeof connection.indexerPassword !== "string" || !connection.indexerPassword
+      || typeof connection.indexerUsername !== "string"
+      || typeof connection.indexerPassword !== "string"
       || typeof connection.ingestToken !== "string" || connection.ingestToken.length < 16 || connection.ingestToken.length > 512
       || (connection.caCertificate !== null && typeof connection.caCertificate !== "string")
       || !Array.isArray(connection.assetApiTenants)) return null;
@@ -96,6 +98,7 @@ function validateConnection(value: unknown): RemoteConnection | null {
     try { assetEndpoint = new URL(connection.assetApiUrl); } catch { return null; }
     if (assetEndpoint.protocol !== "https:" || assetEndpoint.username || assetEndpoint.password) return null;
   }
+  if (connection.indexerTenants !== undefined && (!Array.isArray(connection.indexerTenants) || connection.indexerTenants.some((item) => !item || typeof item.username !== "string" || !item.username || typeof item.password !== "string" || !item.password || typeof item.tenantId !== "string"))) return null;
   const assetApiTenants: RemoteAssetApiTenant[] = [];
   for (const value of connection.assetApiTenants) {
     if (!value || typeof value !== "object") return null;
@@ -117,7 +120,7 @@ async function loadConnections(): Promise<{ connections: RemoteConnection[]; ski
   let offset = 0;
   let skipped = 0;
   while (true) {
-    const response = await fetch(`${supabaseUrl}/functions/v1/wazuh-worker-config?offset=${offset}`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/wazuh-worker-config?workerProtocol=3&offset=${offset}`, {
       method: "GET",
       headers: { apikey: publishableKey, "x-worker-token": workerToken },
       signal: AbortSignal.timeout(30_000),
@@ -171,9 +174,11 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null, a
 }
 
 async function runConnection(connection: RemoteConnection, assetTenant?: RemoteAssetApiTenant): Promise<void> {
-  const certificate = assetOnly ? assetTenant?.caCertificate : connection.caCertificate;
+  const tenantFile = !assetOnly && connection.indexerTenants?.length ? `/tmp/piervuln-indexer-tenants-${connection.id}.json` : null;
+  const certificate = assetOnly ? assetTenant?.caCertificate : [connection.caCertificate, ...(connection.indexerTenants ?? []).map((item) => item.caCertificate)].filter(Boolean).join("\n") || null;
   const caFile = certificate ? `/tmp/piervuln-${assetOnly ? `assets-${assetTenant?.tenantId}` : "indexer"}-${connection.id}.pem` : null;
   try {
+    if (tenantFile) await writeFile(tenantFile, JSON.stringify(connection.indexerTenants), { mode: 0o600 });
     if (caFile) {
       await writeFile(caFile, certificate!, { encoding: "utf8", mode: 0o600 });
       await chmod(caFile, 0o600);
@@ -182,7 +187,7 @@ async function runConnection(connection: RemoteConnection, assetTenant?: RemoteA
       const entrypoint = fileURLToPath(new URL(assetOnly ? "./assets.ts" : "./index.ts", import.meta.url));
       const child = spawn(process.execPath, ["--import", "tsx", entrypoint, "--once"], {
         cwd: process.cwd(),
-        env: childEnvironment(connection, caFile, assetTenant),
+        env: { ...childEnvironment(connection, caFile, assetTenant), INDEXER_TENANTS_FILE: tenantFile ?? undefined },
         stdio: "inherit",
       });
       activeChild = child;
@@ -199,6 +204,7 @@ async function runConnection(connection: RemoteConnection, assetTenant?: RemoteA
       });
     });
   } finally {
+    if (tenantFile) await unlink(tenantFile).catch(() => undefined);
     if (caFile) await unlink(caFile).catch(() => undefined);
   }
 }
@@ -214,7 +220,7 @@ async function main() {
         ? connection.assetApiUrl ? connection.assetApiTenants.map((tenant) => ({
           connection, tenant, key: `${connection.id}:${tenant.tenantId}`,
         })) : []
-        : [{ connection, key: connection.id }]);
+        : connection.indexerReady === false ? [] : [{ connection, key: connection.id }]);
       const skipped = loaded.skipped;
       const activeIds = new Set(jobs.map((job) => job.key));
       for (const id of nextRunAt.keys()) {

@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { SharedIndexer } from "./shared-indexer.js";
 import { SnapshotSyncError, SupabaseIngestClient, synchronizeSnapshot, type ConnectorConfig } from "./ingest.js";
 import { WazuhIndexerClient } from "./wazuh.js";
 
@@ -72,12 +74,16 @@ async function main() {
   };
   process.once("SIGTERM", () => requestShutdown("SIGTERM"));
   process.once("SIGINT", () => requestShutdown("SIGINT"));
-  const indexer = new WazuhIndexerClient(
+  const singleIndexer = new WazuhIndexerClient(
     config.indexerUrl,
     config.username,
     config.password,
     config.indexerIndexPattern,
   );
+  const tenants = process.env.INDEXER_TENANTS_FILE
+    ? JSON.parse(await readFile(process.env.INDEXER_TENANTS_FILE, "utf8")) as { username: string; password: string }[]
+    : null;
+  const indexer = tenants ? new SharedIndexer(tenants.map((tenant) => new WazuhIndexerClient(config.indexerUrl, tenant.username, tenant.password, config.indexerIndexPattern))) : singleIndexer;
   const destination = new SupabaseIngestClient(config);
   if (process.argv.includes("--check")) {
     const version = await indexer.getVersion(shutdown.signal);

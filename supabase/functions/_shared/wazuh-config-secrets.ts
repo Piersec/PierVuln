@@ -4,6 +4,7 @@ export type WazuhConnectionCredentials = {
   ingestToken: string;
   caCertificate: string | null;
   assetApi?: AssetApiCredentials;
+  indexerTenants?: Record<string, AssetApiCredentials>;
 };
 
 export type AssetApiCredentials = {

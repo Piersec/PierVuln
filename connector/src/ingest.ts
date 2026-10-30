@@ -4,7 +4,9 @@ import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { NormalizedFinding, ScrollPage, WazuhIndexerClient } from "./wazuh.js";
+import type { NormalizedFinding, ScrollPage } from "./wazuh.js";
+
+import type { SnapshotIndexer } from "./shared-indexer.js";
 
 export type ConnectorConfig = {
   supabaseUrl: string;
@@ -116,7 +118,7 @@ export class SupabaseIngestClient {
 }
 
 export async function synchronizeSnapshot(
-  indexer: WazuhIndexerClient,
+  indexer: SnapshotIndexer,
   destination: SupabaseIngestClient,
   pageSize: number,
   pageDelayMilliseconds = 250,

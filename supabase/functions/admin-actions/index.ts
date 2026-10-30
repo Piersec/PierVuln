@@ -171,7 +171,7 @@ Deno.serve(async (request) => {
           connection.asset_api_url = source?.asset_api_url ?? null;
           const configured = configuredByConnection.get(connection.id) ?? new Set<string>();
           const legacy = secretById.get(connection.id);
-          connection.indexer_credentials_configured = Boolean(legacy);
+          connection.indexer_credentials_configured = legacy ? Boolean((await decryptWazuhConfig(legacy)).indexerUsername) : false;
           if (source?.mode === "dedicated" && source.tenant_id && legacy) {
             try {
               const config = await decryptWazuhConfig(legacy);
@@ -179,6 +179,7 @@ Deno.serve(async (request) => {
             } catch { /* Keep stored credentials hidden when decryption fails. */ }
           }
           connection.asset_api_configured_tenant_ids = [...configured];
+          connection.indexer_configured_tenant_ids = legacy ? Object.keys((await decryptWazuhConfig(legacy)).indexerTenants ?? {}) : [];
           connection.latest_asset_sync = runById.get(connection.id) ?? null;
           connection.latest_asset_sync_by_tenant = runsByTenant.get(connection.id) ?? {};
         }
@@ -298,6 +299,11 @@ Deno.serve(async (request) => {
           changes.endpoint_url = endpoint.toString();
         } catch { return json(400, { error: "Informe uma URL HTTPS sem credenciais." }); }
       }
+      if (action === "update_connection" && input.assetApiUrl !== undefined) {
+        const manager = new URL(String(input.assetApiUrl));
+        if (manager.protocol !== "https:" || manager.username || manager.password || (changes.endpoint_url && manager.hostname !== new URL(String(changes.endpoint_url)).hostname)) return json(400, { error: "Indexer e Manager devem usar o mesmo IP." });
+        changes.asset_api_url = manager.toString();
+      }
       if (!Object.keys(changes).length) return json(400, { error: "Nenhuma alteração informada." });
       const { data, error } = await admin.from(action === "update_company" ? "companies" : "wazuh_connections")
         .update(changes).eq("id", id).select("id").maybeSingle();
@@ -416,7 +422,7 @@ Deno.serve(async (request) => {
       const endpointUrl = text(input.endpointUrl, 2048);
       const mode = text(input.mode, 20);
       const tenantId = text(input.tenantId, 36);
-      const credentials = readIndexerCredentials(input, "pending");
+      const credentials: WazuhConnectionCredentials = { indexerUsername: "", indexerPassword: "", ingestToken: "pending", caCertificate: null, ...(mode === "shared" ? { indexerTenants: {} } : {}) };
       if (!name || name.length < 2 || !endpointUrl || !endpointUrl.startsWith("https://")) {
         return json(400, { error: "Informe o nome da integração e o endpoint HTTPS do Indexer." });
       }
@@ -429,6 +435,11 @@ Deno.serve(async (request) => {
       if ((mode === "dedicated" && (!tenantId || !/^[0-9a-f-]{36}$/i.test(tenantId))) || (mode === "shared" && tenantId)) {
         return json(400, { error: "A empresa selecionada não corresponde ao tipo de integração." });
       }
+      let managerEndpoint: URL;
+      try {
+        managerEndpoint = new URL(String(input.assetApiUrl));
+        if (managerEndpoint.protocol !== "https:" || managerEndpoint.username || managerEndpoint.password || managerEndpoint.hostname !== new URL(endpointUrl).hostname) throw new Error();
+      } catch { return json(400, { error: "Informe o mesmo IP para Indexer e Manager, com as portas corretas." }); }
       const ingestToken = randomToken();
       credentials.ingestToken = ingestToken;
       const { data: connectionId, error } = await admin.rpc("create_wazuh_connection", {
@@ -442,6 +453,8 @@ Deno.serve(async (request) => {
       if (error) throw error;
       try {
         await storeConnectionConfig(String(connectionId), credentials);
+        const { error: endpointError } = await admin.from("wazuh_connections").update({ asset_api_url: managerEndpoint.toString() }).eq("id", connectionId);
+        if (endpointError) throw endpointError;
       } catch (storeError) {
         await admin.from("wazuh_connections").delete().eq("id", connectionId);
         throw storeError;
@@ -459,6 +472,8 @@ Deno.serve(async (request) => {
         .select("id").eq("id", connectionId).maybeSingle();
       if (connectionError) throw connectionError;
       if (!connection) return json(404, { error: "Integração não encontrada." });
+      const { data: modeRow } = await admin.from("wazuh_connections").select("mode").eq("id", connectionId).single();
+      if (modeRow?.mode === "shared") return json(409, { error: "No compartilhado, configure os acessos no cadastro de cada empresa." });
       await storeConnectionConfig(connectionId, credentials);
       return json(200, { connectionId, configured: true, tokenRotated: true });
     }
@@ -483,7 +498,7 @@ Deno.serve(async (request) => {
       return json(200, { configured: true, connectionId });
     }
 
-    if (action === "configure_asset_api" || action === "disable_asset_api") {
+    if (action === "configure_asset_api" || action === "configure_tenant_access" || action === "disable_asset_api") {
       const connectionId = text(input.connectionId, 36);
       if (!connectionId || !/^[0-9a-f-]{36}$/i.test(connectionId)) return json(400, { error: "Selecione uma integração válida." });
       const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
@@ -509,7 +524,7 @@ Deno.serve(async (request) => {
       if (tenantSecretError) throw tenantSecretError;
       if (connectionSecretError) throw connectionSecretError;
       if (action === "configure_asset_api" && !connectionSecret) return json(409, { error: "Configure o acesso ao Indexer antes das credenciais do Manager." });
-      if (action === "configure_asset_api" && !connection.asset_api_url) return json(409, { error: "Configure o endpoint comum do Manager antes das credenciais das empresas." });
+      if (action !== "disable_asset_api" && !connection.asset_api_url) return json(409, { error: "Configure o endpoint comum do Manager antes das credenciais das empresas." });
       const legacySecret = connectionSecret;
       let existing: AssetApiCredentials | null = tenantSecret ? await decryptAssetApiCredentials(tenantSecret) : null;
       let legacyConfig: WazuhConnectionCredentials | null = null;
@@ -524,13 +539,6 @@ Deno.serve(async (request) => {
         if (connection.mode === "dedicated" && legacyConfig?.assetApi && legacySecret) {
           delete legacyConfig.assetApi;
           await storeConnectionConfig(connectionId, legacyConfig);
-        }
-        const { count, error: countError } = await admin.from("asset_api_tenant_secrets")
-          .select("tenant_id", { count: "exact", head: true }).eq("connection_id", connectionId);
-        if (countError) throw countError;
-        if ((count ?? 0) === 0) {
-          const { error: endpointError } = await admin.from("wazuh_connections").update({ asset_api_url: null }).eq("id", connectionId);
-          if (endpointError) throw endpointError;
         }
         return json(200, { configured: false, connectionId, tenantId });
       }
@@ -554,6 +562,26 @@ Deno.serve(async (request) => {
         return json(400, { error: "Certificado CA inválido." });
       }
       const caCertificate = submittedCa ?? existing?.caCertificate ?? null;
+      if (action === "configure_tenant_access") {
+        if (!legacyConfig) return json(409, { error: "Cadastre o ambiente antes dos acessos." });
+        const previous = connection.mode === "shared" ? legacyConfig.indexerTenants?.[tenantId] : {
+          username: legacyConfig.indexerUsername, password: legacyConfig.indexerPassword, caCertificate: legacyConfig.caCertificate,
+        };
+        const indexerUsername = text(input.indexerUsername, 256) ?? previous?.username;
+        const indexerPassword = secret(input.indexerPassword, 4096) ?? previous?.password;
+        if (!indexerUsername || !indexerPassword) return json(400, { error: "Informe usuário e senha do Indexer desta empresa." });
+        const submittedIndexerCa = input.caCertificate ? readCaCertificate(input.caCertificate) : null;
+        if (input.caCertificate && !submittedIndexerCa) return json(400, { error: "Certificado do Indexer inválido." });
+        const indexerAccess = { username: indexerUsername, password: indexerPassword, caCertificate: submittedIndexerCa ?? previous?.caCertificate ?? null };
+        if (connection.mode === "shared") legacyConfig.indexerTenants = { ...legacyConfig.indexerTenants, [tenantId]: indexerAccess };
+        else { legacyConfig.indexerUsername = indexerUsername; legacyConfig.indexerPassword = indexerPassword; legacyConfig.caCertificate = indexerAccess.caCertificate; }
+        const updatedSecret = await encryptWazuhConfig(legacyConfig);
+        const { data: storedSecret, error: storeSecretError } = await admin.from("wazuh_connection_secrets")
+          .update({ nonce: updatedSecret.nonce, ciphertext: updatedSecret.ciphertext })
+          .eq("connection_id", connectionId).eq("nonce", connectionSecret!.nonce).select("connection_id").maybeSingle();
+        if (storeSecretError) throw storeSecretError;
+        if (!storedSecret) return json(409, { error: "Outro acesso foi alterado durante o salvamento. Tente salvar novamente." });
+      }
       const encryptedApi = await encryptAssetApiCredentials({ username, password, caCertificate });
       const { error: storeApiError } = await admin.from("asset_api_tenant_secrets").upsert({
         connection_id: connectionId, tenant_id: tenantId,
