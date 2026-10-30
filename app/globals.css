@@ -135,11 +135,19 @@
 .admin-integration-header h2 { margin: 0; font-size: 19px; }
 .admin-integration-header p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
 .admin-integration-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-integration-paused-note { margin: 14px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-inset); color: var(--muted-strong); font-size: 13px; }
+.admin-integration-checklist { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--line); }
+.admin-integration-checklist > div { display: grid; gap: 5px; min-width: 0; padding: 12px 14px; background: var(--surface-inset); }
+.admin-integration-checklist strong { color: var(--muted-strong); font-size: 12px; font-weight: 600; }
+.admin-integration-checklist span { color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
 .admin-integration-sync { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; color: var(--muted); font-size: 12px; }
 .admin-connection-details { margin-top: 10px; }
 .admin-connection-details > summary, .admin-company-details > summary, .admin-agent-details > summary { min-height: 44px; padding: 12px 0; color: var(--muted-strong); cursor: pointer; font-size: 13px; }
-.admin-connection-body { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 12px 0 18px; }
+.admin-connection-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .9fr); align-items: start; gap: 22px; padding: 12px 0 18px; }
 .admin-connection-body > div { min-width: 0; }
+.admin-connection-facts { display: grid; gap: 14px; }
+.admin-connection-controls h3 { margin: 0 0 10px; font-size: 14px; }
+.admin-connection-controls > p { margin: 12px 0 0; }
 .admin-connection-body .admin-endpoint { min-width: 0; max-width: none; margin: 5px 0 14px; }
 .admin-company-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; margin-top: 12px; }
 .admin-integration-company { min-width: 0; padding: 16px 18px; border-radius: 12px; background: var(--surface-inset); }
@@ -149,8 +157,13 @@
 .admin-company-routing > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
 .admin-company-routing dt { color: var(--muted); }
 .admin-company-routing dd { margin: 0; overflow-wrap: anywhere; }
+.admin-route-values { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-route-value { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.admin-route-value code { overflow-wrap: anywhere; }
+.admin-route-value small { color: var(--muted-strong); font-size: 11px; }
 .admin-company-details > summary { border-top: 1px solid var(--line); }
 .admin-company-details > summary span { margin-left: 8px; color: var(--muted); font-size: 12px; }
+.admin-company-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .admin-mapping-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
 .admin-mapping-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
 .admin-mapping-row + .admin-mapping-row { border-top: 1px solid var(--line); }
@@ -160,7 +173,7 @@
 .admin-mapping-row small { color: var(--muted); }
 .admin-mapping-row .button { flex-shrink: 0; }
 .admin-integration-empty { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
-@media (max-width: 800px) { .admin-company-grid { grid-template-columns: 1fr; } .admin-integration-panel { padding: 16px; } }
+@media (max-width: 800px) { .admin-company-grid { grid-template-columns: 1fr; } .admin-connection-body { grid-template-columns: 1fr; } .admin-integration-panel { padding: 16px; } }
 .admin-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .admin-pagination > div { display: flex; gap: 8px; }
 .admin-empty { padding: 36px 12px; text-align: center; color: var(--muted); }

@@ -26,6 +26,12 @@ function text(value: unknown, max = 200): string | null {
   return result ? result.slice(0, max) : null;
 }
 
+function prefixesOverlap(first: string, second: string) {
+  const a = first.replace(/\*$/, "").toLocaleLowerCase("en-US");
+  const b = second.replace(/\*$/, "").toLocaleLowerCase("en-US");
+  return a.startsWith(b) || b.startsWith(a);
+}
+
 function slugify(value: string) {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
@@ -240,6 +246,38 @@ Deno.serve(async (request) => {
       return json(200, { entityId: id });
     }
 
+    if (action === "delete_connection") {
+      const id = text(input.id, 36);
+      const confirmName = text(input.confirmName, 160);
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id) || !confirmName) return json(400, { error: "Integração ou confirmação inválida." });
+      const { data: connection, error: lookupError } = await admin.from("wazuh_connections")
+        .select("id,name,is_active").eq("id", id).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (!connection) return json(404, { error: "Integração não encontrada." });
+      if (connection.is_active) return json(409, { error: "Desative a integração antes de excluí-la." });
+      if (confirmName !== connection.name) return json(400, { error: "O nome digitado não corresponde à integração." });
+
+      const checks = await Promise.all([
+        admin.from("sync_runs").select("connection_id", { count: "exact", head: true }).eq("connection_id", id),
+        admin.from("wazuh_findings").select("connection_id", { count: "exact", head: true }).eq("connection_id", id),
+        admin.from("asset_agents").select("connection_id", { count: "exact", head: true }).eq("connection_id", id),
+        admin.from("asset_sync_runs").select("connection_id", { count: "exact", head: true }).eq("connection_id", id),
+        admin.from("archive_manifests").select("connection_id", { count: "exact", head: true }).eq("connection_id", id),
+        admin.from("snapshot_publication_jobs").select("connection_id", { count: "exact", head: true }).eq("connection_id", id),
+      ]);
+      const failedCheck = checks.find((check) => check.error);
+      if (failedCheck?.error) throw failedCheck.error;
+      if (checks.some((check) => (check.count ?? 0) > 0)) {
+        return json(409, { error: "Esta integração tem histórico ou dados associados. Ela foi preservada; desative-a em vez de excluir." });
+      }
+      const { data: deleted, error: deleteError } = await admin.from("wazuh_connections").delete()
+        .eq("id", id).eq("is_active", false).select("id").maybeSingle();
+      if (deleteError?.code === "23503") return json(409, { error: "Há dados associados à integração. Ela foi preservada; desative-a para manter o histórico." });
+      if (deleteError) throw deleteError;
+      if (!deleted) return json(409, { error: "A integração foi alterada durante a operação. Atualize a tela e tente novamente." });
+      return json(200, { deleted: true, entityId: id });
+    }
+
     if (action === "update_company" || action === "update_connection") {
       const id = text(input.id, 36);
       if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return json(400, { error: "Identificador inválido." });
@@ -380,16 +418,16 @@ Deno.serve(async (request) => {
       const tenantId = text(input.tenantId, 36);
       const credentials = readIndexerCredentials(input, "pending");
       if (!name || name.length < 2 || !endpointUrl || !endpointUrl.startsWith("https://")) {
-        return json(400, { error: "Connection name and HTTPS Indexer URL are required" });
+        return json(400, { error: "Informe o nome da integração e o endpoint HTTPS do Indexer." });
       }
       if (!credentials) return json(400, { error: "Informe usuário e senha válidos do Indexer e um certificado CA em PEM, se necessário." });
       try {
         const endpoint = new URL(endpointUrl);
         if (endpoint.username || endpoint.password) throw new Error();
       } catch { return json(400, { error: "Informe uma URL HTTPS sem credenciais." }); }
-      if (mode !== "dedicated" && mode !== "shared") return json(400, { error: "Invalid connection mode" });
+      if (mode !== "dedicated" && mode !== "shared") return json(400, { error: "Selecione integração dedicada ou compartilhada." });
       if ((mode === "dedicated" && (!tenantId || !/^[0-9a-f-]{36}$/i.test(tenantId))) || (mode === "shared" && tenantId)) {
-        return json(400, { error: "Tenant assignment does not match connection mode" });
+        return json(400, { error: "A empresa selecionada não corresponde ao tipo de integração." });
       }
       const ingestToken = randomToken();
       credentials.ingestToken = ingestToken;
@@ -420,7 +458,7 @@ Deno.serve(async (request) => {
       const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
         .select("id").eq("id", connectionId).maybeSingle();
       if (connectionError) throw connectionError;
-      if (!connection) return json(404, { error: "Fonte não encontrada." });
+      if (!connection) return json(404, { error: "Integração não encontrada." });
       await storeConnectionConfig(connectionId, credentials);
       return json(200, { connectionId, configured: true, tokenRotated: true });
     }
@@ -470,8 +508,8 @@ Deno.serve(async (request) => {
       ]);
       if (tenantSecretError) throw tenantSecretError;
       if (connectionSecretError) throw connectionSecretError;
-      if (action === "configure_asset_api" && !connectionSecret) return json(409, { error: "Configure as credenciais da integração antes da API de ativos." });
-      if (action === "configure_asset_api" && !connection.asset_api_url) return json(409, { error: "Configure o endereço comum da API antes das credenciais das empresas." });
+      if (action === "configure_asset_api" && !connectionSecret) return json(409, { error: "Configure o acesso ao Indexer antes das credenciais do Manager." });
+      if (action === "configure_asset_api" && !connection.asset_api_url) return json(409, { error: "Configure o endpoint comum do Manager antes das credenciais das empresas." });
       const legacySecret = connectionSecret;
       let existing: AssetApiCredentials | null = tenantSecret ? await decryptAssetApiCredentials(tenantSecret) : null;
       let legacyConfig: WazuhConnectionCredentials | null = null;
@@ -553,14 +591,27 @@ Deno.serve(async (request) => {
           || !/^[0-9a-f-]{36}$/i.test(tenantId)
           || !["agent_id", "group", "agent_name_prefix"].includes(matchType ?? "")
           || (matchType === "agent_name_prefix" && !/^[A-Za-z0-9._-]+\*$/.test(matchValue ?? ""))) {
-        return json(400, { error: "Invalid mapping" });
+        return json(400, { error: "Informe conexão, empresa, tipo e valor válidos para a regra." });
       }
       const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
-        .select("id,mode").eq("id", connectionId).eq("is_active", true).maybeSingle();
-      if (connectionError || connection?.mode !== "shared") return json(404, { error: "Shared connection not found" });
+        .select("id,mode").eq("id", connectionId).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (connection?.mode !== "shared") return json(404, { error: "Integração compartilhada não encontrada." });
       const { data: company, error: companyError } = await admin.from("companies")
         .select("id").eq("id", tenantId).eq("is_active", true).maybeSingle();
-      if (companyError || !company) return json(404, { error: "Company not found" });
+      if (companyError) throw companyError;
+      if (!company) return json(404, { error: "Empresa não encontrada ou inativa." });
+      const { data: existing, error: existingError } = await admin.from("wazuh_agent_mappings")
+        .select("id,tenant_id").eq("connection_id", connectionId).eq("match_type", matchType).eq("match_value", matchValue).maybeSingle();
+      if (existingError) throw existingError;
+      if (existing && existing.tenant_id !== tenantId) return json(409, { error: "Este valor já está atribuído a outra empresa." });
+      if (matchType === "agent_name_prefix") {
+        const { data: prefixes, error: prefixesError } = await admin.from("wazuh_agent_mappings")
+          .select("tenant_id,match_value").eq("connection_id", connectionId).eq("match_type", "agent_name_prefix").eq("is_active", true);
+        if (prefixesError) throw prefixesError;
+        const overlap = (prefixes ?? []).some((mapping) => mapping.tenant_id !== tenantId && prefixesOverlap(matchValue, mapping.match_value));
+        if (overlap) return json(409, { error: "Este prefixo se sobrepõe ao prefixo ativo de outra empresa." });
+      }
       const { data, error } = await admin.from("wazuh_agent_mappings").upsert({
         connection_id: connectionId,
         tenant_id: tenantId,
@@ -571,6 +622,58 @@ Deno.serve(async (request) => {
       }, { onConflict: "connection_id,match_type,match_value" }).select("id").single();
       if (error) throw error;
       return json(200, { mappingId: data.id, entityId: data.id });
+    }
+
+    if (action === "update_agent_mapping") {
+      const mappingId = text(input.mappingId, 36);
+      const matchType = text(input.matchType, 20);
+      const matchValue = text(input.matchValue, 256);
+      if (!mappingId || !/^[0-9a-f-]{36}$/i.test(mappingId) || !matchValue
+          || !["agent_id", "group", "agent_name_prefix"].includes(matchType ?? "")
+          || (matchType === "agent_name_prefix" && !/^[A-Za-z0-9._-]+\*$/.test(matchValue))) {
+        return json(400, { error: "Informe tipo e valor válidos para a regra." });
+      }
+      const { data: mapping, error: mappingError } = await admin.from("wazuh_agent_mappings")
+        .select("id,connection_id,tenant_id").eq("id", mappingId).maybeSingle();
+      if (mappingError) throw mappingError;
+      if (!mapping) return json(404, { error: "Regra não encontrada." });
+      const [{ data: connection, error: connectionError }, { data: company, error: companyError }] = await Promise.all([
+        admin.from("wazuh_connections").select("id,mode").eq("id", mapping.connection_id).maybeSingle(),
+        admin.from("companies").select("id").eq("id", mapping.tenant_id).eq("is_active", true).maybeSingle(),
+      ]);
+      if (connectionError) throw connectionError;
+      if (companyError) throw companyError;
+      if (!connection || connection.mode !== "shared" || !company) return json(409, { error: "A integração ou empresa desta regra não está disponível." });
+      const { data: duplicate, error: duplicateError } = await admin.from("wazuh_agent_mappings")
+        .select("id").eq("connection_id", mapping.connection_id).eq("match_type", matchType).eq("match_value", matchValue).neq("id", mappingId).maybeSingle();
+      if (duplicateError) throw duplicateError;
+      if (duplicate) return json(409, { error: "Já existe outra regra com esse tipo e valor." });
+      if (matchType === "agent_name_prefix") {
+        const { data: prefixes, error: prefixesError } = await admin.from("wazuh_agent_mappings")
+          .select("tenant_id,match_value").eq("connection_id", mapping.connection_id).eq("match_type", "agent_name_prefix").eq("is_active", true).neq("id", mappingId);
+        if (prefixesError) throw prefixesError;
+        const overlap = (prefixes ?? []).some((item) => item.tenant_id !== mapping.tenant_id && prefixesOverlap(matchValue, item.match_value));
+        if (overlap) return json(409, { error: "Este prefixo se sobrepõe ao prefixo ativo de outra empresa." });
+      }
+      const { error: updateError } = await admin.from("wazuh_agent_mappings")
+        .update({ match_type: matchType, match_value: matchValue }).eq("id", mappingId);
+      if (updateError?.code === "23505") return json(409, { error: "Já existe outra regra com esse tipo e valor." });
+      if (updateError) throw updateError;
+      return json(200, { updated: true, entityId: mappingId });
+    }
+
+    if (action === "delete_agent_mapping") {
+      const mappingId = text(input.mappingId, 36);
+      const confirmValue = text(input.confirmValue, 256);
+      if (!mappingId || !/^[0-9a-f-]{36}$/i.test(mappingId) || !confirmValue) return json(400, { error: "Regra ou confirmação inválida." });
+      const { data: mapping, error: mappingError } = await admin.from("wazuh_agent_mappings")
+        .select("id,match_value").eq("id", mappingId).maybeSingle();
+      if (mappingError) throw mappingError;
+      if (!mapping) return json(404, { error: "Regra não encontrada." });
+      if (confirmValue !== mapping.match_value) return json(400, { error: "O valor digitado não corresponde à regra." });
+      const { error: deleteError } = await admin.from("wazuh_agent_mappings").delete().eq("id", mappingId);
+      if (deleteError) throw deleteError;
+      return json(200, { deleted: true, entityId: mappingId });
     }
 
     if (action === "create_shared_company") {
@@ -617,6 +720,38 @@ Deno.serve(async (request) => {
       const { error } = await admin.from("wazuh_agent_mappings").update({ is_active: false }).eq("id", mappingId);
       if (error) throw error;
       return json(200, { disabled: true });
+    }
+
+    if (action === "activate_company_mappings") {
+      const connectionId = text(input.connectionId, 36);
+      const tenantId = text(input.tenantId, 36);
+      if (!connectionId || !tenantId || !/^[0-9a-f-]{36}$/i.test(connectionId) || !/^[0-9a-f-]{36}$/i.test(tenantId)) {
+        return json(400, { error: "Selecione uma integração e uma empresa válidas." });
+      }
+      const { data: connection, error: connectionError } = await admin.from("wazuh_connections")
+        .select("id,mode").eq("id", connectionId).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection || connection.mode !== "shared") return json(404, { error: "Integração compartilhada não encontrada." });
+      const { data: company, error: companyError } = await admin.from("companies")
+        .select("id").eq("id", tenantId).eq("is_active", true).maybeSingle();
+      if (companyError) throw companyError;
+      if (!company) return json(404, { error: "Empresa não encontrada ou inativa." });
+      const [{ data: inactivePrefixes, error: inactivePrefixError }, { data: activePrefixes, error: activePrefixError }] = await Promise.all([
+        admin.from("wazuh_agent_mappings").select("match_value").eq("connection_id", connectionId)
+          .eq("tenant_id", tenantId).eq("match_type", "agent_name_prefix").eq("is_active", false),
+        admin.from("wazuh_agent_mappings").select("tenant_id,match_value").eq("connection_id", connectionId)
+          .eq("match_type", "agent_name_prefix").eq("is_active", true).neq("tenant_id", tenantId),
+      ]);
+      if (inactivePrefixError) throw inactivePrefixError;
+      if (activePrefixError) throw activePrefixError;
+      const overlap = (inactivePrefixes ?? []).some((candidate) =>
+        (activePrefixes ?? []).some((active) => prefixesOverlap(candidate.match_value, active.match_value)));
+      if (overlap) return json(409, { error: "Uma regra se sobrepõe ao prefixo ativo de outra empresa. Edite-a antes de ativar." });
+      const { data: updated, error: updateError } = await admin.from("wazuh_agent_mappings")
+        .update({ is_active: true }).eq("connection_id", connectionId).eq("tenant_id", tenantId)
+        .eq("is_active", false).select("id");
+      if (updateError) throw updateError;
+      return json(200, { activated: updated?.length ?? 0, entityId: tenantId });
     }
 
     return json(400, { error: "Unsupported admin action" });
