@@ -37,7 +37,7 @@ export function syncClockState(sources: SyncClockSource[] | null, now: number): 
   }
   const failed = sources.find((source) => ["failed", "partial"].includes(source.latest?.status ?? ""));
   if (failed) return { status: "failed", time: "!", progress: null, heading: "Coleta requer atenção",
-    detail: `${visibleText(failed.name)} · a última tentativa falhou ou ficou incompleta. Consulte o status para acompanhar a nova tentativa.` };
+    detail: `${visibleText(failed.name)} · a última tentativa registrada falhou ou ficou incompleta. Abra o status para conferir a coleta e possíveis configurações pendentes.` };
 
   const scheduled = sources.map((source) => ({ source, finished: Date.parse(source.latest?.finished_at ?? "") }));
   if (scheduled.some((item) => !Number.isFinite(item.finished))) return { status: "due", time: "…", progress: null,

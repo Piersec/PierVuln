@@ -9,6 +9,7 @@ import { ProfileMenu } from "@/src/components/profile-menu";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { withConsistentInventoryRead } from "@/src/lib/consistent-inventory";
 import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
+import { invokeAdmin, type AdminData } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
 
 type Connection = { id: string; name: string; is_active: boolean };
@@ -20,7 +21,7 @@ type SyncRun = {
   documents_received: number;
   pages_received: number;
 };
-type Source = { connection: Connection; latest: SyncRun | null; lastSuccess: SyncRun | null };
+type Source = { connection: Connection; latest: SyncRun | null; lastSuccess: SyncRun | null; configurationPending?: boolean };
 type Heartbeat = { connection_id: string; observed_at: string; vpn_active: boolean; indexer_reachable: boolean; connector_active: boolean; uptime_seconds: number; load_percent: number; memory_percent: number; disk_percent: number; indexer_latency_ms: number | null };
 type Probe = { api: boolean; database: boolean; databaseLatencyMs?: number };
 type Health = "healthy" | "running" | "aging" | "stale" | "warning" | "paused" | "empty";
@@ -30,6 +31,7 @@ const heartbeatAfterMs = 3 * 60 * 1000;
 
 function sourceHealth(source: Source, now: number): Health {
   if (!source.connection.is_active) return "paused";
+  if (source.configurationPending) return "empty";
   const running = source.latest?.status === "running";
   if (running && now - Date.parse(source.latest!.started_at) >= runningAfterMs) return "warning";
   if (!source.lastSuccess) {
@@ -119,12 +121,21 @@ export function CollectionStatus() {
       }));
     });
     if (currentRequest !== requestId.current) return;
+    if (isInternal) {
+      const adminData = await invokeAdmin<AdminData>(client, { action: "panel_data" }).catch(() => null);
+      if (currentRequest !== requestId.current) return;
+      for (const source of results) {
+        const config = adminData?.connections.find((item) => item.id === source.connection.id);
+        source.configurationPending = Boolean(config && (config.mode === "dedicated" ? !config.indexer_credentials_configured
+          : adminData?.mappings.some((mapping) => mapping.connection_id === config.id && mapping.is_active && adminData.companies.some((company) => company.id === mapping.tenant_id && company.is_active) && !config.indexer_configured_tenant_ids?.includes(mapping.tenant_id))));
+      }
+    }
     setSources(results);
     setCheckedAt(new Date().toISOString());
     setNow(Date.now());
     setLoading(false);
     setRefreshing(false);
-  }, [client]);
+  }, [client, isInternal]);
 
   useEffect(() => {
     if (!client) { setAuthReady(true); setLoading(false); return; }
@@ -156,7 +167,8 @@ export function CollectionStatus() {
   }, [load, user]);
 
   const healthyCount = sources.filter((source) => ["healthy", "running"].includes(sourceHealth(source, now))).length;
-  const allHealthy = sources.length > 0 && healthyCount === sources.length;
+  const monitoredSourceCount = sources.filter((source) => source.connection.is_active).length;
+  const allHealthy = monitoredSourceCount > 0 && healthyCount === monitoredSourceCount;
   const overall = sources.length === 0 ? "Sem conexões" : allHealthy ? "Todas as conexões saudáveis" : "Conexões requerem atenção";
   const activeSources = sources.filter((source) => source.connection.is_active);
   const activeHeartbeats = activeSources.map((source) => heartbeats.find((item) => item.connection_id === source.connection.id));
@@ -196,7 +208,7 @@ export function CollectionStatus() {
     <section className="main-column" id="status-content" tabIndex={-1}>
       <header className="topbar"><div className="breadcrumb">PierVuln <span>/</span> <strong>Status</strong></div><div className="topbar-actions"><span className="status-checked">Consultado: {formatDate(checkedAt)}</span><button className="button button-secondary refresh-button" disabled={refreshing} onClick={() => void load(true).catch(() => { setError("Não foi possível atualizar o status."); setRefreshing(false); })}>{refreshing ? "Atualizando…" : "Atualizar"}</button></div></header>
       <div className="content-wrap status-page">
-        <div className="page-heading"><div><span className="page-kicker">INFRAESTRUTURA / WAZUH</span><h1>Status do sistema</h1><p>API, VPN, VM, banco de dados e desempenho, com sinais atualizados a cada minuto.</p></div></div>
+        <div className="page-heading"><div><span className="page-kicker">INFRAESTRUTURA / COLETA</span><h1>Status do sistema</h1><p>API, VPN, VM, banco de dados e desempenho, com sinais atualizados a cada minuto.</p></div></div>
         {error && <p className="status-error" role="alert">{error}</p>}
         {loading ? <div className="admin-loading" role="status"><div className="spinner" />Consultando sincronizações…</div> : <>
           <section className={`status-overview status-${infrastructureHealthy && allHealthy ? "healthy" : "warning"}`} aria-label="Resumo do sistema">
@@ -204,12 +216,13 @@ export function CollectionStatus() {
             <div className="status-overview-facts"><div><span>Serviços saudáveis</span><strong>{checks.filter((check) => check.healthy).length} / 5</strong></div><div><span>Último sinal da VM</span><strong>{formatDate(activeHeartbeats.filter((item): item is Heartbeat => Boolean(item)).sort((a, b) => Date.parse(b.observed_at) - Date.parse(a.observed_at))[0]?.observed_at)}</strong></div></div>
           </section>
           <div className="status-checks">{checks.map((check) => <article className="status-check" key={check.name}><div className="status-check-top"><h2>{check.name}</h2><span className={`status-pill status-${check.healthy ? "healthy" : "warning"}`}><span aria-hidden="true" />{check.healthy ? "Saudável" : "Atenção"}</span></div><p>{check.detail}</p>{check.name === "Performance" && allFresh && <div className="status-check-metrics">{activeHeartbeats.filter((item): item is Heartbeat => Boolean(item)).map((item) => <span key={item.connection_id}>Carga {item.load_percent}% · memória {item.memory_percent}% · disco {item.disk_percent}% · Indexer {item.indexer_latency_ms ?? "—"} ms</span>)}</div>}</article>)}</div>
-          <div className="status-section-heading"><h2>Coleta Wazuh</h2><span>{overall} · {healthyCount} / {sources.length}</span></div>
-          {sources.length === 0 ? <section className="status-empty"><h3>Nenhuma fonte disponível</h3><p>Não há uma conexão do Wazuh vinculada à sua conta.</p></section> : <div className="status-source-list">{sources.map((source) => {
+          <div className="status-section-heading"><h2>Coleta de dados</h2><span>{overall} · {healthyCount} / {monitoredSourceCount} ativas</span></div>
+          {sources.length === 0 ? <section className="status-empty"><h3>Nenhuma fonte disponível</h3><p>Não há uma fonte de dados vinculada à sua conta.</p></section> : <div className="status-source-list">{sources.map((source) => {
             const health = sourceHealth(source, now);
             const complete = source.lastSuccess;
             return <article className="status-source" key={source.connection.id}>
-              <div className="status-source-heading"><div><span className="status-source-kicker">WAZUH INDEXER</span><h3>{visibleText(source.connection.name)}</h3></div><span className={`status-pill status-${health}`}><span aria-hidden="true" />{healthLabel(health)}</span></div>
+              <div className="status-source-heading"><div><span className="status-source-kicker">INDEXER</span><h3>{visibleText(source.connection.name)}</h3></div><span className={`status-pill status-${health}`}><span aria-hidden="true" />{source.configurationPending ? "Configuração pendente" : healthLabel(health)}</span></div>
+              {source.configurationPending && <p className="muted-copy">Faltam acessos individuais ao Indexer. <Link href="/admin/integrations">Configurar empresas</Link>. A última tentativa abaixo é histórica.</p>}
               <div className="status-source-facts"><div><span>Última leitura completa</span><strong>{formatDate(complete?.finished_at)}</strong></div><div><span>Documentos recebidos</span><strong>{complete ? complete.documents_received.toLocaleString("pt-BR") : "—"}</strong></div><div><span>Páginas recebidas</span><strong>{complete ? complete.pages_received.toLocaleString("pt-BR") : "—"}</strong></div><div><span>Última tentativa</span><strong>{source.latest ? `${runLabel(source.latest.status)} · ${formatDate(source.latest.finished_at ?? source.latest.started_at)}` : "—"}</strong></div></div>
             </article>;
           })}</div>}
