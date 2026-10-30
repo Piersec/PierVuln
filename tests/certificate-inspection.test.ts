@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { rootCertificates } from "node:tls";
+import { X509Certificate } from "node:crypto";
+import { POST } from "../app/api/certificates/inspect/route";
+const pem = rootCertificates.find((item) => { const c = new X509Certificate(item); return Date.parse(c.validTo) > Date.now() && Date.parse(c.validFrom) < Date.now(); })!;
+const inspect = (body: string | Buffer) => POST(new Request("http://localhost/api/certificates/inspect", { method: "POST", body: new Blob([typeof body === "string" ? body : new Uint8Array(body)]) }));
+test("TXT containing a certificate becomes canonical PEM", async () => { const r = await inspect("\uFEFF" + pem.replace(/\n/g, "\r\n")); assert.equal(r.status, 200); const data = await r.json(); assert.equal(new X509Certificate(data.pem).fingerprint256, new X509Certificate(pem).fingerprint256); });
+test("DER and base64 TXT preserve certificate identity", async () => { const cert = new X509Certificate(pem); for (const value of [cert.raw, cert.raw.toString("base64")]) { const r = await inspect(value); assert.equal(r.status, 200); assert.equal(new X509Certificate((await r.json()).pem).fingerprint256, cert.fingerprint256); } });
+test("plain text, mixed content and private keys are rejected", async () => { for (const value of ["texto comum", pem + "password=example", "-----BEGIN PRIVATE KEY-----\nsecret\n-----END PRIVATE KEY-----"]) assert.equal((await inspect(value)).status, 400); });
+test("oversized input is rejected", async () => assert.equal((await inspect("x".repeat(65537))).status, 413));

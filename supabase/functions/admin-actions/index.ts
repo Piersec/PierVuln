@@ -140,7 +140,7 @@ Deno.serve(async (request) => {
         const ids = data.connections.map((connection: { id: string }) => connection.id);
         const [{ data: assetSources, error: sourcesError }, { data: tenantAssetSecrets, error: tenantSecretsError }, { data: connectionSecrets, error: connectionSecretsError }, { data: assetRuns, error: runsError }] = await Promise.all([
           admin.from("wazuh_connections").select("id,mode,tenant_id,asset_api_url").in("id", ids),
-          admin.from("asset_api_tenant_secrets").select("connection_id,tenant_id").in("connection_id", ids),
+          admin.from("asset_api_tenant_secrets").select("connection_id,tenant_id,nonce,ciphertext").in("connection_id", ids),
           admin.from("wazuh_connection_secrets").select("connection_id,nonce,ciphertext").in("connection_id", ids),
           admin.from("asset_sync_runs").select("connection_id,tenant_id,status,finished_at,agents_received,agents_stored,error_summary")
             .in("connection_id", ids).order("started_at", { ascending: false }).limit(Math.min(ids.length * 20, 1000)),
@@ -180,6 +180,17 @@ Deno.serve(async (request) => {
           }
           connection.asset_api_configured_tenant_ids = [...configured];
           connection.indexer_configured_tenant_ids = legacy ? Object.keys((await decryptWazuhConfig(legacy)).indexerTenants ?? {}) : [];
+          const storedConfig = legacy ? await decryptWazuhConfig(legacy) : null;
+          connection.indexer_ca_configured = Boolean(storedConfig?.caCertificate);
+          connection.tenant_certificates = {};
+          for (const companyId of new Set([...(connection.indexer_configured_tenant_ids ?? []), ...configured])) {
+            const managerSecret = tenantAssetSecrets?.find((item) => item.connection_id === connection.id && item.tenant_id === companyId);
+            const managerConfig = managerSecret ? await decryptAssetApiCredentials(managerSecret) : source?.mode === "dedicated" ? storedConfig?.assetApi : null;
+            connection.tenant_certificates[companyId] = {
+              indexer: Boolean(source?.mode === "shared" ? storedConfig?.indexerTenants?.[companyId]?.caCertificate : storedConfig?.caCertificate),
+              manager: Boolean(managerConfig?.caCertificate),
+            };
+          }
           connection.latest_asset_sync = runById.get(connection.id) ?? null;
           connection.latest_asset_sync_by_tenant = runsByTenant.get(connection.id) ?? {};
         }

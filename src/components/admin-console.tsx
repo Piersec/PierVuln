@@ -1,4 +1,5 @@
 "use client";
+import { CertificateInput } from "@/src/components/certificate-input";
 
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
@@ -664,13 +665,13 @@ function AdminEditor({ editor, close, setEditor }: { editor: Editor; close: () =
         {mode === "dedicated" && !editor.connection && <CompanyAccessFields required />}
         {mode === "dedicated" && <label>Empresa<select name="company" required disabled={!!editor.connection} defaultValue={editor.connection?.tenant_id ?? ""}><option value="">Selecione uma empresa</option>{(editor.connection ? data.companies : activeCompanies).map((c) => <option key={c.id} value={c.id}>{visibleText(c.name)}</option>)}</select></label>}
       </>}
-      {editor.kind === "connection-credentials" && <><p>{editor.connection.mode === "shared" ? "Estas credenciais dão acesso ao Indexer compartilhado. Usuário e senha da API do Manager continuam exclusivos de cada empresa." : "Estas credenciais dão acesso ao Indexer desta integração."}</p><label>Usuário do Indexer<input name="indexerUsername" required maxLength={256} autoComplete="off" /></label><label>Senha do Indexer<input name="indexerPassword" type="password" required maxLength={4096} autoComplete="new-password" /></label><label>Certificado CA do Indexer (PEM), se necessário<textarea name="caCertificate" rows={4} maxLength={65536} autoComplete="off" placeholder="-----BEGIN CERTIFICATE-----" /></label><p className="muted-copy">Salvar renova o token de ingestão. O coletor recebe o novo valor na próxima leitura de configuração.{!editor.connection.is_active ? " Esta integração está inativa; reative-a para iniciar a coleta." : ""}</p></>}
-      {editor.kind === "connection-ca" && <><p>Substitui apenas o certificado CA desta conexão. Usuário, senha e token atual serão preservados.</p><label>Certificado CA (PEM)<textarea name="caCertificate" rows={10} required maxLength={65536} autoComplete="off" placeholder="-----BEGIN CERTIFICATE-----" /></label><p className="muted-copy">Informe somente certificados PEM. Não cole arquivos .key ou chaves privadas.</p></>}
+      {editor.kind === "connection-credentials" && <><p>{editor.connection.mode === "shared" ? "Estas credenciais dão acesso ao Indexer compartilhado. Usuário e senha da API do Manager continuam exclusivos de cada empresa." : "Estas credenciais dão acesso ao Indexer desta integração."}</p><label>Usuário do Indexer<input name="indexerUsername" required maxLength={256} autoComplete="off" /></label><label>Senha do Indexer<input name="indexerPassword" type="password" required maxLength={4096} autoComplete="new-password" /></label><CertificateInput name="caCertificate" label="Certificado do Indexer" /><p className="muted-copy">Salvar renova o token de ingestão. O coletor recebe o novo valor na próxima leitura de configuração.{!editor.connection.is_active ? " Esta integração está inativa; reative-a para iniciar a coleta." : ""}</p></>}
+      {editor.kind === "connection-ca" && <><p>Substitui apenas o certificado CA desta conexão. Usuário, senha e token atual serão preservados.</p><CertificateInput name="caCertificate" label="Certificado do Indexer" required /><p className="muted-copy">Envie o arquivo do certificado. TXT com certificado também é aceito.</p></>}
       {editor.kind === "asset-api-endpoint" && <><p>Este endereço será usado por todas as empresas vinculadas. Cada empresa terá usuário e senha próprios.</p><label>Endereço HTTPS comum da API<input name="assetApiUrl" type="url" required maxLength={2048} defaultValue={editor.connection.asset_api_url ?? ""} placeholder="https://192.168.100.110:55000" pattern="https://.*" /></label><small>Informe o IP e a porta uma vez para esta integração compartilhada.</small>{editor.nextCompany && <p className="muted-copy">Depois de salvar, você vai configurar o acesso de {visibleText(editor.nextCompany.name)}.</p>}</>}
       {editor.kind === "asset-api" && <>
         <p>Empresa: <strong>{visibleText(editor.company.name)}</strong> · IP: {new URL(editor.connection.endpoint_url).hostname}</p>
         <p className="muted-copy">Preencha os acessos desta empresa. Ao editar, campos vazios mantêm os valores salvos.</p>
-        <CompanyAccessFields />
+        <CompanyAccessFields certificates={editor.connection.tenant_certificates?.[editor.company.id]} />
         {!editor.connection.is_active && <p className="muted-copy">Ambiente pausado. Ative-o após configurar as empresas.</p>}
       </>}
       {editor.kind === "shared-company" && <><label>Empresa<select value={sharedCompanyTarget} onChange={(e) => setSharedCompanyTarget(e.target.value)}><option value="new">Cadastrar nova empresa</option><option value="existing">Vincular empresa já cadastrada</option></select></label>{sharedCompanyTarget === "new" ? <label>Nome da empresa<input name="name" required minLength={2} maxLength={160} placeholder="Yamam" autoFocus onInput={(e) => { e.currentTarget.value = visibleText(e.currentTarget.value); }} /></label> : <label>Empresa cadastrada<select name="company" required defaultValue=""><option value="">Selecione uma empresa</option>{activeCompanies.map((company) => <option key={company.id} value={company.id}>{visibleText(company.name)}</option>)}</select></label>}<label>Prefixo de agent.name<input name="prefix" required maxLength={80} pattern="[A-Za-z0-9._-]+" placeholder="100" /><small>Informe o começo do nome, sem o asterisco. Exemplo: 100.</small></label><label>Grupo da empresa<input name="group" required maxLength={160} pattern="[A-Za-z0-9._-]+" placeholder="yamam-tenant" /></label><p className="muted-copy">O grupo e o prefixo identificam os agentes desta empresa.</p><CompanyAccessFields required /></>}
@@ -689,13 +690,13 @@ function AdminEditor({ editor, close, setEditor }: { editor: Editor; close: () =
   </dialog>;
 }
 
-function CompanyAccessFields({ required = false }: { required?: boolean }) { return <>
+function CompanyAccessFields({ required = false, certificates }: { required?: boolean; certificates?: { indexer: boolean; manager: boolean } }) { return <>
         <h3>Indexer · vulnerabilidades</h3>
         <label>Usuário do Indexer<input name="indexerUsername" required={required} maxLength={256} autoComplete="off" /></label>
         <label>Senha do Indexer<input name="indexerPassword" type="password" required={required} maxLength={4096} autoComplete="new-password" /></label>
         <h3>Manager · ativos</h3>
         <label>Usuário do Manager<input name="assetApiUsername" required={required} maxLength={256} autoComplete="off" /></label>
         <label>Senha do Manager<input name="assetApiPassword" type="password" required={required} maxLength={4096} autoComplete="new-password" /></label>
-        <details><summary>Certificados opcionais</summary><label>CA do Indexer<textarea name="caCertificate" rows={4} maxLength={65536} /></label><label>CA do Manager<textarea name="assetApiCaCertificate" rows={4} maxLength={65536} /></label></details>
+        <CertificateInput name="caCertificate" label="Certificado do Indexer" saved={certificates?.indexer} /><CertificateInput name="assetApiCaCertificate" label="Certificado do Manager" saved={certificates?.manager} />
 
 </>; }
