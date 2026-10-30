@@ -1,19 +1,26 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import "./microinteractions.css";
 import { SiteNotifications } from "@/src/components/site-notifications";
 
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
+const plexSans = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-sans-400.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-sans-500.ttf", weight: "500", style: "normal" },
+    { path: "./fonts/ibm-plex-sans-600.ttf", weight: "600", style: "normal" },
+    { path: "./fonts/ibm-plex-sans-700.ttf", weight: "700", style: "normal" },
+  ],
   variable: "--font-sans",
   display: "swap",
 });
 
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
+const plexMono = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-mono-400.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-500.ttf", weight: "500", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-600.ttf", weight: "600", style: "normal" },
+  ],
   variable: "--font-mono",
   display: "swap",
 });
