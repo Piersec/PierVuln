@@ -4,12 +4,13 @@ services:
     build:
       context: ../..
       dockerfile: connector/Dockerfile
+    user: "1000:1000"
     network_mode: host
     mem_limit: 512m
     init: true
     restart: unless-stopped
     stop_grace_period: 3m
-    command: ["pnpm", "connector:daemon"]
+    command: ["node", "--import", "tsx", "connector/src/daemon.ts"]
     environment:
       SUPABASE_URL: ${SUPABASE_URL:?Defina SUPABASE_URL no ambiente do worker}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Defina SUPABASE_PUBLISHABLE_KEY no ambiente do worker}
