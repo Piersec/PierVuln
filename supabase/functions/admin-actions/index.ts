@@ -165,6 +165,7 @@ Deno.serve(async (request) => {
           connection.asset_api_url = source?.asset_api_url ?? null;
           const configured = configuredByConnection.get(connection.id) ?? new Set<string>();
           const legacy = secretById.get(connection.id);
+          connection.indexer_credentials_configured = Boolean(legacy);
           if (source?.mode === "dedicated" && source.tenant_id && legacy) {
             try {
               const config = await decryptWazuhConfig(legacy);
