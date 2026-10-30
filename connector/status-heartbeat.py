@@ -8,6 +8,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 from pathlib import Path
 
 
@@ -38,12 +39,10 @@ def memory_percent():
     return round(100 * (1 - fields["MemAvailable"] / fields["MemTotal"]), 1)
 
 
-def main():
-    env = environment()
-    vpn = command("systemctl", "is-active", "--quiet", "openvpn-client@wazuh").returncode == 0
+def publish_status(env):
     connector = command("docker", "inspect", "--format", "{{.State.Running}}", CONTAINER).stdout.strip() == "true"
-    route = command("ip", "route", "get", "192.168.100.111").stdout
-    vpn = vpn and "tun0" in route
+    route = command("ip", "route", "get", urllib.parse.urlparse(env["WAZUH_INDEXER_URL"]).hostname).stdout
+    vpn = "dev tun" in route or "dev tap" in route
     indexer = command(
         "curl", "--silent", "--show-error", "--output", "/dev/null", "--max-time", "8",
         "--cacert", str(INDEXER_CA), "--write-out", "%{http_code} %{time_total}",
@@ -78,6 +77,25 @@ def main():
         if response.status != 200:
             raise RuntimeError("Status endpoint rejected heartbeat")
     print("Status heartbeat sent")
+
+
+def main():
+    env = environment()
+    offset = 0
+    while True:
+        request = urllib.request.Request(
+            env["SUPABASE_URL"].rstrip("/") + "/functions/v1/wazuh-worker-config?workerProtocol=3&offset=" + str(offset),
+            headers={"apikey": env["SUPABASE_PUBLISHABLE_KEY"], "x-worker-token": env["WAZUH_WORKER_CONFIG_TOKEN"]},
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            config = json.load(response)
+        for source in config["connections"]:
+            publish_status({**env, "WAZUH_CONNECTION_ID": source["id"], "WAZUH_INGEST_TOKEN": source["ingestToken"], "WAZUH_INDEXER_URL": source["indexerUrl"]})
+        if not config.get("hasMore"):
+            break
+        offset += 100
+        if offset > 1000000:
+            raise ValueError("Configuration pagination exceeded")
 
 
 if __name__ == "__main__":
