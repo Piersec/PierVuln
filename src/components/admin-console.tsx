@@ -364,6 +364,7 @@ export function AdminSection({ section }: { section: Section }) {
       })}
     </DataTable></section>}
     {section === "integrations" && <div className="admin-integrations">
+      <SocWebhookPanel companies={data.companies} client={client} />
       {!connections.length && <div className="panel admin-empty">Nenhuma integração encontrada. Ajuste os filtros ou cadastre uma nova integração.</div>}
       {connections.map((connection) => <IntegrationPanel key={connection.id} connection={connection} data={data} companyFilter={companyFilter} search={search} runs={syncHistory[connection.id] ?? []} now={syncNow} setEditor={setEditor} />)}
     </div>}
@@ -386,6 +387,109 @@ export function AdminSection({ section }: { section: Section }) {
       void reload();
     }} />}
   </>;
+}
+
+type SocCredential = {
+  id: string; tenant_id: string; name: string; token_prefix: string; created_at: string; revoked_at: string | null;
+  last_received_at: string | null; last_batch_events: number; last_inserted: number; last_duplicates: number; last_error: string | null;
+};
+
+async function invokeSocIngestAdmin<T>(client: SupabaseClient, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await client.functions.invoke("soc-ingest-admin", { body });
+  if (error) {
+    const detail = error.context instanceof Response ? await error.context.json().catch(() => null) : null;
+    throw new AdminRequestError(detail?.error || "Não foi possível concluir a operação. Tente novamente.", error.context instanceof Response ? error.context.status : undefined);
+  }
+  if (!data || data.error) throw new Error(data?.error || "Resposta administrativa inválida.");
+  return data as T;
+}
+
+function SocWebhookPanel({ companies, client }: { companies: AdminCompany[]; client: SupabaseClient }) {
+  const [credentials, setCredentials] = useState<SocCredential[]>([]);
+  const [tenantId, setTenantId] = useState("");
+  const [name, setName] = useState("n8n");
+  const [token, setToken] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const endpoint = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/soc-alert-ingest`;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await invokeSocIngestAdmin<{ credentials: SocCredential[] }>(client, { action: "list" });
+      setCredentials(result.credentials);
+      setError("");
+    } catch (cause) {
+      setError((cause as Error).message || "Não foi possível carregar as chaves.");
+    } finally { setLoading(false); }
+  }, [client]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  async function createCredential(event: FormEvent) {
+    event.preventDefault();
+    if (!tenantId || busy) return;
+    setBusy(true); setError(""); setMessage(""); setToken("");
+    try {
+      const result = await invokeSocIngestAdmin<{ credential: SocCredential; token: string }>(client, {
+        action: "create", tenantId, name,
+      });
+      setToken(result.token);
+      setMessage("Chave criada. Copie agora: ela não será exibida novamente.");
+      await reload();
+    } catch (cause) { setError((cause as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function revoke(credential: SocCredential) {
+    if (busy || credential.revoked_at) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await invokeSocIngestAdmin(client, { action: "revoke", id: credential.id });
+      setMessage(`Chave ${credential.token_prefix} revogada.`);
+      await reload();
+    } catch (cause) { setError((cause as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function copy(value: string, label: string) {
+    try { await navigator.clipboard.writeText(value); setMessage(`${label} copiado.`); }
+    catch { setError("Não foi possível copiar. Selecione e copie o texto manualmente."); }
+  }
+
+  const companyName = (id: string) => visibleText(companies.find((company) => company.id === id)?.name ?? "Empresa removida");
+
+  return <section className="panel soc-ingest-panel" aria-labelledby="soc-ingest-title">
+    <div className="soc-ingest-heading"><div><span className="eyebrow">RECEBIMENTO SOC</span><h2 id="soc-ingest-title">Alertas do n8n</h2><p>Gere uma chave por empresa e envie eventos normalizados em lotes de até 100.</p></div>
+      <span className="soc-ingest-retention">Detalhes: 30 dias · Totais diários: mantidos</span></div>
+
+    <form className="soc-ingest-create" onSubmit={createCredential}>
+      <label>Empresa<select required value={tenantId} onChange={(event) => setTenantId(event.target.value)}><option value="">Selecione a empresa</option>{companies.map((company) => <option key={company.id} value={company.id} disabled={!company.is_active}>{visibleText(company.name)}{company.is_active ? "" : " · inativa"}</option>)}</select></label>
+      <label>Nome da chave<input required maxLength={80} value={name} onChange={(event) => setName(visibleText(event.target.value))} placeholder="n8n produção" /></label>
+      <button className="button button-primary" disabled={busy || !tenantId}>{busy ? "Salvando…" : "Gerar chave"}</button>
+    </form>
+
+    {token && <div className="soc-token-reveal" role="status"><div><strong>Copie a chave agora</strong><p>O banco guarda só o hash. Feche ou atualize a página e ela não poderá ser recuperada.</p></div><code>{token}</code><button type="button" className="button button-secondary" onClick={() => void copy(token, "Chave")}>Copiar chave</button></div>}
+    {message && <p className="soc-ingest-message" role="status">{visibleText(message)}</p>}
+    {error && <p className="inline-alert" role="alert">{visibleText(error)}</p>}
+
+    <details className="soc-ingest-guide"><summary>Configuração do webhook no n8n</summary>
+      <div className="soc-ingest-guide-grid"><div><span>URL</span><code>{endpoint}</code><button type="button" className="button button-secondary" onClick={() => void copy(endpoint, "URL")}>Copiar URL</button></div>
+        <div><span>Método e cabeçalhos</span><pre>{`POST\nContent-Type: application/json\nAuthorization: Bearer SUA_CHAVE_PIER\napikey: ${publishableKey || "CHAVE_PUBLICA_SUPABASE"}`}</pre><small>A chave pública do projeto pode ficar na configuração do n8n. Nunca coloque a chave de ingestão em query string ou logs.</small></div>
+        <div><span>Formato do corpo</span><pre>{`{\n  "events": [{\n    "source_id": "firewall-filial-01",\n    "source_name": "Firewall Filial 01",\n    "source_event_id": "ID_ESTAVEL_DA_ORIGEM",\n    "occurred_at": "2026-10-30T14:30:00Z",\n    "severity": "high",\n    "title": "Bloqueio de conexão",\n    "message": "Descrição do evento",\n    "rule_id": "regra-42",\n    "src_ip": "203.0.113.10",\n    "dst_ip": "192.0.2.15",\n    "mitre_ids": []\n  }]\n}`}</pre><button type="button" className="button button-secondary" onClick={() => void copy(`{\n  "events": [{\n    "source_id": "firewall-filial-01",\n    "source_name": "Firewall Filial 01",\n    "source_event_id": "ID_ESTAVEL_DA_ORIGEM",\n    "occurred_at": "2026-10-30T14:30:00Z",\n    "severity": "high",\n    "title": "Bloqueio de conexão",\n    "message": "Descrição do evento",\n    "rule_id": "regra-42",\n    "src_ip": "203.0.113.10",\n    "dst_ip": "192.0.2.15",\n    "mitre_ids": []\n  }]\n}`, "Exemplo de JSON")}>Copiar exemplo</button></div>
+        <p className="soc-ingest-response">Resposta 200: `accepted`, `inserted` e `duplicates`. Reenvie em caso de falha: `source_id` + `source_event_id` impedem contagem duplicada. Severidade aceita: critical, high, medium, low, informational ou unknown.</p>
+      </div>
+    </details>
+
+    <div className="soc-ingest-keys"><h3>Chaves por empresa</h3>{loading ? <p className="muted-copy">Carregando chaves…</p> : !credentials.length ? <p className="muted-copy">Nenhuma chave criada.</p> : credentials.map((credential) => <div className="soc-ingest-key" key={credential.id}>
+      <div><strong>{companyName(credential.tenant_id)} · {visibleText(credential.name)}</strong><code>{visibleText(credential.token_prefix)}…</code><small>{credential.revoked_at ? `Revogada em ${adminDate(credential.revoked_at)}` : `Ativa · criada ${adminDate(credential.created_at)}`}</small></div>
+      <div><strong>{credential.last_received_at ? `Último lote ${adminDate(credential.last_received_at)}` : "Sem eventos recebidos"}</strong>{credential.last_received_at && <small>{credential.last_inserted.toLocaleString("pt-BR")} novos · {credential.last_duplicates.toLocaleString("pt-BR")} duplicados</small>}{credential.last_error && <small className="soc-ingest-error">{visibleText(credential.last_error)}</small>}</div>
+      {!credential.revoked_at && <button type="button" className="button button-secondary button-destructive" disabled={busy} onClick={() => void revoke(credential)}>Revogar</button>}
+    </div>)}</div>
+  </section>;
 }
 
 function IntegrationPanel({ connection, data, companyFilter, search, runs, now, setEditor }: {
