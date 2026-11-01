@@ -21,7 +21,7 @@ import { visibleText } from "@/src/lib/visible-text";
 import { CompanyDataDeletionDialog } from "@/src/components/company-data-deletion-dialog";
 import { BattleDashboard, type BattleCompany } from "@/src/components/battle-dashboard";
 
-type Section = "dashboard" | "tenants" | "battle" | "integrations" | "users" | "audit";
+type Section = "dashboard" | "tenants" | "battle" | "integrations" | "users" | "audit" | "commercial";
 const DATABASE_LIMIT_BYTES = 500_000_000;
 type SyncMeasurement = {
   id: string;
@@ -39,6 +39,7 @@ const sections: { key: Section; label: string; href: string }[] = [
   { key: "integrations", label: "Integrações", href: "/admin/integrations" },
   { key: "users", label: "Usuários", href: "/admin/users" },
   { key: "audit", label: "Auditoria", href: "/admin/audit" },
+  { key: "commercial", label: "Comercial", href: "/admin/commercial" },
 ];
 type Notice = NoticeInput;
 type Context = {
@@ -49,7 +50,7 @@ type Context = {
   run: (payload: Record<string, unknown>, title: string) => Promise<Record<string, unknown> | null>;
 };
 const AdminContext = createContext<Context | null>(null);
-function useAdmin() { const value = useContext(AdminContext); if (!value) throw new Error("Admin workspace required"); return value; }
+export function useAdmin() { const value = useContext(AdminContext); if (!value) throw new Error("Admin workspace required"); return value; }
 
 export function AdminWorkspace({ children }: { children: ReactNode }) {
   const client = getSupabaseBrowserClient();
@@ -301,7 +302,7 @@ export function AdminSection({ section }: { section: Section }) {
   }
 
   return <>
-    <div className="page-heading"><div><h1>{section === "battle" ? "Batalha" : sections.find((s) => s.key === section)?.label}</h1><p>{({ dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", battle: "Ranking interno dos clientes com dados publicados.", integrations: "Cadastre o IP do ambiente e os acessos de cada empresa. Compartilhado: mesmo IP, usuários e senhas próprios. Dedicado: IP exclusivo da empresa.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
+    <div className="page-heading"><div><h1>{section === "battle" ? "Batalha" : sections.find((s) => s.key === section)?.label}</h1><p>{({ commercial: "Planos e fichas comerciais.", dashboard: "Clientes, acessos e status das fontes de dados.", tenants: "Gerencie empresas e preserve o histórico de cada cliente.", battle: "Ranking interno dos clientes com dados publicados.", integrations: "Cadastre o IP do ambiente e os acessos de cada empresa. Compartilhado: mesmo IP, usuários e senhas próprios. Dedicado: IP exclusivo da empresa.", users: "Equipe Pier e acessos dos clientes por empresa.", audit: "Arquivos de retenção, integridade e validade dos downloads." })[section]}</p></div>
       {section === "tenants" && <button className="button button-primary" onClick={() => setEditor({ kind: "company" })}>Nova empresa</button>}
       {section === "integrations" && <button className="button button-primary" onClick={() => setEditor({ kind: "connection" })}>Nova integração</button>}
       {section === "users" && <button className="button button-primary" onClick={() => setEditor({ kind: "invite" })}>Convidar usuário</button>}
