@@ -1785,21 +1785,4 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .certificate-input input[type="file"]::file-selector-button { margin-right: 12px; padding: 10px 14px; border: 1px solid var(--muted-strong); border-radius: 8px; background: var(--surface-inset); color: var(--ink); cursor: pointer; }
 .certificate-input :is(input, textarea, summary, a, button):focus-visible { box-shadow: 0 0 0 2px var(--surface-inset), 0 0 0 4px var(--muted-strong); }
 .certificate-input [role="status"] { display: grid; gap: 8px; }
-.commercial-console { display: grid; gap: 24px; color: var(--ink); }
-.commercial-catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.commercial-console .panel { padding: 24px; min-width: 0; }
-.commercial-console p { overflow-wrap: anywhere; }
-.commercial-price-row, .commercial-lead { padding-block: 16px; }
-.commercial-price-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.commercial-form { display: grid; gap: 16px; max-width: 720px; }
-.commercial-form label { display: grid; gap: 8px; color: var(--ink); }
-.commercial-form :is(input:not([type="checkbox"]), select, textarea) { width: 100%; min-width: 0; min-height: 44px; padding: 12px; background: var(--surface-inset); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; }
-.commercial-form textarea { min-height: 120px; resize: vertical; }
-.commercial-form label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: 10px; }
-.commercial-form input[type="checkbox"] { width: 20px; height: 20px; }
-.commercial-form fieldset { display: grid; gap: 12px; border: 0; padding: 0; }
-.commercial-form legend { margin-bottom: 12px; }
-.commercial-form > div { display: flex; flex-wrap: wrap; gap: 12px; }
-.commercial-form :is(input, select, textarea, button):focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-@media (max-width: 760px) { .commercial-catalog { grid-template-columns: 1fr; } .commercial-price-row { align-items: start; flex-direction: column; } }
 .certificate-input :is(a.button, button) { width: fit-content; max-width: 100%; min-height: 44px; }
