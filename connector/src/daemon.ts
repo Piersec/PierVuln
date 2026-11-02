@@ -173,7 +173,7 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null, a
   return environment;
 }
 
-async function runConnection(connection: RemoteConnection, assetTenant?: RemoteAssetApiTenant): Promise<void> {
+async function runConnection(connection: RemoteConnection, assetTenant?: RemoteAssetApiTenant, deletion = false): Promise<void> {
   const tenantFile = !assetOnly && connection.indexerTenants?.length ? `/tmp/piervuln-indexer-tenants-${connection.id}.json` : null;
   const certificate = assetOnly ? assetTenant?.caCertificate : [connection.caCertificate, ...(connection.indexerTenants ?? []).map((item) => item.caCertificate)].filter(Boolean).join("\n") || null;
   const caFile = certificate ? `/tmp/piervuln-${assetOnly ? `assets-${assetTenant?.tenantId}` : "indexer"}-${connection.id}.pem` : null;
@@ -184,10 +184,10 @@ async function runConnection(connection: RemoteConnection, assetTenant?: RemoteA
       await chmod(caFile, 0o600);
     }
     await new Promise<void>((resolve, reject) => {
-      const entrypoint = fileURLToPath(new URL(assetOnly ? "./assets.ts" : "./index.ts", import.meta.url));
+      const entrypoint = fileURLToPath(new URL(deletion ? "./asset-deletions.ts" : assetOnly ? "./assets.ts" : "./index.ts", import.meta.url));
       const child = spawn(process.execPath, ["--import", "tsx", entrypoint, "--once"], {
         cwd: process.cwd(),
-        env: { ...childEnvironment(connection, caFile, assetTenant), INDEXER_TENANTS_FILE: tenantFile ?? undefined },
+        env: { ...childEnvironment(connection, caFile, assetTenant), INDEXER_TENANTS_FILE: tenantFile ?? undefined, ...(deletion ? { WAZUH_WORKER_CONFIG_TOKEN: workerToken } : {}) },
         stdio: "inherit",
       });
       activeChild = child;
@@ -234,6 +234,10 @@ async function main() {
       for (const job of jobs) {
         if (shutdown.signal.aborted) break;
         const { connection, tenant, key } = job;
+        if (assetOnly && tenant) {
+          try { await runConnection(connection, tenant, true); }
+          catch { console.error("[asset-deletion] Command polling failed; source operations are not retried."); }
+        }
         if ((nextRunAt.get(key) ?? 0) > Date.now()) continue;
         const tenantLog = tenant ? ` tenantId=${tenant.tenantId}` : "";
         console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id}${tenantLog} status=starting.`);

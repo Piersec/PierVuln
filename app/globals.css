@@ -1952,3 +1952,19 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .soc-demo-map-legend i { width: 8px; height: 8px; border-radius: 50%; }
 .soc-demo-map-message { margin: 0; padding: 12px 18px; color: var(--ink); font-size: 13px; }
 @media (max-width: 700px) { .soc-demo-map-stage { height: 360px; } .soc-demo-map > header { flex-wrap: wrap; } }
+
+.asset-context-menu { position: fixed; z-index: 100; width: 240px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / 35%); }
+.asset-context-menu button { width: 100%; min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: #ff8795; text-align: left; padding: 8px 12px; font-size: 13px; }
+.asset-context-menu button:hover { background: var(--surface-raised); }
+.asset-removal-dialog { position: fixed; inset: 0; margin: auto; width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 26px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); color: var(--ink); }
+.asset-removal-dialog::backdrop { background: rgb(0 0 0 / 75%); }
+.asset-removal-dialog h2 { margin: 0 0 18px; color: #ff8795; font-size: 22px; }
+.asset-removal-dialog p { color: var(--muted-strong); font-size: 13px; line-height: 1.6; }
+.asset-removal-dialog dl { display: grid; grid-template-columns: 80px minmax(0,1fr); gap: 8px; padding: 16px; background: var(--surface-raised); border-radius: 8px; font-size: 13px; }
+.asset-removal-dialog dt { color: var(--muted-strong); }.asset-removal-dialog dd { margin: 0; overflow-wrap: anywhere; }
+.asset-removal-dialog label { display: grid; gap: 8px; margin: 18px 0; color: var(--ink); font-size: 13px; }
+.asset-removal-dialog input,.asset-removal-dialog textarea { width: 100%; min-height: 44px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-inset); color: var(--ink); font: inherit; }
+.asset-removal-dialog footer { display: flex; flex-wrap: wrap; justify-content: end; align-items: center; gap: 12px; margin-top: 22px; }.asset-removal-dialog footer > .button { min-height: 56px; }
+.asset-removal-danger .sld-track { background: #59232c !important; }.asset-removal-danger .sld-grip,.asset-removal-danger .sld-wash { background: #b42339 !important; }.asset-removal-danger .sld-say,.asset-removal-danger .sld-grip { color: #fff !important; }
+.asset-removal-history { margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); }.asset-removal-history summary { cursor: pointer; font-size: 14px; }.asset-removal-history article { display: grid; gap: 6px; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 13px; }.asset-removal-history article p { margin: 0; }.asset-removal-history small { color: var(--muted-strong); }.asset-removal-history .button { justify-self: start; }
+.asset-actions-button { min-width: 44px; min-height: 44px; }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { AssetRemoval, AssetRemovalHistory, type AssetActionTarget } from "@/src/components/asset-removal";
 import { visibleText } from "@/src/lib/visible-text";
 
 type AssetStatus = "active" | "disconnected" | "never_connected" | "pending" | "unknown";
@@ -33,13 +34,16 @@ const date = (value: string | null) => value
 const assetKey = (asset: Asset) => `${asset.tenant_id}:${asset.connection_id}:${asset.agent_id}`;
 const classificationKey = (tenantId: string, agentKey: string) => `${tenantId}:${agentKey}`;
 
-export function AssetsInventory({ client, companyId, revision, editableTenantIds, isInternal }: {
+export function AssetsInventory({ client, companyId, revision, editableTenantIds, isInternal, removableTenantIds, companyNames }: {
   client: SupabaseClient;
   companyId: string;
   revision: number;
   editableTenantIds: string[];
   isInternal: boolean;
+  removableTenantIds: string[];
+  companyNames: Record<string,string>;
 }) {
+  const [actionTarget, setActionTarget] = useState<AssetActionTarget | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -247,17 +251,17 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
           <th scope="col">Cadastrado em</th>
           <th scope="col"><button className="case-sort" type="button" onClick={() => changeSort("last_keep_alive_at")} aria-label={`Ordenar por último sinal. ${sortText("last_keep_alive_at", "Último sinal")}`}>{sortText("last_keep_alive_at", "Último sinal")}</button></th>
           <th scope="col"><button className="case-sort" type="button" onClick={() => changeSort("status")} aria-label={`Ordenar por estado. ${sortText("status", "Estado")}`}>{sortText("status", "Estado")}</button></th>
-          <th scope="col">Ativo crítico</th>
+          <th scope="col">Ativo crítico</th><th scope="col">Ações</th>
         </tr></thead>
         <tbody>
-          {loading && !assets.length ? <tr><td className="assets-table-message" colSpan={9} role="status">Carregando ativos da empresa...</td></tr>
+          {loading && !assets.length ? <tr><td className="assets-table-message" colSpan={10} role="status">Carregando ativos da empresa...</td></tr>
             : assets.length ? assets.map((asset) => {
               const key = assetKey(asset);
               const agentKey = asset.agent_id || asset.agent_name;
               const criticalKey = classificationKey(asset.tenant_id, agentKey);
               const isCritical = criticalByKey[criticalKey] ?? false;
               const editable = canEdit(asset.tenant_id);
-              return <tr key={key}>
+              return <tr key={key} onContextMenu={(event) => { if (isInternal || removableTenantIds.includes(asset.tenant_id)) { event.preventDefault(); setActionTarget({ asset, x: event.clientX, y: event.clientY }); } }}>
                 <td><code>{visibleText(asset.agent_id)}</code></td>
                 <td><strong>{visibleText(asset.agent_name)}</strong></td>
                 <td>{visibleText(asset.ip_address || "Não informado")}</td>
@@ -270,8 +274,9 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
                   <input type="checkbox" checked={isCritical} disabled={Boolean(savingCriticalKey)} aria-label={`${isCritical ? "Remover classificação de ativo crítico" : "Marcar como ativo crítico"}: ${visibleText(asset.agent_name)}`} onChange={(event) => void setCritical(asset, event.target.checked)} />
                   <span>{savingCriticalKey === criticalKey ? "Salvando..." : isCritical ? "Sim" : "Não"}</span>
                 </label> : <span className={isCritical ? "asset-critical-yes" : "asset-critical-no"}>{isCritical ? "Sim" : "Não"}</span>}</td>
+                <td>{(isInternal || removableTenantIds.includes(asset.tenant_id)) && <button className="button button-secondary asset-actions-button" aria-label={`Ações do ativo ${asset.agent_name}`} aria-haspopup="menu" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setActionTarget({ asset, x: rect.left, y: rect.bottom }); }}>•••</button>}</td>
               </tr>;
-            }) : <tr><td className="assets-table-message" colSpan={9}>
+            }) : <tr><td className="assets-table-message" colSpan={10}>
               <div className="assets-empty"><strong>{total === 0 && !hasFilters ? "Nenhum ativo chegou ainda" : "Nenhum ativo corresponde aos filtros"}</strong>
                 <span>{total === 0 && !hasFilters ? "Confira as credenciais da API de gerenciamento e se a coleta terminou." : "Altere a busca, o estado ou o grupo para ver outros ativos."}</span>
                 {hasFilters && <button className="assets-clear" type="button" onClick={clearFilters}>Limpar filtros</button>}
@@ -289,6 +294,8 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
         <button className="button button-secondary" type="button" disabled={(page + 1) * pageSize >= filteredCount || loading} onClick={() => setPage((value) => value + 1)}>Próxima</button>
       </div>
     </div>
+    <AssetRemoval client={client} target={actionTarget} onDismiss={() => setActionTarget(null)} companyName={(id) => companyNames[id] || "Empresa selecionada"} onRemoved={() => void load(true)}/>
+    <AssetRemovalHistory client={client} companyId={companyId} enabled={isInternal || removableTenantIds.length > 0}/>
     <p className="assets-data-note">Os campos de identificação, sistema, grupo e conectividade vêm da API de gerenciamento. A contagem de vulnerabilidades por ativo não está disponível nesta coleta.</p>
   </section>;
 }
