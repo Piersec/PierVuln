@@ -1,10 +1,16 @@
-import { Activity, Swords } from "lucide-react";
+import { Activity, ClipboardList, FileSearch, Map, ShieldAlert, Swords } from "lucide-react";
 
-type NavSymbolProps = { kind: "vulnerabilities" | "cases" | "assets" | "alerts" | "book" | "battle" | "status" | "admin" | "settings" };
+type NavSymbolProps = { kind: "vulnerabilities" | "cases" | "assets" | "alerts" | "book" | "battle" | "status" | "admin" | "settings" | "analytics" | "risk" | "incidents" | "monitoring" | "threat-map" | "fim" };
 
 export function NavSymbol({ kind }: NavSymbolProps) {
   if (kind === "battle") return <Swords className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
   if (kind === "alerts") return <Activity className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
+  if (kind === "analytics") return <Activity className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
+  if (kind === "risk") return <ShieldAlert className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
+  if (kind === "incidents") return <ClipboardList className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
+  if (kind === "monitoring") return <Activity className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
+  if (kind === "threat-map") return <Map className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
+  if (kind === "fim") return <FileSearch className="nav-symbol" size={20} strokeWidth={1.7} aria-hidden="true" />;
   const paths = {
     vulnerabilities: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
     cases: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
