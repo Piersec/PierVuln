@@ -104,4 +104,30 @@ begin
   end if;
 end
 $seed$;
+
+-- Demo coordinates are explicitly simulated; documentation IPs are never geolocated.
+with origins as (
+  select jsonb_build_array(
+    jsonb_build_object('city','São Paulo','country','Brasil','lat',-23.55,'lng',-46.63),
+    jsonb_build_object('city','Nova York','country','Estados Unidos','lat',40.71,'lng',-74.00),
+    jsonb_build_object('city','Toronto','country','Canadá','lat',43.65,'lng',-79.38),
+    jsonb_build_object('city','Londres','country','Reino Unido','lat',51.51,'lng',-0.13),
+    jsonb_build_object('city','Frankfurt','country','Alemanha','lat',50.11,'lng',8.68),
+    jsonb_build_object('city','Tóquio','country','Japão','lat',35.68,'lng',139.69),
+    jsonb_build_object('city','Sydney','country','Austrália','lat',-33.87,'lng',151.21),
+    jsonb_build_object('city','Singapura','country','Singapura','lat',1.35,'lng',103.82),
+    jsonb_build_object('city','Paris','country','França','lat',48.86,'lng',2.35),
+    jsonb_build_object('city','Lisboa','country','Portugal','lat',38.72,'lng',-9.14),
+    jsonb_build_object('city','Santiago','country','Chile','lat',-33.45,'lng',-70.67),
+    jsonb_build_object('city','Cidade do Cabo','country','África do Sul','lat',-33.92,'lng',18.42)
+  ) as cities
+)
+update public.soc_alerts a set raw_payload=a.raw_payload || jsonb_build_object('demo_geo',jsonb_build_object(
+  'simulated',true,'origin',o.cities->((a.raw_payload->>'sequence')::int%12),
+  'destination',jsonb_build_object('city','São Paulo','country','Brasil','lat',-23.55,'lng',-46.63)))
+from origins o,public.companies c
+where a.tenant_id=c.id and c.slug='demonstracao' and a.raw_payload->>'demo'='true'
+  and a.raw_payload->>'sequence' ~ '^[0-9]{1,6}
+;
+
 commit;

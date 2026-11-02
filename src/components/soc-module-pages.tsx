@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { visibleText } from "@/src/lib/visible-text";
+import { SocDemoThreatMap, type DemoMapRoute } from "@/src/components/soc-demo-threat-map";
 import { SocIncidents } from "@/src/components/soc-incidents";
 
 export type SocModulePage = "analytics" | "risk" | "incidents" | "monitoring" | "threat-map" | "fim";
@@ -43,7 +44,7 @@ type FimSummary = {
   top_users: { name: string; agent_id: string | null; agent_name: string | null; count: number }[];
 };
 type ThreatSummary = {
-  queried_at: string; total: number; geolocation_available: false; events_with_mitre: number; events_with_geo: number;
+  queried_at: string; total: number; geolocation_available: boolean; geo_routes?: DemoMapRoute[]; geo_countries?: { name: string; count: number }[]; events_with_mitre: number; events_with_geo: number;
   tactics: { name: string; count: number }[]; techniques: { name: string; count: number }[];
   events: { id: string; occurred_at: string; title: string; source_name: string; agent_name: string | null; src_ip: string | null; dst_ip: string | null; mitre_ids: string[]; mitre_tactics: string[]; mitre_techniques: string[] }[];
 };
@@ -253,8 +254,9 @@ function FileIntegrity({ data }: { data: FimSummary }) {
 function ThreatMap({ data }: { data: ThreatSummary }) {
   return <>
     <div className="soc-map-layout">
-      <div className="soc-map-canvas" role="img" aria-label="Mapa indisponível: a integração não fornece coordenadas geográficas."><MapPin size={28} aria-hidden="true"/><strong>Geolocalização indisponível</strong><span>A integração atual não envia país nem coordenadas. IPs privados não serão tratados como origem de ataque.</span></div>
+      {data.geolocation_available && data.geo_routes?.length ? <SocDemoThreatMap routes={data.geo_routes}/> : <div className="soc-map-canvas" role="img" aria-label="Mapa indisponível: a integração não fornece coordenadas geográficas."><MapPin size={28} aria-hidden="true"/><strong>Geolocalização indisponível</strong><span>A integração atual não envia país nem coordenadas. IPs privados não serão tratados como origem de ataque.</span></div>}
       <div className="soc-map-panels">
+        {Boolean(data.geo_countries?.length) && <RankPanel title="Países de origem · Simulação" note="Contagem de alertas com coordenadas fictícias no período selecionado." rows={data.geo_countries!.map((item) => ({ name: item.name, meta: "Origem fictícia", count: item.count }))}/>}
         <RankPanel title="Táticas identificadas" note="Alertas distintos com tática informada." rows={data.tactics.map((item) => ({ name: item.name, meta: "ATT&CK", count: item.count }))}/>
         <RankPanel title="Técnicas identificadas" note="Alertas distintos com técnica informada." rows={data.techniques.map((item) => ({ name: item.name, meta: "ATT&CK", count: item.count }))}/>
       </div>
