@@ -11,6 +11,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { hasInviteLink } from "@/src/lib/temporary-auth-flow";
 import { TURNSTILE_SITE_KEY } from "@/src/lib/auth-captcha";
+import { signInNotice } from "@/src/lib/sign-in-notice";
 
 const inviteHashAtLoad = typeof window !== "undefined" && hasInviteLink() ? window.location.hash : "";
 const captchaRefreshAfterMs = 4 * 60_000;
@@ -76,9 +77,7 @@ export default function LoginPage() {
     setNotice("");
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: token } });
-      if (error) setNotice(error.code === "captcha_failed"
-        ? "O desafio de segurança expirou ou já foi utilizado. Aguarde a nova confirmação e tente entrar novamente."
-        : "Não foi possível entrar. Confira o e-mail e a senha ou peça um novo convite à equipe.");
+      if (error) setNotice(signInNotice(error));
       else router.replace("/dashboard");
     } catch {
       setNotice("Não foi possível conectar. Verifique sua conexão e tente novamente.");
