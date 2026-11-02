@@ -27,7 +27,7 @@ import {
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
 import { BentoCard, BentoGrid } from "@/src/components/ui/bento-grid";
-import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { WorkspaceNav } from "@/src/components/workspace-nav";
 import { visibleText } from "@/src/lib/visible-text";
 import type { VulnerabilityOverview } from "@/src/lib/vulnerability-overview";
 import { Download } from "lucide-react";
@@ -335,14 +335,7 @@ export function CustomerBook() {
       <a className="skip-link" href="#book-overview">Pular para o conteúdo</a>
       <aside className="sidebar">
         <Brand href="/dashboard" />
-        <nav className="workspace-nav" aria-label="Navegação principal">
-          <div className="nav-caption">WORKSPACE</div>
-          <Link className="nav-link" href="/dashboard" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
-          <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
-          <Link className="nav-link" href="/assets" aria-label="Ativos" title="Ativos"><NavSymbol kind="assets" /><span className="nav-label">Ativos</span></Link>
-          <Link className="nav-link active" href="/book" aria-current="page" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
-          {isInternal && <Link className="nav-link" href="/battle" aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>}
-        </nav>
+        <WorkspaceNav companyId={selectedCompany} isInternal={isInternal} />
         <div className="sidebar-bottom"><ProfileMenu userId={session.user.id} fallback={session.user.email ?? "U"} isInternal={isInternal} companyId={selectedCompany} /><div className="user-info"><strong>{session.user.email}</strong><span>{isInternal ? "Equipe Pier" : selectedCompanyName ?? "Cliente"}</span></div><button className="book-signout" onClick={() => void signOut()}>Sair</button></div>
       </aside>
 

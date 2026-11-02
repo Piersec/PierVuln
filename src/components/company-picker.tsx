@@ -77,7 +77,7 @@ export function CompanyPicker({ client, companies, value, onChange, isInternal }
       <span className="company-picker-logo"><CompanyLogo company={company} client={client} /></span>
       <span className="company-picker-name">{visibleText(company.name)}</span>
       {company.id === value && <span className="company-picker-check" aria-hidden="true">✓</span>}
-      {!compact && <small>{groups.dedicatedIds.has(company.id) ? "Fonte dedicada" : "Empresa"}</small>}
+      {!compact && <small>{company.slug === "demonstracao" ? "Dados fictícios" : groups.dedicatedIds.has(company.id) ? "Fonte dedicada" : "Empresa"}</small>}
     </button>;
   }
   const selected = companies.find((company) => company.id === value);

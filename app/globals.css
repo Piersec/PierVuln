@@ -1915,3 +1915,19 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .certificate-input :is(input, textarea, summary, a, button):focus-visible { box-shadow: 0 0 0 2px var(--surface-inset), 0 0 0 4px var(--muted-strong); }
 .certificate-input [role="status"] { display: grid; gap: 8px; }
 .certificate-input :is(a.button, button) { width: fit-content; max-width: 100%; min-height: 44px; }
+
+/* Grouped module navigation. */
+.workspace-nav.workspace-nav-grouped { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 8px; overflow: visible; max-height: none; }
+.workspace-nav-grouped .nav-root { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 52px; min-width: 0; min-height: 56px; gap: 4px; padding: 6px 2px; border: 0; border-radius: 10px; background: transparent; color: var(--muted-strong); font-size: 10px; line-height: 1.2; }
+.workspace-nav-grouped .nav-root:hover, .workspace-nav-grouped .nav-root[data-pressed] { background: var(--surface); color: var(--ink); }
+.workspace-nav-grouped .nav-root.active { background: var(--surface-raised); color: var(--ink); }
+.nav-root-chevron { position: absolute; right: 1px; top: 15px; }
+.nav-tree-popover { width: 264px; max-width: calc(100vw - 88px); border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 12px 30px rgb(0 0 0 / 30%); }
+.nav-tree-dialog { padding: 16px 12px 12px; }
+.nav-tree-dialog h2 { margin: 0 8px 12px; color: var(--ink); font-size: 14px; font-weight: 600; }
+.nav-tree-branches { display: grid; gap: 3px; margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--line-strong); }
+.nav-tree-link { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 8px 10px; border-radius: 7px; color: var(--muted-strong); font-size: 13px; }
+.nav-tree-link:hover, .nav-tree-link.active { background: var(--surface-raised); color: var(--ink); }
+.nav-tree-link:focus-visible, .nav-root:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.demo-company-notice { margin: 0 0 18px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--surface); color: var(--ink); font-size: 13px; }
+@media (max-width: 700px) { .sidebar .workspace-nav.workspace-nav-grouped { display: flex; flex-direction: row; justify-content: space-around; grid-column: 1 / -1; } .workspace-nav-grouped .nav-root { width: auto; min-width: 56px; } }

@@ -6,7 +6,7 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
-import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { WorkspaceNav } from "@/src/components/workspace-nav";
 import { ProfileMenu } from "@/src/components/profile-menu";
 import { UserAvatar, profileUpdatedEvent } from "@/src/components/user-avatar";
 import { useSiteNotifications } from "@/src/components/site-notifications";
@@ -235,14 +235,7 @@ export function UserSettings() {
     <a className="skip-link" href="#settings-content">Pular para configurações</a>
     <aside className={`sidebar${isInternal ? " has-admin" : ""}`}>
       <Brand />
-      <nav className="workspace-nav" aria-label="Navegação principal">
-        <div className="nav-caption">WORKSPACE</div>
-        <Link className="nav-link" href="/dashboard" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
-        <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
-        <Link className="nav-link" href="/assets" aria-label="Ativos" title="Ativos"><NavSymbol kind="assets" /><span className="nav-label">Ativos</span></Link>
-        <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
-        {isInternal && <Link className="nav-link" href="/battle" aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>}
-      </nav>
+      <WorkspaceNav isInternal={isInternal} />
       <div className="sidebar-bottom"><ProfileMenu userId={user.id} fallback={name || user.email || "U"} isInternal={isInternal} /><div className="user-info"><strong>{name || user.email}</strong><span>{isInternal ? "Equipe Pier" : "Minha conta"}</span></div><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div>
     </aside>
 

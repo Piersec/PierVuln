@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
-import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { WorkspaceNav } from "@/src/components/workspace-nav";
 import { AnimatedCounter } from "@/src/components/ui/animated-counter";
 import { ProfileMenu } from "@/src/components/profile-menu";
 import { useSiteNotifications } from "@/src/components/site-notifications";
@@ -153,13 +153,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   return <AdminContext.Provider value={{ client, data, loading, busy, loadError, query, setQuery, reload, notify, run, setIslandHost }}>
     <main className={`app-shell${battlePage ? "" : " admin-shell"}`}>
       <a className="skip-link" href="#admin-content">Pular para o conteúdo</a>
-      <aside className="sidebar has-admin"><Brand /><nav className="workspace-nav" aria-label="Navegação principal">
-        <Link className="nav-link" href="/dashboard" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /></Link>
-        <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /></Link>
-        <Link className="nav-link" href="/assets" aria-label="Ativos" title="Ativos"><NavSymbol kind="assets" /></Link>
-        <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /></Link>
-        <Link className={`nav-link${battlePage ? " active" : ""}`} href="/battle" aria-current={battlePage ? "page" : undefined} aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>
-      </nav><div className="sidebar-bottom"><ProfileMenu userId={session.user.id} fallback={session.user.email ?? "U"} isInternal={true} /><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>
+      <aside className="sidebar has-admin"><Brand /><WorkspaceNav isInternal={true} /><div className="sidebar-bottom"><ProfileMenu userId={session.user.id} fallback={session.user.email ?? "U"} isInternal={true} /><button className="sidebar-signout" onClick={() => void signOut()}>Sair</button></div></aside>
       <section className="main-column"><header className="topbar"><div className="breadcrumb">{battlePage ? "PierVuln" : "ADMIN"} <span>/</span><strong>{battlePage ? "Batalha" : sections.find((s) => s.href === pathname)?.label ?? "Administração"}</strong></div><button className="button button-secondary" disabled={loading} onClick={() => void reload(true)}>{loading ? "Atualizando…" : "Atualizar"}</button></header>
         <div className="content-wrap admin-content" id="admin-content" tabIndex={-1}>
           {!battlePage && <nav className="admin-tabs" aria-label="Administração">{sections.map((s) => <Link href={s.href} key={s.key} className={pathname === s.href ? "active" : ""} aria-current={pathname === s.href ? "page" : undefined}>{s.label}</Link>)}</nav>}

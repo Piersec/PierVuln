@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Brand } from "@/src/components/brand";
-import { NavSymbol } from "@/src/components/ui/nav-symbol";
+import { WorkspaceNav } from "@/src/components/workspace-nav";
 import { ProfileMenu } from "@/src/components/profile-menu";
 import { getSupabaseBrowserClient } from "@/src/lib/supabase/client";
 import { withConsistentInventoryRead } from "@/src/lib/consistent-inventory";
@@ -196,13 +196,7 @@ export function CollectionStatus() {
     <a className="skip-link" href="#status-content">Pular para o conteúdo</a>
     <aside className={`sidebar${isInternal ? " has-admin" : ""}`}>
       <Brand />
-      <nav className="workspace-nav" aria-label="Navegação principal">
-        <Link className="nav-link" href="/dashboard" aria-label="Vulnerabilidades" title="Vulnerabilidades"><NavSymbol kind="vulnerabilities" /><span className="nav-label">Vulnerabilidades</span></Link>
-        <Link className="nav-link" href="/cases" aria-label="Casos" title="Casos de vulnerabilidade"><NavSymbol kind="cases" /><span className="nav-label">Casos</span></Link>
-        <Link className="nav-link" href="/assets" aria-label="Ativos" title="Ativos"><NavSymbol kind="assets" /><span className="nav-label">Ativos</span></Link>
-        <Link className="nav-link" href="/book" aria-label="Book dos Clientes" title="Book dos Clientes"><NavSymbol kind="book" /><span className="nav-label">Book dos Clientes</span></Link>
-        {isInternal && <Link className="nav-link" href="/battle" aria-label="Batalha" title="Batalha"><NavSymbol kind="battle" /><span className="nav-label">Batalha</span></Link>}
-      </nav>
+      <WorkspaceNav isInternal={isInternal} />
       <div className="sidebar-bottom"><ProfileMenu userId={user.id} fallback={user.email ?? "U"} isInternal={isInternal} /><div className="user-info"><strong>{visibleText(user.email)}</strong><span>{isInternal ? "Equipe Pier" : "Cliente"}</span></div><button className="sidebar-signout" onClick={() => void client.auth.signOut()}>Sair</button></div>
     </aside>
     <section className="main-column" id="status-content" tabIndex={-1}>
