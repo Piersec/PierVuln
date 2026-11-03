@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Activity, AlertTriangle, RefreshCw } from "lucide-react";
 import {
@@ -12,6 +12,15 @@ import { visibleText } from "@/src/lib/visible-text";
 type Period = "24h" | "7d" | "30d";
 type CaseFilter = "all" | "linked" | "unlinked";
 type Severity = "critical" | "high" | "medium" | "low" | "informational" | "unknown";
+type AiPriority = "critical" | "high" | "medium" | "low";
+type AiTriage = {
+  status: "completed" | "unavailable";
+  priority: AiPriority | null;
+  confidence: number | null;
+  summary: string;
+  recommended_action: string;
+  model: string | null;
+};
 type Summary = {
   total: number; critical_high: number; unknown: number; sources: number;
   severity: Record<Severity, number>;
@@ -38,7 +47,33 @@ const severityLabels: Record<Severity, string> = {
   informational: "Informativo", unknown: "Sem classificação",
 };
 const severityOrder: Severity[] = ["critical", "high", "medium", "low", "informational", "unknown"];
+const aiPriorityOrder: AiPriority[] = ["critical", "high", "medium", "low"];
+const aiPriorityLabels: Record<AiPriority, string> = { critical: "Crítica", high: "Alta", medium: "Média", low: "Baixa" };
 const pageSize = 50;
+
+function readAiTriage(rawPayload: Record<string, unknown> | null): AiTriage | null {
+  const value = rawPayload?.ai_triage;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  const priority = aiPriorityOrder.includes(candidate.priority as AiPriority) ? candidate.priority as AiPriority : null;
+  const confidenceValue = candidate.confidence;
+  const confidence = typeof confidenceValue === "number" && Number.isFinite(confidenceValue)
+    ? Math.max(0, Math.min(1, confidenceValue)) : null;
+  const status = candidate.status === "completed" && priority ? "completed" : "unavailable";
+  return {
+    status,
+    priority,
+    confidence,
+    summary: typeof candidate.summary === "string" ? candidate.summary : "",
+    recommended_action: typeof candidate.recommended_action === "string" ? candidate.recommended_action : "",
+    model: typeof candidate.model === "string" ? candidate.model : null,
+  };
+}
+
+function AlertDetailField({ label, value }: { label: string; value: string | null | undefined }) {
+  if (value == null || value === "") return null;
+  return <div><dt>{label}</dt><dd>{visibleText(value)}</dd></div>;
+}
 
 function sinceFor(period: Period, now: Date) {
   const since = new Date(now);
@@ -76,12 +111,51 @@ export function SocAlertsDashboard({ client, companyId, canManage }: { client: S
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createdCases, setCreatedCases] = useState<Record<string, string>>({});
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const alertDialogRef = useRef<HTMLElement | null>(null);
+  const alertDialogCloseRef = useRef<HTMLButtonElement | null>(null);
+  const alertTriggerRef = useRef<HTMLButtonElement | null>(null);
   const range = useMemo(() => {
     const until = new Date();
     return { since: sinceFor(period, until).toISOString(), until: until.toISOString() };
   }, [period, reloadId]);
   const realtimeConnected = companyId ? realtimeCompanyId === companyId : realtimeCompanyId === "*";
   const refreshing = summaryLoading || listLoading;
+
+  useEffect(() => {
+    if (!selectedAlert) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => alertDialogCloseRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSelectedAlert(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = alertDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      alertTriggerRef.current?.focus();
+    };
+  }, [selectedAlert]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
@@ -167,6 +241,11 @@ export function SocAlertsDashboard({ client, companyId, canManage }: { client: S
   function changeSearch(next: string) { setPage(0); setSearch(next); }
   function changeCaseFilter(next: CaseFilter) { setPage(0); setCaseFilter(next); }
 
+  function openAlertDetails(alert: Alert, trigger: HTMLButtonElement) {
+    alertTriggerRef.current = trigger;
+    setSelectedAlert(alert);
+  }
+
   async function createIncident(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!createAlert || !canManage || !createSeverity) return;
@@ -183,6 +262,7 @@ export function SocAlertsDashboard({ client, companyId, canManage }: { client: S
   const count = (key: Severity) => summary?.severity?.[key] ?? 0;
   const buckets = useMemo(() => (summary?.series ?? []).map((item) => ({ ...item, label: formatBucket(item.bucket, summary?.bucket_unit ?? "hour") })), [summary]);
   const receivedInWindow = summary?.total ?? 0;
+  const selectedTriage = selectedAlert ? readAiTriage(selectedAlert.raw_payload) : null;
 
   return <section className="soc-dashboard" id="alerts">
     <div className="page-heading soc-dashboard-heading"><div><span className="page-kicker">CENTRO DE OPERAÇÕES</span><h1>Alertas SOC</h1><p>Eventos de segurança recebidos de forma segregada por empresa.</p></div>
@@ -207,9 +287,58 @@ export function SocAlertsDashboard({ client, companyId, canManage }: { client: S
 
     <section className="panel soc-alert-list-panel"><header className="soc-alert-list-heading"><div><h2>Fila de alertas</h2><p>Eventos técnicos da origem; incidentes têm fluxo próprio e histórico de atendimento.</p></div><span>{summary ? `${formatCount(summary.total)} no período` : "Resumo indisponível"}</span></header>
       <div className="soc-alert-filters soc-alert-filters-three"><label className="sr-only" htmlFor="soc-alert-search">Buscar alertas</label><input id="soc-alert-search" type="search" placeholder="Buscar título, fonte, agente ou regra…" value={search} onChange={(event) => changeSearch(event.target.value)} /><label className="sr-only" htmlFor="soc-alert-severity">Filtrar gravidade</label><select id="soc-alert-severity" value={severity} onChange={(event) => changeSeverity(event.target.value)}><option value="">Todas as gravidades</option>{severityOrder.map((key) => <option value={key} key={key}>{severityLabels[key]}</option>)}</select><label className="sr-only" htmlFor="soc-alert-case">Vínculo com incidente</label><select id="soc-alert-case" value={caseFilter} onChange={(event) => changeCaseFilter(event.target.value as CaseFilter)}><option value="all">Com ou sem incidente</option><option value="linked">Com incidente</option><option value="unlinked">Sem incidente</option></select></div>
-      {listLoading && !alerts.length ? <div className="soc-alert-skeletons" aria-label="Carregando alertas">{Array.from({ length: 5 }, (_, index) => <div className="soc-alert-skeleton" key={index} />)}</div> : !alerts.length ? <div className="soc-alert-empty"><AlertTriangle size={22} aria-hidden="true" /><strong>Nenhum alerta encontrado</strong><p>{caseFilter === "linked" ? "Não há alertas vinculados a incidentes nesta busca." : caseFilter === "unlinked" ? "Não há alertas sem incidente nesta busca." : "Quando houver alertas para os filtros selecionados, eles aparecerão aqui."}</p>{canManage && !companyId && <small>Selecione uma empresa para iniciar atendimentos.</small>}</div> : <div className="soc-alert-table-wrap"><table className="soc-alert-table"><thead><tr><th>Gravidade</th><th>Data e hora</th><th>Alerta / regra</th><th>Fonte</th><th>Ativo</th><th>Origem</th><th>Incidente</th><th>Detalhes</th></tr></thead><tbody>{alerts.map((alert) => <tr key={alert.id}><td><span className={`soc-severity-badge severity-${alert.severity}`}>{severityLabels[alert.severity]}</span></td><td><time dateTime={alert.occurred_at}>{formatDate(alert.occurred_at)}</time></td><td><strong>{visibleText(alert.title)}</strong>{alert.rule_id && <small>{visibleText(alert.rule_id)}{alert.rule_description ? ` · ${visibleText(alert.rule_description)}` : ""}</small>}</td><td>{visibleText(alert.source_name)}</td><td>{visibleText(alert.agent_name ?? alert.agent_id ?? "—")}</td><td>{visibleText(alert.src_ip ?? "—")}{alert.src_port ? `:${alert.src_port}` : ""}</td><td>{createdCases[alert.id] ? <Link href={`/incidentes?company=${companyId}`} className="soc-inline-link">Incidente criado →</Link> : canManage && companyId && !(alert.soc_case_alerts?.length) ? <button className="button button-secondary soc-case-edit-button" onClick={() => { setCreateAlert(alert); setCreateSeverity(["critical","high","medium","low"].includes(alert.severity) ? alert.severity : ""); }}>Abrir incidente</button> : alert.soc_case_alerts?.length ? <Link href={`/incidentes?company=${companyId}`} className="soc-inline-link">Ver incidente →</Link> : "—"}</td><td><details className="soc-alert-details"><summary>Ver</summary><div><p>{visibleText(alert.message ?? "Sem descrição adicional.")}</p><dl>{alert.agent_ip && <><dt>IP do ativo</dt><dd>{visibleText(alert.agent_ip)}</dd></>}{alert.dst_ip && <><dt>Destino</dt><dd>{visibleText(alert.dst_ip)}{alert.dst_port ? `:${alert.dst_port}` : ""}</dd></>}{alert.network_protocol && <><dt>Protocolo</dt><dd>{visibleText(alert.network_protocol)}</dd></>}{alert.service && <><dt>Serviço</dt><dd>{visibleText(alert.service)}</dd></>}{alert.source_action && <><dt>Ação da origem</dt><dd>{visibleText(alert.source_action)}</dd></>}{alert.normalized_action && <><dt>Ação normalizada</dt><dd>{visibleText(alert.normalized_action)}</dd></>}{alert.file_path && <><dt>Arquivo</dt><dd>{visibleText(alert.file_path)}</dd></>}{alert.change_actor && <><dt>Autor informado</dt><dd>{visibleText(alert.change_actor)}</dd></>}{alert.change_process && <><dt>Processo informado</dt><dd>{visibleText(alert.change_process)}</dd></>}{alert.file_owner_after && <><dt>Proprietário atual</dt><dd>{visibleText(alert.file_owner_after)}</dd></>}{alert.file_hash_before && <><dt>Hash anterior</dt><dd>{visibleText(alert.file_hash_before)}</dd></>}{alert.file_hash_after && <><dt>Hash atual</dt><dd>{visibleText(alert.file_hash_after)}</dd></>}{alert.mitre_ids.length > 0 && <><dt>MITRE ATT&amp;CK</dt><dd>{alert.mitre_ids.map(visibleText).join(", ")}</dd></>}{alert.severity_original && <><dt>Severidade original</dt><dd>{visibleText(alert.severity_original)}</dd></>}{alert.source_event_id && <><dt>ID de origem</dt><dd>{visibleText(alert.source_event_id)}</dd></>}</dl>{alert.raw_payload && <details><summary>Payload resumido da origem</summary><pre>{JSON.stringify(alert.raw_payload, null, 2)}</pre></details>}</div></details></td></tr>)}</tbody></table></div>}
+      {listLoading && !alerts.length ? <div className="soc-alert-skeletons" aria-label="Carregando alertas">{Array.from({ length: 5 }, (_, index) => <div className="soc-alert-skeleton" key={index} />)}</div> : !alerts.length ? <div className="soc-alert-empty"><AlertTriangle size={22} aria-hidden="true" /><strong>Nenhum alerta encontrado</strong><p>{caseFilter === "linked" ? "Não há alertas vinculados a incidentes nesta busca." : caseFilter === "unlinked" ? "Não há alertas sem incidente nesta busca." : "Quando houver alertas para os filtros selecionados, eles aparecerão aqui."}</p>{canManage && !companyId && <small>Selecione uma empresa para iniciar atendimentos.</small>}</div> : <div className="soc-alert-table-wrap"><table className="soc-alert-table"><thead><tr><th>Gravidade</th><th>Data e hora</th><th>Alerta / regra</th><th>Fonte</th><th>Ativo</th><th>Origem</th><th>Incidente</th><th>Detalhes</th></tr></thead><tbody>{alerts.map((alert) => <tr key={alert.id}><td><span className={`soc-severity-badge severity-${alert.severity}`}>{severityLabels[alert.severity]}</span></td><td><time dateTime={alert.occurred_at}>{formatDate(alert.occurred_at)}</time></td><td><button type="button" className="soc-alert-open-title" onClick={(event) => openAlertDetails(alert, event.currentTarget)}><strong>{visibleText(alert.title)}</strong>{alert.rule_id && <small>{visibleText(alert.rule_id)}{alert.rule_description ? ` · ${visibleText(alert.rule_description)}` : ""}</small>}</button></td><td>{visibleText(alert.source_name)}</td><td>{visibleText(alert.agent_name ?? alert.agent_id ?? "—")}</td><td>{visibleText(alert.src_ip ?? "—")}{alert.src_port ? `:${alert.src_port}` : ""}</td><td>{createdCases[alert.id] ? <Link href={`/incidentes?company=${companyId}`} className="soc-inline-link">Incidente criado →</Link> : canManage && companyId && !(alert.soc_case_alerts?.length) ? <button className="button button-secondary soc-case-edit-button" onClick={() => { setCreateAlert(alert); setCreateSeverity(["critical","high","medium","low"].includes(alert.severity) ? alert.severity : ""); }}>Abrir incidente</button> : alert.soc_case_alerts?.length ? <Link href={`/incidentes?company=${companyId}`} className="soc-inline-link">Ver incidente →</Link> : "—"}</td><td><button type="button" className="button button-secondary soc-alert-open-button" onClick={(event) => openAlertDetails(alert, event.currentTarget)}>Ver alerta</button></td></tr>)}</tbody></table></div>}
       <footer className="soc-pagination"><span>Página {page + 1} · {formatCount(alerts.length)} desta página · {formatCount(filteredCount)} resultados nos filtros · {formatCount(receivedInWindow)} no período</span><div><button className="button button-secondary" disabled={!page || refreshing} onClick={() => setPage((value) => Math.max(0, value - 1))}>Anterior</button><button className="button button-secondary" disabled={!hasMore || refreshing} onClick={() => setPage((value) => value + 1)}>Próxima</button></div></footer>
     </section>
+    {selectedAlert && <div className="soc-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedAlert(null); }}>
+      <section className="panel soc-case-dialog soc-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="soc-alert-dialog-title" aria-describedby="soc-alert-dialog-help" ref={alertDialogRef}>
+        <header>
+          <div className="soc-alert-dialog-heading">
+            <span className="page-kicker">ANÁLISE DO ALERTA</span>
+            <h2 id="soc-alert-dialog-title">{visibleText(selectedAlert.title)}</h2>
+            <div className="soc-alert-dialog-meta"><span className={`soc-severity-badge severity-${selectedAlert.severity}`}>{severityLabels[selectedAlert.severity]}</span><time dateTime={selectedAlert.occurred_at}>{formatDate(selectedAlert.occurred_at)}</time></div>
+          </div>
+          <button ref={alertDialogCloseRef} type="button" className="button button-secondary" onClick={() => setSelectedAlert(null)}>Fechar</button>
+        </header>
+        <p id="soc-alert-dialog-help" className="soc-alert-dialog-help">Triagem automática para apoiar a análise. Valide a recomendação antes de agir.</p>
+        <section className="soc-ai-triage" aria-labelledby="soc-ai-triage-title">
+          <header className="soc-ai-triage-heading"><div><h3 id="soc-ai-triage-title">Triagem da IA</h3><p>Resumo e recomendação para este alerta.</p></div><span className={`soc-ai-triage-state${selectedTriage?.status === "completed" ? " is-complete" : " is-unavailable"}`}>{selectedTriage?.status === "completed" ? "Triagem gerada" : "Sem triagem"}</span></header>
+          {selectedTriage?.status === "completed" ? <>
+            <div className="soc-ai-triage-metrics"><div><span>Prioridade sugerida</span><strong className={`soc-ai-priority severity-${selectedTriage.priority}`}>{selectedTriage.priority ? aiPriorityLabels[selectedTriage.priority] : "Não informada"}</strong></div>{selectedTriage.confidence !== null && <div><span>Confiança informada</span><strong>{Math.round(selectedTriage.confidence * 100)}%</strong></div>}{selectedTriage.model && <div><span>Modelo</span><strong>{visibleText(selectedTriage.model)}</strong></div>}</div>
+            <div className="soc-ai-triage-copy"><h4>Resumo</h4><p>{visibleText(selectedTriage.summary) || "A triagem chegou sem resumo."}</p></div>
+            <div className="soc-ai-triage-copy"><h4>Ação recomendada</h4><p>{visibleText(selectedTriage.recommended_action) || "Analise os dados do evento e siga o procedimento da equipe."}</p></div>
+          </> : <div className="soc-ai-triage-empty"><strong>Este alerta não tem triagem registrada.</strong><p>Use os dados recebidos abaixo para fazer a análise manual.</p></div>}
+          <p className="soc-ai-human-review">Revisão humana necessária. A recomendação não altera a gravidade original.</p>
+        </section>
+        <section className="soc-alert-event" aria-labelledby="soc-alert-event-title">
+          <h3 id="soc-alert-event-title">Dados do alerta</h3>
+          {selectedAlert.message && <p className="soc-alert-event-message">{visibleText(selectedAlert.message)}</p>}
+          <dl className="soc-alert-detail-grid">
+            <AlertDetailField label="Fonte" value={selectedAlert.source_name}/>
+            <AlertDetailField label="Categoria" value={selectedAlert.source_category}/>
+            <AlertDetailField label="Regra" value={selectedAlert.rule_description}/>
+            <AlertDetailField label="ID da regra" value={selectedAlert.rule_id}/>
+            <AlertDetailField label="Nível original" value={selectedAlert.rule_level == null ? null : String(selectedAlert.rule_level)}/>
+            <AlertDetailField label="Severidade original" value={selectedAlert.severity_original}/>
+            <AlertDetailField label="Ativo" value={selectedAlert.agent_name}/>
+            <AlertDetailField label="ID do ativo" value={selectedAlert.agent_id}/>
+            <AlertDetailField label="IP do ativo" value={selectedAlert.agent_ip}/>
+            <AlertDetailField label="IP de origem" value={selectedAlert.src_ip == null ? null : selectedAlert.src_port == null ? selectedAlert.src_ip : `${selectedAlert.src_ip}:${selectedAlert.src_port}`}/>
+            <AlertDetailField label="Destino" value={selectedAlert.dst_ip == null ? null : selectedAlert.dst_port == null ? selectedAlert.dst_ip : `${selectedAlert.dst_ip}:${selectedAlert.dst_port}`}/>
+            <AlertDetailField label="Protocolo" value={selectedAlert.network_protocol}/>
+            <AlertDetailField label="Serviço" value={selectedAlert.service}/>
+            <AlertDetailField label="Ação da origem" value={selectedAlert.source_action}/>
+            <AlertDetailField label="Ação normalizada" value={selectedAlert.normalized_action}/>
+            <AlertDetailField label="Arquivo" value={selectedAlert.file_path}/>
+            <AlertDetailField label="Autor informado" value={selectedAlert.change_actor}/>
+            <AlertDetailField label="Processo informado" value={selectedAlert.change_process}/>
+            <AlertDetailField label="MITRE ATT&amp;CK" value={selectedAlert.mitre_ids.length ? selectedAlert.mitre_ids.join(", ") : null}/>
+            <AlertDetailField label="ID do evento" value={selectedAlert.source_event_id}/>
+          </dl>
+          {selectedAlert.raw_payload && <details className="soc-alert-source-payload"><summary>Payload técnico recebido</summary><pre>{JSON.stringify(selectedAlert.raw_payload, null, 2)}</pre></details>}
+        </section>
+      </section>
+    </div>}
     {createAlert && <div className="soc-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !creating) setCreateAlert(null); }}><section className="panel soc-case-dialog" role="dialog" aria-modal="true" aria-labelledby="soc-create-case-title"><header><div><span className="page-kicker">NOVO ATENDIMENTO</span><h2 id="soc-create-case-title">Abrir incidente</h2></div><button type="button" className="button button-secondary" onClick={() => setCreateAlert(null)}>Fechar</button></header><p className="soc-create-alert-source">{visibleText(createAlert.title)} · severidade da origem: {severityLabels[createAlert.severity]}</p><form onSubmit={(event) => void createIncident(event)}><label>Severidade do incidente<select required value={createSeverity} onChange={(event) => setCreateSeverity(event.target.value)}><option value="">Selecione a severidade</option>{Object.entries({ critical: "Crítica", high: "Alta", medium: "Média", low: "Baixa" }).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Notas iniciais<textarea maxLength={4000} rows={4} value={createNotes} onChange={(event) => setCreateNotes(event.target.value)} placeholder="Contexto inicial (opcional)"/></label>{createError && <div className="inline-alert" role="alert">{createError}</div>}<div className="soc-case-dialog-actions"><button type="button" className="button button-secondary" disabled={creating} onClick={() => setCreateAlert(null)}>Cancelar</button><button className="button button-primary" disabled={creating || !createSeverity}>{creating ? "Abrindo…" : "Criar e vincular"}</button></div></form></section></div>}
   </section>;
 }
