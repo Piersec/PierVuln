@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AssetRemoval, AssetRemovalHistory, type AssetActionTarget } from "@/src/components/asset-removal";
+import { AssetSummaryCharts } from "@/src/components/asset-summary-charts";
 import { visibleText } from "@/src/lib/visible-text";
 
 type AssetStatus = "active" | "disconnected" | "never_connected" | "pending" | "unknown";
@@ -43,6 +44,7 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
   removableTenantIds: string[];
   companyNames: Record<string,string>;
 }) {
+  const [chartRevision, setChartRevision] = useState(0);
   const [actionTarget, setActionTarget] = useState<AssetActionTarget | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -53,8 +55,6 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [resultCount, setResultCount] = useState(0);
-  const [activeTotal, setActiveTotal] = useState(0);
-  const [disconnectedTotal, setDisconnectedTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -94,14 +94,12 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
       pageQuery = pageQuery.order(sort.field, { ascending: sort.ascending, nullsFirst: false })
         .range(page * pageSize, (page + 1) * pageSize - 1).abortSignal(signal);
 
-      const [pageResult, totalResult, activeResult, disconnectedResult] = await Promise.all([
+      const [pageResult, totalResult] = await Promise.all([
         pageQuery,
         createCountQuery(),
-        createCountQuery("active"),
-        createCountQuery("disconnected"),
       ]);
       if (signal.aborted) return;
-      const queryError = pageResult.error || totalResult.error || activeResult.error || disconnectedResult.error;
+      const queryError = pageResult.error || totalResult.error;
       if (queryError) throw queryError;
 
       const nextAssets = (pageResult.data ?? []) as Asset[];
@@ -127,8 +125,6 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
       setAssets(nextAssets);
       setTotal(totalResult.count ?? 0);
       setResultCount(nextTotal);
-      setActiveTotal(activeResult.count ?? 0);
-      setDisconnectedTotal(disconnectedResult.count ?? 0);
       setCriticalByKey(nextCriticalByKey);
     } catch {
       if (!signal.aborted) setError("Não foi possível carregar os ativos desta empresa. Atualize a página ou confira o acesso à empresa.");
@@ -167,7 +163,6 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
   }, [load, revision]);
 
   const filteredCount = resultCount;
-  const otherTotal = Math.max(0, total - activeTotal - disconnectedTotal);
   const totalPages = Math.max(1, Math.ceil((filteredCount ?? 0) / pageSize));
   const rangeStart = assets.length ? page * pageSize + 1 : 0;
   const rangeEnd = page * pageSize + assets.length;
@@ -194,6 +189,7 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
         is_critical: nextValue,
       }, { onConflict: "tenant_id,agent_key" });
       if (updateError) throw updateError;
+      setChartRevision((value) => value + 1);
     } catch {
       setCriticalByKey((current) => ({ ...current, [key]: previousValue }));
       setSaveError("Não foi possível salvar a classificação deste ativo. Confira sua permissão para a empresa.");
@@ -220,12 +216,8 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
       <span className="result-count">{loading && !total ? "Carregando ativos" : `${total.toLocaleString("pt-BR")} ativos`}</span>
     </div>
 
-    <dl className="assets-summary" aria-label="Resumo dos ativos na empresa selecionada">
-      <div><dt>Total de ativos</dt><dd>{loading && !total ? "..." : total.toLocaleString("pt-BR")}</dd></div>
-      <div><dt>Conectados</dt><dd>{loading && !total ? "..." : activeTotal.toLocaleString("pt-BR")}</dd></div>
-      <div><dt>Desconectados</dt><dd>{loading && !total ? "..." : disconnectedTotal.toLocaleString("pt-BR")}</dd></div>
-      {otherTotal > 0 && <div><dt>Outros estados</dt><dd>{otherTotal.toLocaleString("pt-BR")}</dd></div>}
-    </dl>
+    <AssetSummaryCharts client={client} companyId={companyId} revision={revision + chartRevision} />
+
 
     <div className="assets-toolbar">
       <label className="assets-search"><span>Buscar</span><input type="search" placeholder="Nome, ID, IP ou sistema operacional" value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setPage(0); }} /></label>
@@ -294,7 +286,7 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
         <button className="button button-secondary" type="button" disabled={(page + 1) * pageSize >= filteredCount || loading} onClick={() => setPage((value) => value + 1)}>Próxima</button>
       </div>
     </div>
-    <AssetRemoval client={client} target={actionTarget} onDismiss={() => setActionTarget(null)} companyName={(id) => companyNames[id] || "Empresa selecionada"} onRemoved={() => void load(true)}/>
+    <AssetRemoval client={client} target={actionTarget} onDismiss={() => setActionTarget(null)} companyName={(id) => companyNames[id] || "Empresa selecionada"} onRemoved={() => { setChartRevision((value) => value + 1); void load(true); }}/>
     <AssetRemovalHistory client={client} companyId={companyId} enabled={isInternal || removableTenantIds.length > 0}/>
     <p className="assets-data-note">Os campos de identificação, sistema, grupo e conectividade vêm da API de gerenciamento. A contagem de vulnerabilidades por ativo não está disponível nesta coleta.</p>
   </section>;
