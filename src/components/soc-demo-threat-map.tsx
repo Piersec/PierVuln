@@ -34,9 +34,9 @@ export function SocDemoThreatMap({ routes }: { routes: DemoMapRoute[] }) {
       instance = L.map(container.current, { minZoom: 1, maxZoom: 9, scrollWheelZoom: false, worldCopyJump: true }).setView([15, 0], 2);
       map.current = instance;
       instance.zoomControl.setPosition("bottomright");
-      const tiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd", maxZoom: 19,
+      const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+        maxZoom: 19,
       }).addTo(instance);
       tiles.on("tileerror", () => { if (!disposed) setError("O mapa-base não carregou. As rotas simuladas continuam disponíveis; verifique a conexão."); });
       tiles.on("load", () => { if (!disposed) setReady(true); });

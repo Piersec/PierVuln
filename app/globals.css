@@ -1942,6 +1942,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .soc-demo-map-filters select { min-height: 38px; max-width: 210px; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface-raised); color: var(--ink); font: inherit; }
 .soc-demo-map-filters .button { min-height: 38px; padding: 6px 12px; font-size: 12px; }
 .soc-demo-map-stage { z-index: 0; width: 100%; height: 520px; background: #191a1c; }
+.soc-demo-map-stage .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(.86) contrast(.9) saturate(.72); }
 .soc-demo-map-stage .leaflet-control-zoom a { background: #191a1c; color: #f6f7f7; border-color: #55585b; }
 .soc-demo-map-stage .leaflet-control-attribution { background: #191a1c; color: #d4d7da; }
 .soc-demo-map-stage .leaflet-control-attribution a { color: #71d8f0; }
