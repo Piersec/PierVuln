@@ -47,7 +47,7 @@ export function CertificateInput({ name, label, saved = false, required = false 
         });
       }} />
     </label>
-    <p className="muted-copy">PEM, TXT, CRT, CER ou DER · até 64 KB. A aplicação converte para ca.pem.</p>
+    <p className="muted-copy">Envie a autoridade certificadora (CA) que assinou o serviço. PEM, TXT, CRT, CER ou DER · até 64 KB. O formato será convertido para ca.pem.</p>
     <div id={id + "-state"} role="status" aria-live="polite">
       {busy ? <p>Validando certificado…</p> : error ? <p className="certificate-error">{error}</p> : result ? <>
         <p><strong>{visibleText(filename)}</strong> · pronto como ca.pem · {result.certificates.length} certificado(s)</p>

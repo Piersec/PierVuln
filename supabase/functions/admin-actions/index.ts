@@ -1,3 +1,4 @@
+import { serviceEndpoint } from "../_shared/service-endpoint.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { decryptAssetApiCredentials, decryptWazuhConfig, encryptAssetApiCredentials, encryptWazuhConfig, type AssetApiCredentials, type WazuhConnectionCredentials } from "../_shared/wazuh-config-secrets.ts";
@@ -311,8 +312,8 @@ Deno.serve(async (request) => {
         } catch { return json(400, { error: "Informe uma URL HTTPS sem credenciais." }); }
       }
       if (action === "update_connection" && input.assetApiUrl !== undefined) {
-        const manager = new URL(String(input.assetApiUrl));
-        if (manager.protocol !== "https:" || manager.username || manager.password || (changes.endpoint_url && manager.hostname !== new URL(String(changes.endpoint_url)).hostname)) return json(400, { error: "Indexer e Manager devem usar o mesmo IP." });
+        const manager = serviceEndpoint(input.assetApiUrl);
+        if (!manager) return json(400, { error: "Informe uma URL HTTPS válida para o Manager, sem credenciais, parâmetros ou fragmentos." });
         changes.asset_api_url = manager.toString();
       }
       if (!Object.keys(changes).length) return json(400, { error: "Nenhuma alteração informada." });
@@ -448,9 +449,10 @@ Deno.serve(async (request) => {
       }
       let managerEndpoint: URL;
       try {
-        managerEndpoint = new URL(String(input.assetApiUrl));
-        if (managerEndpoint.protocol !== "https:" || managerEndpoint.username || managerEndpoint.password || managerEndpoint.hostname !== new URL(endpointUrl).hostname) throw new Error();
-      } catch { return json(400, { error: "Informe o mesmo IP para Indexer e Manager, com as portas corretas." }); }
+        const manager = serviceEndpoint(input.assetApiUrl);
+        if (!manager) throw new Error();
+        managerEndpoint = manager;
+      } catch { return json(400, { error: "Informe um endereço HTTPS válido para o Manager, com a porta correta e sem credenciais na URL." }); }
       const ingestToken = randomToken();
       credentials.ingestToken = ingestToken;
       const { data: connectionId, error } = await admin.rpc("create_wazuh_connection", {

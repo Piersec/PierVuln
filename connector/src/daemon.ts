@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { chmod, unlink, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { ConfigurationChanges } from "./configuration-changes";
 
 type RemoteConnection = {
   id: string;
@@ -212,6 +213,7 @@ async function runConnection(connection: RemoteConnection, assetTenant?: RemoteA
 async function main() {
   const nextRunAt = new Map<string, number>();
   const failuresByConnection = new Map<string, number>();
+  const configurationChanges = new ConfigurationChanges();
   console.info(`[connector] Worker dinâmico iniciado; consulta de fontes a cada ${configPollSeconds}s; sincronização a cada ${syncIntervalSeconds}s por fonte.`);
   while (!shutdown.signal.aborted) {
     try {
@@ -222,6 +224,10 @@ async function main() {
         })) : []
         : connection.indexerReady === false ? [] : [{ connection, key: connection.id }]);
       const skipped = loaded.skipped;
+      for (const key of configurationChanges.changed(jobs)) {
+        nextRunAt.delete(key);
+        failuresByConnection.delete(key);
+      }
       const activeIds = new Set(jobs.map((job) => job.key));
       for (const id of nextRunAt.keys()) {
         if (!activeIds.has(id)) {

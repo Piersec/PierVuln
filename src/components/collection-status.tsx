@@ -11,6 +11,7 @@ import { withConsistentInventoryRead } from "@/src/lib/consistent-inventory";
 import { snapshotFreshness } from "@/src/lib/snapshot-freshness";
 import { invokeAdmin, type AdminData } from "@/src/lib/admin";
 import { visibleText } from "@/src/lib/visible-text";
+import { collectionFailure } from "@/src/lib/collection-failure";
 
 type Connection = { id: string; name: string; is_active: boolean };
 type SyncRun = {
@@ -20,6 +21,7 @@ type SyncRun = {
   finished_at: string | null;
   documents_received: number;
   pages_received: number;
+  error_summary: string | null;
 };
 type Source = { connection: Connection; latest: SyncRun | null; lastSuccess: SyncRun | null; configurationPending?: boolean };
 type Heartbeat = { connection_id: string; observed_at: string; vpn_active: boolean; indexer_reachable: boolean; connector_active: boolean; uptime_seconds: number; load_percent: number; memory_percent: number; disk_percent: number; indexer_latency_ms: number | null };
@@ -110,9 +112,9 @@ export function CollectionStatus() {
       if (connectionsError) throw connectionsError;
       return await Promise.all((connections ?? []).map(async (connection) => {
         const [latest, lastSuccess] = await Promise.all([
-          client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received")
+          client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received,error_summary")
             .eq("connection_id", connection.id).order("started_at", { ascending: false }).limit(1).maybeSingle(),
-          client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received")
+          client.from("sync_runs").select("id,status,started_at,finished_at,documents_received,pages_received,error_summary")
             .eq("connection_id", connection.id).eq("status", "succeeded").eq("full_snapshot", true)
             .order("started_at", { ascending: false }).limit(1).maybeSingle(),
         ]);
@@ -218,6 +220,7 @@ export function CollectionStatus() {
               <div className="status-source-heading"><div><span className="status-source-kicker">INDEXER</span><h3>{visibleText(source.connection.name)}</h3></div><span className={`status-pill status-${health}`}><span aria-hidden="true" />{source.configurationPending ? "Configuração pendente" : healthLabel(health)}</span></div>
               {source.configurationPending && <p className="muted-copy">Faltam acessos individuais ao Indexer. <Link href="/admin/integrations">Configurar empresas</Link>. A última tentativa abaixo é histórica.</p>}
               <div className="status-source-facts"><div><span>Última leitura completa</span><strong>{formatDate(complete?.finished_at)}</strong></div><div><span>Documentos recebidos</span><strong>{complete ? complete.documents_received.toLocaleString("pt-BR") : "—"}</strong></div><div><span>Páginas recebidas</span><strong>{complete ? complete.pages_received.toLocaleString("pt-BR") : "—"}</strong></div><div><span>Última tentativa</span><strong>{source.latest ? `${runLabel(source.latest.status)} · ${formatDate(source.latest.finished_at ?? source.latest.started_at)}` : "—"}</strong></div></div>
+              {source.connection.is_active && source.latest && ["failed", "partial"].includes(source.latest.status) && <p className="inline-alert" role="status">{collectionFailure(source.latest.error_summary)}{isInternal && <> <Link href="/admin/integrations">Revisar integração</Link></>}</p>}
             </article>;
           })}</div>}
           <p className="status-method">A leitura fica em dia por 1 hora, recebe aviso de atualização entre 1 e 2 horas e é considerada atrasada após 2 horas. A página atualiza a cada minuto enquanto estiver aberta.</p>

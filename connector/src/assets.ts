@@ -1,3 +1,4 @@
+import { runAssetCollection, assetFailure } from "./asset-run";
 import { randomUUID } from "node:crypto";
 
 const env = (name: string) => {
@@ -63,42 +64,42 @@ function toAsset(agent: ApiAgent) {
 async function main() {
   const runId = randomUUID();
   const basic = Buffer.from(`${username}:${password}`, "utf8").toString("base64");
-  const auth = await responseJson(await fetch(`${apiUrl}/security/user/authenticate`, {
-    method: "POST", headers: { Authorization: `Basic ${basic}` }, signal: AbortSignal.timeout(30_000),
-  }), "Asset API authentication");
-  const token = (auth.data as { token?: unknown } | undefined)?.token;
-  if (typeof token !== "string" || !token) throw new Error("Asset API did not provide a token");
-  await postIngest({ action: "assets_start", runId, tenantId });
-  try {
-    let offset = 0;
-    let total: number | null = null;
-    while (total === null || offset < total) {
-      const page = await responseJson(await fetch(`${apiUrl}/agents?limit=${pageSize}&offset=${offset}`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(45_000),
-      }), "Asset API agents");
-      const data = page.data as { affected_items?: unknown; total_affected_items?: unknown } | undefined;
-      if (!data || !Array.isArray(data.affected_items) || !Number.isSafeInteger(data.total_affected_items)) {
-        throw new Error("Asset API page has invalid shape");
+  await runAssetCollection(
+    () => postIngest({ action: "assets_start", runId, tenantId }),
+    async () => {
+      const auth = await responseJson(await fetch(`${apiUrl}/security/user/authenticate`, {
+        method: "POST", headers: { Authorization: `Basic ${basic}` }, signal: AbortSignal.timeout(30_000),
+      }), "Asset API authentication");
+      const token = (auth.data as { token?: unknown } | undefined)?.token;
+      if (typeof token !== "string" || !token) throw new Error("Asset API did not provide a token");
+        let offset = 0;
+      let total: number | null = null;
+      while (total === null || offset < total) {
+        const page = await responseJson(await fetch(`${apiUrl}/agents?limit=${pageSize}&offset=${offset}`, {
+          headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(45_000),
+        }), "Asset API agents");
+        const data = page.data as { affected_items?: unknown; total_affected_items?: unknown } | undefined;
+        if (!data || !Array.isArray(data.affected_items) || !Number.isSafeInteger(data.total_affected_items)) {
+          throw new Error("Asset API page has invalid shape");
+        }
+        if (total === null) total = Number(data.total_affected_items);
+        if (total !== data.total_affected_items || data.affected_items.length > pageSize
+            || (data.affected_items.length === 0 && offset < total)) throw new Error("Asset API changed during pagination");
+        if (data.affected_items.length) {
+          await postIngest({ action: "assets_batch", runId, tenantId, items: data.affected_items.map((item) => toAsset(item as ApiAgent)) });
+        }
+        offset += data.affected_items.length;
+        console.info(`[assets] connectionId=${connectionId} received=${offset}/${total}`);
       }
-      if (total === null) total = Number(data.total_affected_items);
-      if (total !== data.total_affected_items || data.affected_items.length > pageSize
-          || (data.affected_items.length === 0 && offset < total)) throw new Error("Asset API changed during pagination");
-      if (data.affected_items.length) {
-        await postIngest({ action: "assets_batch", runId, tenantId, items: data.affected_items.map((item) => toAsset(item as ApiAgent)) });
-      }
-      offset += data.affected_items.length;
-      console.info(`[assets] connectionId=${connectionId} received=${offset}/${total}`);
-    }
-    if (offset !== total) throw new Error("Incomplete asset API snapshot");
-    const done = await postIngest({ action: "assets_finish", runId, tenantId, expectedTotal: total });
-    console.info(`[assets] connectionId=${connectionId} status=succeeded received=${offset} stored=${done.stored}`);
-  } catch (error) {
-    await postIngest({ action: "assets_fail", runId, tenantId, error: error instanceof Error ? error.message.slice(0, 500) : "Unknown error" }).catch(() => undefined);
-    throw error;
-  }
+      if (offset !== total) throw new Error("Incomplete asset API snapshot");
+      const done = await postIngest({ action: "assets_finish", runId, tenantId, expectedTotal: total });
+      console.info(`[assets] connectionId=${connectionId} status=succeeded received=${offset} stored=${done.stored}`);
+    },
+    (message) => postIngest({ action: "assets_fail", runId, tenantId, error: message }),
+  );
 }
 
 main().catch((error) => {
-  console.error(`[assets] connectionId=${connectionId} status=failed error=${error instanceof Error ? error.message : "Unknown error"}`);
+  console.error(`[assets] connectionId=${connectionId} status=failed error=${assetFailure(error)}`);
   process.exitCode = 1;
 });

@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     const now = Date.now();
     if (certificates.some((cert) => Date.parse(cert.validTo) < now)) throw new Error("O certificado está expirado. Envie um certificado vigente.");
     if (certificates.some((cert) => Date.parse(cert.validFrom) > now)) throw new Error("O certificado ainda não está válido.");
+    if (!certificates.some((cert) => cert.ca)) throw new Error("Envie o certificado da autoridade certificadora (CA) que assinou o servidor. O certificado do servidor sozinho não é uma CA.");
     const pem = certificates.map((cert) => cert.toString().trim()).join("\n") + "\n";
     if (Buffer.byteLength(pem) > limit) throw new Error("O certificado convertido excede 64 KB.");
     return Response.json({ pem, certificates: certificates.map((cert) => ({ subject: cert.subject, expiresAt: cert.validTo, fingerprint: cert.fingerprint256 })) }, { headers: { "cache-control": "no-store" } });
