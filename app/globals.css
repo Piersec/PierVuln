@@ -1872,11 +1872,6 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .asset-status { display: inline-flex; min-height: 28px; align-items: center; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--muted-strong); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .asset-status-active { border-color: var(--positive); color: var(--positive); }
 .asset-status-disconnected, .asset-status-pending { border-color: var(--caution); color: var(--caution); }
-.asset-critical-control { display: inline-flex; min-width: 74px; min-height: 44px; align-items: center; gap: 8px; color: var(--muted-strong); cursor: pointer; }
-.asset-critical-control input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
-.asset-critical-control input:disabled { cursor: wait; }
-.asset-critical-yes { color: var(--accent-strong); font-weight: 600; }
-.asset-critical-no { color: var(--muted-strong); }
 .assets-table-message { height: 140px; text-align: center; }
 .assets-empty { display: grid; justify-items: center; gap: 8px; padding: 24px; }
 .assets-empty strong { color: var(--ink); font-size: 15px; }
@@ -1956,10 +1951,20 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 
 .asset-context-menu { position: fixed; z-index: 100; width: 240px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / 35%); }
 .asset-context-menu button { width: 100%; min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: #ff8795; text-align: left; padding: 8px 12px; font-size: 13px; }
+.asset-context-menu .asset-context-critical { color: var(--muted-strong); }
+.asset-context-menu button:disabled { color: var(--muted-strong); cursor: not-allowed; opacity: .75; }
 .asset-context-menu button:hover { background: var(--surface-raised); }
 .asset-removal-dialog { position: fixed; inset: 0; margin: auto; width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 26px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); color: var(--ink); }
 .asset-removal-dialog::backdrop { background: rgb(0 0 0 / 75%); }
 .asset-removal-dialog h2 { margin: 0 0 18px; color: #ff8795; font-size: 22px; }
+.asset-removal-dialog .asset-removal-active-warning { padding: 12px 14px; border: 1px solid var(--danger); border-radius: 8px; background: var(--surface-inset); color: var(--ink); }
+.asset-removal-dialog .asset-removal-vulnerability-count, .asset-removal-dialog .asset-removal-count-result { padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-raised); color: var(--ink); }
+.asset-removal-dialog .asset-removal-count-result { border-color: var(--positive); }
+.asset-critical-dialog { width: min(480px, calc(100vw - 32px)); }
+.asset-critical-dialog .asset-mfa-enroll { display: grid; gap: 12px; }
+.asset-critical-dialog .asset-mfa-enroll img { width: min(220px, 100%); padding: 12px; border-radius: 8px; background: #fff; }
+.asset-critical-dialog .asset-mfa-enroll p { margin: 0; }
+.asset-critical-dialog .asset-mfa-enroll label { margin: 0; }
 .asset-removal-dialog p { color: var(--muted-strong); font-size: 13px; line-height: 1.6; }
 .asset-removal-dialog dl { display: grid; grid-template-columns: 80px minmax(0,1fr); gap: 8px; padding: 16px; background: var(--surface-raised); border-radius: 8px; font-size: 13px; }
 .asset-removal-dialog dt { color: var(--muted-strong); }.asset-removal-dialog dd { margin: 0; overflow-wrap: anywhere; }

@@ -174,8 +174,8 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
     setPage(0);
   }
 
-  async function setCritical(asset: Asset, nextValue: boolean) {
-    if (!canEdit(asset.tenant_id) || savingCriticalKey) return;
+  async function setCritical(asset: Pick<Asset, "tenant_id" | "agent_id" | "agent_name">, nextValue: boolean) {
+    if (!canEdit(asset.tenant_id) || savingCriticalKey) return false;
     const agentKey = asset.agent_id || asset.agent_name;
     const key = classificationKey(asset.tenant_id, agentKey);
     const previousValue = criticalByKey[key] ?? false;
@@ -190,9 +190,11 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
       }, { onConflict: "tenant_id,agent_key" });
       if (updateError) throw updateError;
       setChartRevision((value) => value + 1);
+      return true;
     } catch {
       setCriticalByKey((current) => ({ ...current, [key]: previousValue }));
       setSaveError("Não foi possível salvar a classificação deste ativo. Confira sua permissão para a empresa.");
+      return false;
     } finally {
       setSavingCriticalKey("");
     }
@@ -235,7 +237,7 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
 
     <div className="assets-table-scroll" role="region" aria-label="Tabela de ativos. Em telas estreitas, deslize horizontalmente para ver todas as colunas." tabIndex={0}>
       <table className="assets-table">
-        <caption className="sr-only">Ativos recebidos da API de gerenciamento, com conectividade, grupos e classificação crítica.</caption>
+        <caption className="sr-only">Ativos recebidos da API de gerenciamento, com conectividade e grupos.</caption>
         <thead><tr>
           <th scope="col"><button className="case-sort" type="button" onClick={() => changeSort("agent_id")} aria-label={`Ordenar por ID. ${sortText("agent_id", "ID")}`}>{sortText("agent_id", "ID")}</button></th>
           <th scope="col"><button className="case-sort" type="button" onClick={() => changeSort("agent_name")} aria-label={`Ordenar por ativo. ${sortText("agent_name", "Ativo")}`}>{sortText("agent_name", "Ativo")}</button></th>
@@ -243,17 +245,19 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
           <th scope="col">Cadastrado em</th>
           <th scope="col"><button className="case-sort" type="button" onClick={() => changeSort("last_keep_alive_at")} aria-label={`Ordenar por último sinal. ${sortText("last_keep_alive_at", "Último sinal")}`}>{sortText("last_keep_alive_at", "Último sinal")}</button></th>
           <th scope="col"><button className="case-sort" type="button" onClick={() => changeSort("status")} aria-label={`Ordenar por estado. ${sortText("status", "Estado")}`}>{sortText("status", "Estado")}</button></th>
-          <th scope="col">Ativo crítico</th><th scope="col">Ações</th>
+          <th scope="col">Ações</th>
         </tr></thead>
         <tbody>
-          {loading && !assets.length ? <tr><td className="assets-table-message" colSpan={10} role="status">Carregando ativos da empresa...</td></tr>
+          {loading && !assets.length ? <tr><td className="assets-table-message" colSpan={9} role="status">Carregando ativos da empresa...</td></tr>
             : assets.length ? assets.map((asset) => {
               const key = assetKey(asset);
               const agentKey = asset.agent_id || asset.agent_name;
               const criticalKey = classificationKey(asset.tenant_id, agentKey);
               const isCritical = criticalByKey[criticalKey] ?? false;
               const editable = canEdit(asset.tenant_id);
-              return <tr key={key} onContextMenu={(event) => { if (isInternal || removableTenantIds.includes(asset.tenant_id)) { event.preventDefault(); setActionTarget({ asset, x: event.clientX, y: event.clientY }); } }}>
+              const removable = isInternal || removableTenantIds.includes(asset.tenant_id);
+              const actionTarget = { asset: { ...asset, is_critical: isCritical }, canManageCritical: editable, canRemove: removable };
+              return <tr key={key} onContextMenu={(event) => { if (editable || removable) { event.preventDefault(); setActionTarget({ ...actionTarget, x: event.clientX, y: event.clientY }); } }}>
                 <td><code>{visibleText(asset.agent_id)}</code></td>
                 <td><strong>{visibleText(asset.agent_name)}</strong></td>
                 <td>{visibleText(asset.ip_address || "Não informado")}</td>
@@ -262,13 +266,9 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
                 <td>{date(asset.registered_at)}</td>
                 <td>{date(asset.last_keep_alive_at)}</td>
                 <td><span className={`asset-status asset-status-${asset.status}`}>{statusLabels[asset.status] ?? statusLabels.unknown}</span></td>
-                <td>{editable ? <label className="asset-critical-control">
-                  <input type="checkbox" checked={isCritical} disabled={Boolean(savingCriticalKey)} aria-label={`${isCritical ? "Remover classificação de ativo crítico" : "Marcar como ativo crítico"}: ${visibleText(asset.agent_name)}`} onChange={(event) => void setCritical(asset, event.target.checked)} />
-                  <span>{savingCriticalKey === criticalKey ? "Salvando..." : isCritical ? "Sim" : "Não"}</span>
-                </label> : <span className={isCritical ? "asset-critical-yes" : "asset-critical-no"}>{isCritical ? "Sim" : "Não"}</span>}</td>
-                <td>{(isInternal || removableTenantIds.includes(asset.tenant_id)) && <button className="button button-secondary asset-actions-button" aria-label={`Ações do ativo ${asset.agent_name}`} aria-haspopup="menu" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setActionTarget({ asset, x: rect.left, y: rect.bottom }); }}>•••</button>}</td>
+                <td>{(editable || removable) && <button className="button button-secondary asset-actions-button" aria-label={`Ações do ativo ${asset.agent_name}`} aria-haspopup="menu" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setActionTarget({ ...actionTarget, x: rect.left, y: rect.bottom }); }}>•••</button>}</td>
               </tr>;
-            }) : <tr><td className="assets-table-message" colSpan={10}>
+            }) : <tr><td className="assets-table-message" colSpan={9}>
               <div className="assets-empty"><strong>{total === 0 && !hasFilters ? "Nenhum ativo chegou ainda" : "Nenhum ativo corresponde aos filtros"}</strong>
                 <span>{total === 0 && !hasFilters ? "Confira as credenciais da API de gerenciamento e se a coleta terminou." : "Altere a busca, o estado ou o grupo para ver outros ativos."}</span>
                 {hasFilters && <button className="assets-clear" type="button" onClick={clearFilters}>Limpar filtros</button>}
@@ -286,8 +286,8 @@ export function AssetsInventory({ client, companyId, revision, editableTenantIds
         <button className="button button-secondary" type="button" disabled={(page + 1) * pageSize >= filteredCount || loading} onClick={() => setPage((value) => value + 1)}>Próxima</button>
       </div>
     </div>
-    <AssetRemoval client={client} target={actionTarget} onDismiss={() => setActionTarget(null)} companyName={(id) => companyNames[id] || "Empresa selecionada"} onRemoved={() => { setChartRevision((value) => value + 1); void load(true); }}/>
+    <AssetRemoval client={client} target={actionTarget} onDismiss={() => setActionTarget(null)} companyName={(id) => companyNames[id] || "Empresa selecionada"} onCriticalChange={setCritical} onRemoved={() => { setChartRevision((value) => value + 1); void load(true); }}/>
     <AssetRemovalHistory client={client} companyId={companyId} enabled={isInternal || removableTenantIds.length > 0}/>
-    <p className="assets-data-note">Os campos de identificação, sistema, grupo e conectividade vêm da API de gerenciamento. A contagem de vulnerabilidades por ativo não está disponível nesta coleta.</p>
+    <p className="assets-data-note">A classificação crítica fica nas ações do ativo. A exclusão mostra quantas vulnerabilidades ativas serão removidas dos indicadores.</p>
   </section>;
 }
