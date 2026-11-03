@@ -1,3 +1,4 @@
+import { deleteCapability, type DeleteCapability } from "./asset-delete-capability";
 import { deleteExactAgent, type DeletionIdentity } from "./asset-deletion-protocol";
 
 const required = (name: string) => { const value = process.env[name]; if (!value) throw new Error(`Missing ${name}`); return value; };
@@ -12,18 +13,26 @@ async function command(body: Record<string, unknown>) {
   return response.json();
 }
 async function main() {
-  const { job } = await command({ action: "claim", apiUrl });
-  if (!job) return;
-  let outcome: { outcome: string; code: string } = { outcome: "failed", code: "preflight_failed" };
+  let token: string | null = null;
+  let capability: DeleteCapability = { status: "unknown", reason: "network_error" };
   try {
     const authUrl = new URL("security/user/authenticate", apiUrl.replace(/\/?$/, "/"));
     const auth = await fetch(authUrl, { method: "POST", redirect: "error", headers: { Authorization: `Basic ${Buffer.from(`${required("ASSET_API_USERNAME")}:${required("ASSET_API_PASSWORD")}`).toString("base64")}` }, signal: AbortSignal.timeout(30_000) });
-    if (auth.status === 401 || auth.status === 403) outcome = { outcome: "failed", code: "source_denied" };
+    if (auth.status === 401 || auth.status === 403) capability = { status: "unknown", reason: "authentication_failed" };
     else if (auth.ok) {
       const payload = await auth.json();
-      if (typeof payload?.data?.token === "string" && payload.data.token) outcome = await deleteExactAgent(apiUrl, payload.data.token, job as DeletionIdentity);
+      if (typeof payload?.data?.token === "string" && payload.data.token) {
+        token = payload.data.token;
+        const policies = await fetch(new URL("security/users/me/policies", apiUrl.replace(/\/?$/, "/")), { redirect: "error", headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+        capability = policies.ok ? deleteCapability(await policies.json()) : { status: "unknown", reason: "policies_unavailable" };
+      }
     }
-  } catch { /* No DELETE is issued if authentication fails. */ }
+  } catch { capability = { status: "unknown", reason: "network_error" }; }
+  await command({ action: "capability", apiUrl, ...capability });
+  const { job } = await command({ action: "claim", apiUrl });
+  if (!job) return;
+  let outcome: { outcome: string; code: string } = { outcome: "failed", code: capability.status === "denied" || capability.reason === "authentication_failed" ? "source_denied" : "preflight_failed" };
+  if (token && capability.status !== "denied") outcome = await deleteExactAgent(apiUrl, token, job as DeletionIdentity);
   // Only the acknowledgement is retried. The source DELETE is never retried.
   for (let attempt = 0; attempt < 3; attempt++) {
     try { await command({ action: "finish", id: job.id, claimToken: job.claimToken, ...outcome }); return; }

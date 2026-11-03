@@ -1,6 +1,7 @@
 "use client";
 import { collectionFailure } from "@/src/lib/collection-failure";
 import { CertificateInput } from "@/src/components/certificate-input";
+import { AssetDeleteCapability } from "@/src/components/asset-delete-capability";
 
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
@@ -493,7 +494,7 @@ function IntegrationPanel({ connection, data, companyFilter, search, runs, now, 
   connection: AdminConnection; data: AdminData; companyFilter: string; search: string;
   runs: SyncMeasurement[]; now: number; setEditor: (editor: Editor) => void;
 }) {
-  const { busy, run } = useAdmin();
+  const { busy, run, client } = useAdmin();
   const mappings = data.mappings.filter((mapping) => mapping.connection_id === connection.id);
   const tenantIds = new Set(mappings.map((mapping) => mapping.tenant_id));
   if (connection.tenant_id) tenantIds.add(connection.tenant_id);
@@ -548,6 +549,7 @@ function IntegrationPanel({ connection, data, companyFilter, search, runs, now, 
       };
       return <article className="admin-integration-company" key={company.id}>
         <header><h3>{visibleText(company.name)}</h3><ActiveStatus active={company.is_active} /></header>
+        {configuredTenantIds.has(company.id) && <AssetDeleteCapability client={client} connectionId={connection.id} tenantId={company.id} />}
         {connection.mode === "shared" ? <>
           <dl className="admin-company-routing"><div><dt>Prefixo</dt><dd>{mappingSummary("agent_name_prefix")}</dd></div><div><dt>Grupo</dt><dd>{mappingSummary("group")}</dd></div></dl>
           <details className="admin-company-details" name={`company-rules-${connection.id}`}><summary>Regras de roteamento <span>{activeCompanyRules}/{companyMappings.length} ativas</span></summary>

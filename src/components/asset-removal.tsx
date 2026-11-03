@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SlideToConfirm } from "@/src/components/ui/slide-to-confirm";
+import { AssetDeleteCapability } from "@/src/components/asset-delete-capability";
 
 export type RemovalAsset = { connection_id: string; tenant_id: string; agent_id: string; agent_name: string; ip_address: string | null; registered_at: string | null };
 export type AssetActionTarget = { asset: RemovalAsset; x: number; y: number };
@@ -71,6 +72,7 @@ export function AssetRemoval({ client, target, onDismiss, companyName, onRemoved
     {target && createPortal(<div ref={menu} className="asset-context-menu" role="menu" aria-label={`Ações de ${target.asset.agent_name}`} style={{ left: Math.max(8, Math.min(target.x, window.innerWidth - 250)), top: Math.max(8, Math.min(target.y, window.innerHeight - 70)) }}><button type="button" role="menuitem" autoFocus onClick={() => open(target.asset)}>Remover ativo na origem…</button></div>, document.body)}
     {selected && <dialog ref={dialog} className="asset-removal-dialog" onCancel={(event) => { event.preventDefault(); close(); }} aria-labelledby="asset-removal-title">
       <h2 id="asset-removal-title">Remover ativo na origem</h2>
+      <AssetDeleteCapability client={client} connectionId={selected.connection_id} tenantId={selected.tenant_id} />
       <p>{companyName(selected.tenant_id).startsWith("Demonstração") ? "Nesta empresa fictícia, a exclusão será simulada apenas no site. Nenhuma chamada será enviada a um servidor real." : "Esta ação remove o cadastro do agente no Manager e interrompe seu monitoramento. O software instalado no equipamento não será desinstalado."}</p>
       <dl><dt>Empresa</dt><dd>{companyName(selected.tenant_id)}</dd><dt>Ativo</dt><dd>{selected.agent_name}</dd><dt>ID</dt><dd>{selected.agent_id}</dd><dt>IP</dt><dd>{selected.ip_address || "Não informado"}</dd></dl>
       <p>O ativo permanece no site até a confirmação da origem. O histórico de alertas e incidentes será preservado.</p>

@@ -24,6 +24,10 @@ Na empresa `demonstracao`, o mesmo fluxo de confirmação simula a remoção loc
 
 ## Implantação e validação
 
+A integração e a janela de exclusão mostram o último estado observado de `agent:delete`. O coletor autentica a conta de cada empresa e consulta `GET /security/users/me/policies` durante a verificação periódica de comandos, normalmente a cada minuto. Essa consulta não envia exclusões.
+
+O indicador diferencia permissão irrestrita, permissão com restrições de agentes/grupos, ausência de permissão e resultado desconhecido. Mudança de configuração ou verificação com mais de três minutos invalida o resultado salvo. A conta da aplicação precisa ter autorização administrativa sobre a empresa para consultar o indicador; somente o serviço do coletor pode gravá-lo. A verificação informa a política observada e a API continua validando a operação real sobre o agente escolhido.
+
 Aplicar as migrations de comandos e identidade, publicar a função `asset-commands` e atualizar o daemon junto dos arquivos `asset-deletions.ts` e `asset-deletion-protocol.ts`. O daemon de ativos deve executar com `ASSET_ONLY=true` e o token já usado para consultar sua configuração. Sem heartbeat recente do processador, a aplicação recusa pedidos reais.
 
 Testes do protocolo: `pnpm exec tsx --test connector/test/asset-deletion.test.ts`. Validar pedidos e isolamento com transações revertidas no banco. Não usar um agente real como teste de exclusão sem confirmação específica do responsável.

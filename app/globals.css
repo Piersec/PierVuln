@@ -1986,3 +1986,7 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
 .asset-chart-card > p, .asset-chart-empty { color: var(--muted-strong); font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
 @media (max-width: 1250px) { .asset-chart-grid { grid-template-columns: 1fr; } .asset-chart-body { min-height: 180px; } .asset-chart-ring { flex-basis: 180px; width: 180px; } }
 @media (max-width: 450px) { .asset-chart-body { gap: 12px; } .asset-chart-ring { flex-basis: 40%; width: 40%; } .asset-chart-card { padding-inline: 14px; } }
+
+.asset-delete-capability { margin: 12px 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+.asset-delete-capability p { margin: 6px 0; }
+.asset-delete-capability strong[data-state="allowed"] { color: var(--positive); }

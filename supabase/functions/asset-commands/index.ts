@@ -22,6 +22,14 @@ Deno.serve(async (request) => {
     if (raw.length > 4096) return json(413, { error: "Payload too large" });
     const body = JSON.parse(raw);
     if (!uuid(body.connectionId) || !uuid(body.tenantId)) return json(400, { error: "Invalid scope" });
+    if (body.action === "capability") {
+      if (typeof body.apiUrl !== "string" || body.apiUrl.length > 2048 || !body.apiUrl.startsWith("https://")
+        || !["allowed", "restricted", "denied", "unknown"].includes(body.status)
+        || !["policies", "policies_unavailable", "authentication_failed", "network_error"].includes(body.reason)) return json(400, { error: "Invalid capability" });
+      const { data, error } = await admin.rpc("record_asset_delete_capability", { p_connection: body.connectionId, p_tenant: body.tenantId, p_api_url: body.apiUrl, p_status: body.status, p_reason: body.reason });
+      if (error) throw error;
+      return json(data ? 200 : 409, { accepted: data === true });
+    }
     if (body.action === "claim") {
       if (typeof body.apiUrl !== "string" || body.apiUrl.length > 2048 || !body.apiUrl.startsWith("https://")) return json(400, { error: "Invalid endpoint" });
       const { data, error } = await admin.rpc("claim_asset_deletion", { p_connection: body.connectionId, p_tenant: body.tenantId, p_api_url: body.apiUrl });
