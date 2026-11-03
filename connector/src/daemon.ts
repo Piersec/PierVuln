@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { chmod, unlink, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { ConfigurationChanges } from "./configuration-changes";
+import { InitialScanScheduler } from "./initial-scan-scheduler";
 
 type RemoteConnection = {
   id: string;
@@ -34,7 +35,7 @@ if (configPollSeconds < 30 || configPollSeconds > 3600) {
 }
 
 const shutdown = new AbortController();
-let activeChild: ChildProcess | null = null;
+const activeChildren = new Set<ChildProcess>();
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -68,7 +69,7 @@ function requestShutdown(signal: NodeJS.Signals) {
   if (shutdown.signal.aborted) return;
   console.info(`[connector] Recebido ${signal}; encerrando o worker com segurança.`);
   shutdown.abort();
-  activeChild?.kill("SIGTERM");
+  for (const child of activeChildren) child.kill("SIGTERM");
 }
 
 process.once("SIGTERM", () => requestShutdown("SIGTERM"));
@@ -191,14 +192,14 @@ async function runConnection(connection: RemoteConnection, assetTenant?: RemoteA
         env: { ...childEnvironment(connection, caFile, assetTenant), INDEXER_TENANTS_FILE: tenantFile ?? undefined, ...(deletion ? { WAZUH_WORKER_CONFIG_TOKEN: workerToken } : {}) },
         stdio: "inherit",
       });
-      activeChild = child;
+      activeChildren.add(child);
 
       child.once("error", (error) => {
-        activeChild = null;
+        activeChildren.delete(child);
         reject(error);
       });
       child.once("close", (code, signal) => {
-        activeChild = null;
+        activeChildren.delete(child);
         if (shutdown.signal.aborted) return resolve();
         if (code === 0) return resolve();
         reject(new Error(`Worker encerrou com código ${String(code)}${signal ? ` (${signal})` : ""}.`));
@@ -214,6 +215,9 @@ async function main() {
   const nextRunAt = new Map<string, number>();
   const failuresByConnection = new Map<string, number>();
   const configurationChanges = new ConfigurationChanges();
+  const initialScans = new InitialScanScheduler<SyncJob>(syncIntervalSeconds * 1000, Date.now, 2, (job, error, retryMs) => {
+    console.error(`[connector] connectionId=${job.connection.id} status=failed nextRetryMs=${retryMs} error=${safeMessage(error)}`);
+  });
   console.info(`[connector] Worker dinâmico iniciado; consulta de fontes a cada ${configPollSeconds}s; sincronização a cada ${syncIntervalSeconds}s por fonte.`);
   while (!shutdown.signal.aborted) {
     try {
@@ -224,7 +228,14 @@ async function main() {
         })) : []
         : connection.indexerReady === false ? [] : [{ connection, key: connection.id }]);
       const skipped = loaded.skipped;
-      for (const key of configurationChanges.changed(jobs)) {
+      const changed = configurationChanges.changed(jobs.map(({ key, connection, tenant }) => ({
+        key, tenant, connection: assetOnly
+          ? { assetApiUrl: connection.assetApiUrl, ingestToken: connection.ingestToken }
+          : { indexerUrl: connection.indexerUrl, indexPattern: connection.indexPattern,
+              indexerUsername: connection.indexerUsername, indexerPassword: connection.indexerPassword,
+              caCertificate: connection.caCertificate, indexerTenants: connection.indexerTenants, ingestToken: connection.ingestToken },
+      })));
+      for (const key of changed) {
         nextRunAt.delete(key);
         failuresByConnection.delete(key);
       }
@@ -236,6 +247,17 @@ async function main() {
         }
       }
       if (skipped > 0) console.warn(`[connector] ${skipped} fonte(s) sem configuração válida foram ignoradas.`);
+
+      if (!assetOnly) {
+        initialScans.reconcile(jobs, changed);
+        initialScans.startDue(async ({ connection }) => {
+          console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=starting.`);
+          await runConnection(connection);
+          if (!shutdown.signal.aborted) console.info(`[connector] ${new Date().toISOString()} connectionId=${connection.id} status=completed.`);
+        });
+        await wait(configPollSeconds * 1000, shutdown.signal);
+        continue;
+      }
 
       for (const job of jobs) {
         if (shutdown.signal.aborted) break;
@@ -271,6 +293,7 @@ async function main() {
     const retryDelay = Number.isFinite(nextScheduledRunAt) ? Math.max(1_000, nextScheduledRunAt - now) : configPollSeconds * 1000;
     await wait(Math.min(configPollSeconds * 1000, retryDelay), shutdown.signal);
   }
+  await initialScans.idle();
 }
 
 function safeMessage(error: unknown): string {
