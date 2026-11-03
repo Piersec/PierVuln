@@ -180,6 +180,8 @@ export function AdminSection({ section }: { section: Section }) {
   const [storageUsage, setStorageUsage] = useState<CompanyStorageUsage | null>(null);
   const [storageError, setStorageError] = useState(false);
   const [storageNow, setStorageNow] = useState(() => Date.now());
+  const storageRefreshMinutes = Math.max(1, Math.round((storageUsage?.refresh_seconds ?? 1800) / 60));
+  const storageRefreshLabel = `${storageRefreshMinutes} ${storageRefreshMinutes === 1 ? "minuto" : "minutos"}`;
   const [deleteCompany, setDeleteCompany] = useState<AdminCompany | null>(null);
   const [battle, setBattle] = useState<BattleCompany[] | null>(null);
   const [battleError, setBattleError] = useState("");
@@ -323,10 +325,10 @@ export function AdminSection({ section }: { section: Section }) {
       </Meter>}
       {storageUsage && storageUsage.database_bytes > DATABASE_LIMIT_BYTES && <div className="database-capacity-warning" role="status">
         <TriangleAlert size={22} aria-hidden="true" />
-        <div><strong>Limite de armazenamento ultrapassado</strong><p>O banco está usando {formatStorageBytes(storageUsage.database_bytes)} de 500 MB ({Math.round(storageUsage.database_bytes / DATABASE_LIMIT_BYTES * 100)}%). Excedente: {formatStorageBytes(storageUsage.database_bytes - DATABASE_LIMIT_BYTES)}.</p><small>Com base na medição de {adminDate(storageUsage.measured_at)}. Atualização a cada 5 minutos.</small></div>
+        <div><strong>Limite de armazenamento ultrapassado</strong><p>O banco está usando {formatStorageBytes(storageUsage.database_bytes)} de 500 MB ({Math.round(storageUsage.database_bytes / DATABASE_LIMIT_BYTES * 100)}%). Excedente: {formatStorageBytes(storageUsage.database_bytes - DATABASE_LIMIT_BYTES)}.</p><small>Com base na medição de {adminDate(storageUsage.measured_at)}. Atualização a cada {storageRefreshLabel}.</small></div>
       </div>}
       <div className="panel-heading"><div><p>Tamanho medido dos registros de cada empresa: vulnerabilidades, casos, histórico e comentários. Índices e espaço livre das tabelas compartilhadas aparecem somente no total do banco.</p><small className="muted-copy" role="status">
-        {storageUsage ? `Banco: ${formatStorageBytes(storageUsage.database_bytes)} · Medição: ${adminDate(storageUsage.measured_at)} · Atualização a cada 5 minutos` : storageError ? "Não foi possível consultar os tamanhos. Nova tentativa automática em um minuto." : "Carregando a medição de armazenamento…"}
+        {storageUsage ? `Banco: ${formatStorageBytes(storageUsage.database_bytes)} · Medição: ${adminDate(storageUsage.measured_at)} · Atualização a cada ${storageRefreshLabel}` : storageError ? "Não foi possível consultar os tamanhos. Nova tentativa automática em um minuto." : "Carregando a medição de armazenamento…"}
         {storageUsage && (storageError || storageNow - Date.parse(storageUsage.measured_at) > storageUsage.refresh_seconds * 2000) && " · Última medição mantida; aguardando atualização."}
       </small></div></div>
       <DataTable headings={["Empresa", "Usuários ativos", "Conexões", "Tamanho dos dados", "Status", "Ações"]} empty={!companies.length}>
