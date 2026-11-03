@@ -21,6 +21,13 @@ Deno.serve(async (request) => {
     const raw = await request.text();
     if (raw.length > 4096) return json(413, { error: "Payload too large" });
     const body = JSON.parse(raw);
+    if (body.action === "pending") {
+      const { data, error } = await admin.from("asset_deletion_requests")
+        .select("connection_id,tenant_id").eq("status", "pending").eq("is_demo", false)
+        .order("created_at").limit(100);
+      if (error) throw error;
+      return json(200, { scopes: data });
+    }
     if (!uuid(body.connectionId) || !uuid(body.tenantId)) return json(400, { error: "Invalid scope" });
     if (body.action === "capability") {
       if (typeof body.apiUrl !== "string" || body.apiUrl.length > 2048 || !body.apiUrl.startsWith("https://")

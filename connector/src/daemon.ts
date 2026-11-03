@@ -178,7 +178,7 @@ function childEnvironment(connection: RemoteConnection, caFile: string | null, a
 async function runConnection(connection: RemoteConnection, assetTenant?: RemoteAssetApiTenant, deletion = false): Promise<void> {
   const tenantFile = !assetOnly && connection.indexerTenants?.length ? `/tmp/piervuln-indexer-tenants-${connection.id}.json` : null;
   const certificate = assetOnly ? assetTenant?.caCertificate : [connection.caCertificate, ...(connection.indexerTenants ?? []).map((item) => item.caCertificate)].filter(Boolean).join("\n") || null;
-  const caFile = certificate ? `/tmp/piervuln-${assetOnly ? `assets-${assetTenant?.tenantId}` : "indexer"}-${connection.id}.pem` : null;
+  const caFile = certificate ? `/tmp/piervuln-${assetOnly ? `assets-${assetTenant?.tenantId}${deletion ? "-commands" : ""}` : "indexer"}-${connection.id}.pem` : null;
   try {
     if (tenantFile) await writeFile(tenantFile, JSON.stringify(connection.indexerTenants), { mode: 0o600 });
     if (caFile) {
@@ -212,6 +212,39 @@ async function runConnection(connection: RemoteConnection, assetTenant?: RemoteA
 }
 
 async function main() {
+  let commandJobs: SyncJob[] = [];
+  const commandsInFlight = new Map<string, Promise<void>>();
+  function runCommands(job: SyncJob): Promise<void> {
+    const current = commandsInFlight.get(job.key);
+    if (current) return current;
+    const task = runConnection(job.connection, job.tenant, true)
+      .catch(() => { console.error("[asset-deletion] Command polling failed; source operations are not retried."); })
+      .finally(() => { commandsInFlight.delete(job.key); });
+    commandsInFlight.set(job.key, task);
+    return task;
+  }
+  // Commands use their own loop so an inventory scan cannot delay a confirmed removal.
+  const commandLoop = assetOnly ? (async () => {
+    while (!shutdown.signal.aborted) {
+      try {
+        if (commandJobs.length) {
+          const response = await fetch(`${supabaseUrl}/functions/v1/asset-commands`, {
+            method: "POST", redirect: "error",
+            headers: { "content-type": "application/json", apikey: publishableKey, "x-worker-token": workerToken },
+            body: JSON.stringify({ action: "pending" }), signal: AbortSignal.timeout(10_000),
+          });
+          if (!response.ok) throw new Error("Command lookup failed");
+          const { scopes } = await response.json() as { scopes: { connection_id: string; tenant_id: string }[] };
+          if (!Array.isArray(scopes)) throw new Error("Invalid command lookup");
+          if (!shutdown.signal.aborted) for (const job of commandJobs) {
+            if (scopes.some((scope) => scope.connection_id === job.connection.id && scope.tenant_id === job.tenant?.tenantId)) void runCommands(job);
+          }
+        }
+      } catch { if (!shutdown.signal.aborted) console.error("[asset-deletion] Pending command lookup unavailable."); }
+      await wait(10_000, shutdown.signal);
+    }
+    await Promise.all(commandsInFlight.values());
+  })() : Promise.resolve();
   const nextRunAt = new Map<string, number>();
   const failuresByConnection = new Map<string, number>();
   const configurationChanges = new ConfigurationChanges();
@@ -228,6 +261,7 @@ async function main() {
         })) : []
         : connection.indexerReady === false ? [] : [{ connection, key: connection.id }]);
       const skipped = loaded.skipped;
+      commandJobs = jobs;
       const changed = configurationChanges.changed(jobs.map(({ key, connection, tenant }) => ({
         key, tenant, connection: assetOnly
           ? { assetApiUrl: connection.assetApiUrl, ingestToken: connection.ingestToken }
@@ -263,8 +297,7 @@ async function main() {
         if (shutdown.signal.aborted) break;
         const { connection, tenant, key } = job;
         if (assetOnly && tenant) {
-          try { await runConnection(connection, tenant, true); }
-          catch { console.error("[asset-deletion] Command polling failed; source operations are not retried."); }
+          await runCommands(job);
         }
         if ((nextRunAt.get(key) ?? 0) > Date.now()) continue;
         const tenantLog = tenant ? ` tenantId=${tenant.tenantId}` : "";
@@ -294,6 +327,7 @@ async function main() {
     await wait(Math.min(configPollSeconds * 1000, retryDelay), shutdown.signal);
   }
   await initialScans.idle();
+  await commandLoop;
 }
 
 function safeMessage(error: unknown): string {
