@@ -1,6 +1,6 @@
 # Referências da Visão geral do SOC
 
-Status: aguardando aprovação.
+Status: composição aprovada.
 
 ## SecurityOne — captura fornecida pelo usuário
 

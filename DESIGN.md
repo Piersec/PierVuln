@@ -228,3 +228,15 @@ O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), ins
 - Don't usar cor isolada para comunicar severidade, fluxo ou frescor da fonte.
 - Don't apresentar a distribuição atual por primeira detecção como contagem histórica de snapshots.
 - Don't reduzir rótulos essenciais para microtexto nem trocar texto de ação por glifos ambíguos.
+
+## Plano — Visão geral do SOC
+
+Status: aguardando aprovação do plano.
+
+1. Criar a rota `/soc` e incluir Visão geral como primeiro item do grupo SOC. Usar a estrutura de navegação e o seletor de empresa existentes. Analytics mantém sua rota própria.
+2. Montar seis widgets com a composição aprovada: risco e últimos incidentes à esquerda, mapa de ataque e tendência de casos ao centro, países de origem e alertas por firewall à direita. Em telas estreitas, empilhar os widgets com mapa e risco em destaque.
+3. Reusar os painéis do SOC, os controles HeroUI, os gráficos Recharts e o componente de mapa existente. Usar 30 dias como período inicial e aplicar o filtro à empresa selecionada. O mapa abre a tela completa com o contexto da empresa.
+4. Reusar os resumos disponíveis e confirmar a cobertura de cada métrica. A série IA versus humanos depende de autoria registrada. O ranking de firewall exige identificação da origem e o mapa exige geolocalização. Exibir estados de carregamento, erro, ausência de eventos e falta de cobertura conforme o caso.
+5. Usar transições curtas de foco e interação, respeitando movimento reduzido. A primeira versão tem disposição fixa. Adicionar, reordenar e redefinir widgets ficam fora desta entrega.
+6. Validar em 1440 px e 390 px, com duas rodadas de revisão. Registrar decisões, limitações e capturas em `RELATORIO.md` e `.design/screens/`.
+
