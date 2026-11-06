@@ -13,6 +13,7 @@ const vulnerabilityItems: Entry[] = [
   { label: "Casos e Kanban", path: "/cases", icon: "cases" },
 ];
 const socItems: Entry[] = [
+  { label: "Visão geral", path: "/soc", icon: "analytics" },
   { label: "Analytics", path: "/soc-analytics", icon: "analytics" },
   { label: "Alertas", path: "/alertas", icon: "alerts" },
   { label: "Incidentes", path: "/incidentes", icon: "incidents" },

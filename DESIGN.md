@@ -231,7 +231,7 @@ O [dashboard do SecurityOne Lab](https://lab.pod2.securityone.ai/dashboard), ins
 
 ## Plano — Visão geral do SOC
 
-Status: aguardando aprovação do plano.
+Status: aprovado e implementado.
 
 1. Criar a rota `/soc` e incluir Visão geral como primeiro item do grupo SOC. Usar a estrutura de navegação e o seletor de empresa existentes. Analytics mantém sua rota própria.
 2. Montar seis widgets com a composição aprovada: risco e últimos incidentes à esquerda, mapa de ataque e tendência de casos ao centro, países de origem e alertas por firewall à direita. Em telas estreitas, empilhar os widgets com mapa e risco em destaque.

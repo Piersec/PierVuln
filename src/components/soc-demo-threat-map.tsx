@@ -10,7 +10,7 @@ const labels: Record<string, string> = { critical: "Crítico", high: "Alto", med
 const colors: Record<string, string> = { critical: "#ff6c9a", high: "#ff777e", medium: "#ffb454", low: "#f5dc65", informational: "#71d8f0", unknown: "#d4d7da" };
 const valid = (point: Location) => Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat) <= 85 && Math.abs(point.lng) <= 180;
 
-export function SocDemoThreatMap({ routes }: { routes: DemoMapRoute[] }) {
+export function SocDemoThreatMap({ routes, compact = false }: { routes: DemoMapRoute[]; compact?: boolean }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const [country, setCountry] = useState("");
@@ -66,12 +66,12 @@ export function SocDemoThreatMap({ routes }: { routes: DemoMapRoute[] }) {
   }, [visible]);
 
   return <section className="soc-demo-map" aria-label="Mapa interativo de ameaças simuladas">
-    <header><div><strong>Mapa de ameaças · Demonstração</strong><p>Origens, destinos e rotas fictícios para testar a visualização.</p></div><span>{total.toLocaleString("pt-BR")} alertas</span></header>
+    {!compact && <><header><div><strong>Mapa de ameaças · Demonstração</strong><p>Origens, destinos e rotas fictícios para testar a visualização.</p></div><span>{total.toLocaleString("pt-BR")} alertas</span></header>
     <div className="soc-demo-map-filters">
       <label>Origem<select value={country} onChange={(event) => setCountry(event.target.value)}><option value="">Todos os países</option>{countries.map((name) => <option key={name}>{name}</option>)}</select></label>
       <label>Severidade<select value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="">Todas</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <button className="button button-secondary" onClick={() => { setCountry(""); setSeverity(""); map.current?.setView([15, 0], 2); }}>Visão mundial</button>
-    </div>
+    </div></>}
     <div className="soc-demo-map-stage" ref={container} aria-label="Use as setas para mover o mapa e os botões mais e menos para aproximar e afastar." />
     {error && <p className="soc-demo-map-message" role="alert">{error}</p>}
     {!ready && !error && <p className="soc-demo-map-message" role="status">Carregando mapa…</p>}

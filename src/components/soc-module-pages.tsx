@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Button } from "@heroui/react";
 import { Activity, MapPin, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
@@ -12,7 +13,7 @@ import { visibleText } from "@/src/lib/visible-text";
 import { SocDemoThreatMap, type DemoMapRoute } from "@/src/components/soc-demo-threat-map";
 import { SocIncidents } from "@/src/components/soc-incidents";
 
-export type SocModulePage = "analytics" | "risk" | "incidents" | "monitoring" | "threat-map" | "fim";
+export type SocModulePage = "overview" | "analytics" | "risk" | "incidents" | "monitoring" | "threat-map" | "fim";
 type Period = "24h" | "7d" | "30d" | "year";
 type Severity = "critical" | "high" | "medium" | "low" | "informational" | "unknown";
 type AlertsSummary = {
@@ -85,7 +86,9 @@ function seriesLabel(value: string, unit: "hour" | "day") {
     : date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
 }
 
+type OverviewCase = { id: string; title: string; created_at: string; case_severity: keyof typeof caseSeverityLabels };
 type PageData = {
+  recentCases?: OverviewCase[]; caseCount?: number;
   alerts?: AlertsSummary; cases?: CaseSummary; risk?: RiskSummary; fim?: FimSummary;
   threat?: ThreatSummary; collection?: CollectionStatus;
 };
@@ -93,23 +96,39 @@ type PageData = {
 export function SocModulePages({ page, client, companyId, canManage }: {
   page: SocModulePage; client: SupabaseClient; companyId: string; canManage: boolean;
 }) {
-  const [period, setPeriod] = useState<Period>(page === "incidents" ? "year" : "24h");
+  const [period, setPeriod] = useState<Period>(page === "overview" ? "30d" : page === "incidents" ? "year" : "24h");
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const range = useMemo(() => rangeFor(period, revision), [period, revision]);
   const pageTitle: Record<SocModulePage, string> = {
-    analytics: "SOC Analytics", risk: "Nível de risco", incidents: "Incidentes",
+    overview: "Visão geral do SOC", analytics: "SOC Analytics", risk: "Nível de risco", incidents: "Incidentes",
     monitoring: "Monitoria da coleta", "threat-map": "Mapa de ameaças", fim: "Integridade dos arquivos",
   };
   const load = useCallback(async (signal: AbortSignal) => {
-    setLoading(true); setError(""); setData(null);
+    setLoading(true); setError("");
+    if (page !== "overview") setData(null);
     const tenant = companyId || null;
     const alertRange = period === "year" ? rangeFor("30d", revision) : range;
     try {
       let next: PageData;
-      if (page === "analytics") {
+      if (page === "overview") {
+        const args = { p_tenant_id: tenant, p_since: range.since, p_until: range.until };
+        let recent = client.from("soc_cases").select("id,title,created_at,case_severity", { count: "exact" })
+          .gte("created_at", range.since).lt("created_at", range.until)
+          .order("created_at", { ascending: false }).order("id").limit(1000);
+        if (tenant) recent = recent.eq("tenant_id", tenant);
+        const [alerts, threat, cases] = await Promise.all([
+          client.rpc("get_soc_alert_summary", args).abortSignal(signal),
+          client.rpc("get_soc_threat_summary", args).abortSignal(signal),
+          recent.abortSignal(signal),
+        ]);
+        if (alerts.error) throw alerts.error;
+        if (threat.error) throw threat.error;
+        if (cases.error) throw cases.error;
+        next = { alerts: alerts.data as AlertsSummary, threat: threat.data as ThreatSummary, recentCases: cases.data as OverviewCase[], caseCount: cases.count ?? undefined };
+      } else if (page === "analytics") {
         const [alerts, cases] = await Promise.all([
           client.rpc("get_soc_alert_summary", { p_tenant_id: tenant, p_since: alertRange.since, p_until: alertRange.until }).abortSignal(signal),
           client.rpc("get_soc_case_summary", { p_tenant_id: tenant, p_since: range.since, p_until: range.until }).abortSignal(signal),
@@ -156,10 +175,17 @@ export function SocModulePages({ page, client, companyId, canManage }: {
   return <section className="soc-dashboard soc-module-page">
     <div className="page-heading soc-dashboard-heading">
       <div><span className="page-kicker">CENTRO DE OPERAÇÕES</span><h1>{pageTitle[page]}</h1><p>{companyId ? "Dados da empresa selecionada." : "Dados das empresas disponíveis para sua conta."}</p></div>
-      <div className="soc-dashboard-actions"><label className="sr-only" htmlFor="soc-module-period">Período</label><select id="soc-module-period" value={period} onChange={(event) => setPeriod(event.target.value as Period)}>{periods.map((value) => <option key={value} value={value}>{periodLabels[value]}</option>)}</select><button className="button button-secondary" disabled={loading} onClick={() => setRevision((value) => value + 1)}><RefreshCw size={15} aria-hidden="true" />{loading ? "Atualizando…" : "Atualizar"}</button></div>
+      <div className="soc-dashboard-actions">
+        {page === "overview" ? <div className="soc-overview-period" role="group" aria-label="Período">
+          {periods.map((value) => <Button key={value} className="button button-secondary" isDisabled={loading} aria-pressed={period === value} aria-label={periodLabels[value]} onPress={() => setPeriod(value)}>{value}</Button>)}
+        </div> : <><label className="sr-only" htmlFor="soc-module-period">Período</label><select id="soc-module-period" value={period} onChange={(event) => setPeriod(event.target.value as Period)}>{periods.map((value) => <option key={value} value={value}>{periodLabels[value]}</option>)}</select></>}
+        <button className="button button-secondary" disabled={loading} onClick={() => setRevision((value) => value + 1)}><RefreshCw size={15} aria-hidden="true" />{loading ? "Atualizando…" : "Atualizar"}</button>
+      </div>
     </div>
     {error && <div className="inline-alert" role="alert">{error}<button className="button button-secondary" onClick={() => setRevision((value) => value + 1)}>Tentar novamente</button></div>}
-    {!data && loading && <div className="soc-module-loading" aria-live="polite"><div className="soc-chart-loading"/><div className="soc-chart-loading"/><div className="soc-chart-loading"/></div>}
+    {!data && loading && (page === "overview" ? <SocOverviewSkeleton/> : <div className="soc-module-loading" aria-live="polite"><div className="soc-chart-loading"/><div className="soc-chart-loading"/><div className="soc-chart-loading"/></div>)}
+    {page === "overview" && data && loading && <p className="soc-overview-refresh" role="status">Atualizando o período selecionado…</p>}
+    {data && page === "overview" && <SocOverview data={data} companyId={companyId} range={range} />}
     {data && page === "analytics" && data.alerts && data.cases && <SocAnalytics data={data} period={period} />}
     {data && page === "risk" && data.risk && <RiskLevel data={data.risk} />}
     {data && page === "incidents" && data.cases && <SocIncidents client={client} companyId={companyId} canManage={canManage} summary={data.cases} since={range.since} until={range.until} onChanged={() => setRevision((value) => value + 1)} />}
@@ -180,6 +206,89 @@ function SeverityRows({ values }: { values: Record<string, number> }) {
   return <div className="soc-severity-list">{severityKeys.map((key) => <div className={`soc-severity-row severity-${key}`} key={key}><span><i aria-hidden="true"/>{caseSeverityLabels[key]}</span><strong>{formatCount(values[key])}</strong></div>)}</div>;
 }
 function ChartTooltip() { return <Tooltip contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 10, color: "var(--ink)" }} labelStyle={{ color: "var(--muted-strong)" }} />; }
+
+function SocOverviewSkeleton() {
+  return <div className="soc-overview-skeleton" role="status" aria-label="Carregando os painéis da visão geral do SOC">
+    <div className="soc-overview-skeleton-card is-risk"/>
+    <div className="soc-overview-skeleton-card is-map"/>
+    <div className="soc-overview-skeleton-card is-countries"/>
+    <div className="soc-overview-skeleton-card is-incidents"/>
+    <div className="soc-overview-skeleton-card is-chart"/>
+    <div className="soc-overview-skeleton-card is-firewalls"/>
+    <span className="sr-only">Carregando os painéis…</span>
+  </div>;
+}
+
+function SocOverview({ data, companyId, range }: { data: PageData; companyId: string; range: { since: string; until: string } }) {
+  const cases = data.recentCases ?? [];
+  const alerts = data.alerts;
+  const threat = data.threat;
+  const href = (path: string) => `${path}?company=${encodeURIComponent(companyId || "all")}`;
+  const share = alerts?.total ? Math.round(alerts.critical_high * 100 / alerts.total) : null;
+  const countries = (threat?.geo_countries ?? []).slice().sort((a, b) => b.count - a.count).slice(0, 10);
+  const firewalls = alerts?.top_sources.filter((source) => source.category?.toLowerCase() === "firewall") ?? [];
+  const maxFirewallCount = Math.max(1, firewalls[0]?.count ?? 1);
+  const dayKey = (value: string | number) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", dateStyle: "short" }).format(new Date(value));
+  const byDay = new Map<string, number>();
+  const end = Date.parse(range.until);
+  for (let time = Date.parse(range.since); time < end; time += 86_400_000) byDay.set(dayKey(time), 0);
+  byDay.set(dayKey(end - 1), 0);
+  for (const item of cases) {
+    const day = dayKey(item.created_at);
+    byDay.set(day, (byDay.get(day) ?? 0) + 1);
+  }
+  const series = Array.from(byDay, ([day, count]) => ({ label: day.slice(5).split("-").reverse().join("/"), count }));
+
+  return <div className="soc-overview-grid">
+    <Panel className="soc-overview-risk" title="Nível de risco" note="Proporção de alertas críticos e altos no período.">
+      <div className="soc-overview-gauge">
+        <svg viewBox="0 0 160 100" aria-hidden="true">
+          <path d="M 15 87 A 65 65 0 0 1 145 87" pathLength="100" stroke="var(--line-strong)"/>
+          {share != null && share > 0 && <path d="M 15 87 A 65 65 0 0 1 145 87" pathLength="100" stroke="var(--severity-critical)" strokeDasharray={`${share} 100`}/>}
+        </svg>
+        <strong>{share == null ? "—" : `${share}%`}</strong>
+      </div>
+      <SeverityRows values={alerts?.severity ?? {}}/>
+      <Link className="soc-inline-link" href={href("/risk-level")}>Ver nível de risco</Link>
+    </Panel>
+    <Panel className="soc-overview-map-panel" title="Mapa de ataque">
+      <div className="soc-overview-map">
+        {threat?.geolocation_available && threat.geo_routes?.length ? <SocDemoThreatMap routes={threat.geo_routes} compact/> : <div className="soc-map-canvas"><MapPin size={28} aria-hidden="true"/><strong>Geolocalização indisponível</strong><span>Não há coordenadas de origem para exibir neste recorte.</span></div>}
+      </div>
+      <Link className="soc-inline-link" href={href("/threat-map")}>Ver mapa completo</Link>
+    </Panel>
+    <Panel className="soc-overview-countries" title="Top 10 países de origem" note={countries.length ? "Origens simuladas da demonstração." : "O ranking depende da geolocalização dos alertas."}>
+      {countries.length ? <ol className="soc-overview-rank-list">{countries.map((item) => <li key={item.name}>
+        <div><strong>{visibleText(item.name)}</strong><span className="soc-overview-meter"><i style={{ width: `${Math.max(2, item.count / countries[0].count * 100)}%` }}/></span></div>
+        <b>{formatCount(item.count)}</b>
+      </li>)}</ol> : <Empty>Não há origens geográficas neste período.</Empty>}
+    </Panel>
+    <Panel className="soc-overview-incidents" title="Últimos incidentes">
+      {cases.length ? <ul className="soc-overview-list">{cases.slice(0, 5).map((item) => <li key={item.id}>
+        <div><small>{formatDate(item.created_at)}</small><strong>{visibleText(item.title)}</strong></div>
+        <span className={`soc-overview-severity severity-${item.case_severity}`}><i aria-hidden="true"/>{caseSeverityLabels[item.case_severity] ?? "—"}</span>
+      </li>)}</ul> : <Empty>Nenhum incidente criado no período.</Empty>}
+      <Link className="soc-inline-link" href={href("/incidentes")}>Ver incidentes</Link>
+    </Panel>
+    <Panel className="soc-overview-trend" title="Tendência de volume de casos" note="Incidentes criados por dia. A autoria por IA ou humano ainda não é identificada.">
+      {data.caseCount !== cases.length ? <Empty>O volume excede a leitura de 1.000 casos. Selecione um período menor.</Empty> : cases.length ? <>
+        <p className="soc-data-note">{formatCount(cases.length)} incidentes no período</p>
+        <div className="soc-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={series}>
+          <CartesianGrid stroke="var(--line)" vertical={false}/>
+          <XAxis dataKey="label" tick={{ fill: "var(--muted-strong)", fontSize: 11 }} minTickGap={20}/>
+          <YAxis allowDecimals={false} tick={{ fill: "var(--muted-strong)", fontSize: 11 }} width={40}/>
+          <ChartTooltip/><Area dataKey="count" name="Incidentes" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.22} isAnimationActive={false}/>
+        </AreaChart></ResponsiveContainer></div>
+      </> : <Empty>Nenhum incidente criado no período.</Empty>}
+    </Panel>
+    <Panel className="soc-overview-firewalls" title="Principais firewalls geradores de alertas" note="Filtrado entre as cinco fontes mais ativas no período.">
+      {firewalls.length ? <ul className="soc-overview-list">{firewalls.map((item) => <li key={item.id}>
+        <div><strong>{visibleText(item.name || "Firewall sem nome")}</strong><span className="soc-overview-firewall-meter" role="meter" aria-label={`Alertas de ${visibleText(item.name || "firewall")}`} aria-valuemin={0} aria-valuemax={maxFirewallCount} aria-valuenow={item.count} aria-valuetext={`${formatCount(item.count)} alertas`}><i style={{ width: `${Math.max(0, item.count / maxFirewallCount * 100)}%` }}/></span></div>
+        <b>{formatCount(item.count)}</b>
+      </li>)}</ul> : <Empty>Nenhum firewall entre as fontes mais ativas.</Empty>}
+    </Panel>
+  </div>;
+}
 
 function SocAnalytics({ data, period }: { data: PageData; period: Period }) {
   const alerts = data.alerts!; const cases = data.cases!;
