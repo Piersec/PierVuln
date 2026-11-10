@@ -67,7 +67,7 @@ export function BookSocOverview() {
     <main className="app-shell">
       <a className="skip-link" href="#book-soc-content">Pular para o conteúdo</a>
       <aside className="sidebar"><Brand /><WorkspaceNav isInternal={access === "allowed"} /></aside>
-      <section className="main-column">
+      <section className="main-column book-main-column">
         <header className="topbar"><div className="breadcrumb">Relatórios <span>/</span><strong>Book SOC</strong></div></header>
         <div className="content-wrap" id="book-soc-content" tabIndex={-1}>{content}</div>
       </section>
@@ -82,12 +82,12 @@ export function BookSocOverview() {
 
   return shell(
     <>
-      <header className="page-heading">
-        <h1>Visão executiva · vulnerabilidades</h1>
-        <p className="muted-copy">Estado atual das vulnerabilidades da empresa selecionada, lido do banco do PierVuln.</p>
+      <header className="bsoc-head">
+        <h1>Book SOC</h1>
+        <p>Visão executiva · estado atual das vulnerabilidades</p>
       </header>
 
-      <form className="panel" aria-label="Empresa" onSubmit={(event) => event.preventDefault()}>
+      <form className="bsoc-context" aria-label="Empresa" onSubmit={(event) => event.preventDefault()}>
         <label>Empresa
           <select value={companyId} onChange={(event) => setCompanyId(event.target.value)}>
             <option value="">Selecione uma empresa</option>
@@ -101,18 +101,31 @@ export function BookSocOverview() {
 
       {overview && !loading && (
         <>
-          <div className="book-soc-grid">
-            <section className="panel"><p className="eyebrow">Ativas</p><strong className="metric">{overview.activeCount.toLocaleString("pt-BR")}</strong></section>
-            <section className="panel"><p className="eyebrow">Críticas e altas</p><strong className="metric">{overview.criticalHighCount.toLocaleString("pt-BR")}</strong></section>
-            <section className="panel"><p className="eyebrow">Em andamento</p><strong className="metric">{overview.inProgressCount.toLocaleString("pt-BR")}</strong></section>
-            <section className="panel"><p className="eyebrow">Corrigidas em 30 dias</p><strong className="metric">{overview.corrected30.toLocaleString("pt-BR")}</strong></section>
+          <div className="bsoc-hero">
+            <section className="bsoc-highlight" aria-label="Destaque">
+              <span className="bsoc-label">Destaque da visão</span>
+              <strong className="bsoc-big">{overview.activeCount.toLocaleString("pt-BR")}</strong>
+              <p className="bsoc-caption">registros de vulnerabilidade ativos nesta empresa</p>
+            </section>
+            <section className="bsoc-coverage" aria-label="Situação atual">
+              <h2>Situação atual</h2>
+              <div className="bsoc-stats">
+                <div><strong>{overview.criticalHighCount.toLocaleString("pt-BR")}</strong><span>críticas e altas</span></div>
+                <div><strong>{overview.inProgressCount.toLocaleString("pt-BR")}</strong><span>em andamento</span></div>
+                <div><strong>{overview.corrected30.toLocaleString("pt-BR")}</strong><span>corrigidas em 30 dias</span></div>
+              </div>
+              <p className="bsoc-note">Estado atual lido do banco do PierVuln; não representa o fechamento histórico do mês.</p>
+            </section>
           </div>
-          <section className="panel">
-            <h2>Por severidade</h2>
-            <table>
-              <thead><tr><th scope="col">Severidade</th><th scope="col">Registros</th></tr></thead>
-              <tbody>{Object.entries(overview.severityCounts).map(([severity, count]) => <tr key={severity}><td>{severity}</td><td>{Number(count).toLocaleString("pt-BR")}</td></tr>)}</tbody>
-            </table>
+          <section className="book-chart-section">
+            <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Registros por severidade</h2></div></div>
+            <div className="book-table-scroll">
+              <table className="book-top-table">
+                <thead><tr><th scope="col">Severidade</th><th scope="col">Registros</th></tr></thead>
+                <tbody>{Object.entries(overview.severityCounts).map(([severity, count]) => <tr key={severity}><td>{severity}</td><td>{Number(count).toLocaleString("pt-BR")}</td></tr>)}</tbody>
+              </table>
+            </div>
+            <p className="book-table-note">Estado atual lido do banco do PierVuln, com isolamento por empresa. Não representa o fechamento histórico do mês.</p>
           </section>
         </>
       )}

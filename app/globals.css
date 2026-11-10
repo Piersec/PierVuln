@@ -2178,3 +2178,23 @@ tbody tr:hover, tbody tr.selected-row { background: #222523; }
   .soc-overview-skeleton-card.is-countries { min-height: 390px; }
 }
 @media (prefers-reduced-motion: reduce) { .soc-overview-skeleton-card { animation: none; } }
+
+/* Book SOC: estrutura do Book com a identidade do PierVuln. */
+.bsoc-head h1 { font-size: clamp(1.75rem, 3vw, 2.375rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.13; margin: 0; color: var(--ink); }
+.bsoc-head p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+.bsoc-context { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 22px 0 18px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 15px; }
+.bsoc-context label { display: flex; align-items: center; gap: 12px; color: var(--muted-strong); font-size: 13px; font-weight: 500; }
+.bsoc-context select { min-width: 260px; min-height: 40px; padding: 0 12px; background: var(--surface-inset); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px; font: inherit; }
+.bsoc-hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; margin-bottom: 18px; }
+.bsoc-highlight, .bsoc-coverage { padding: 24px; border-radius: 15px; border: 1px solid var(--line); }
+.bsoc-highlight { background: var(--surface-inset); display: flex; flex-direction: column; gap: 10px; }
+.bsoc-coverage { background: var(--surface); display: flex; flex-direction: column; gap: 18px; }
+.bsoc-label { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+.bsoc-big { font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; color: var(--ink); }
+.bsoc-caption { margin: 0; color: var(--muted-strong); font-size: 14px; line-height: 1.5; }
+.bsoc-coverage h2 { margin: 0; font-size: 19px; font-weight: 600; color: var(--ink); }
+.bsoc-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.bsoc-stats strong { display: block; font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--accent); }
+.bsoc-stats span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.bsoc-note { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 900px) { .bsoc-hero { grid-template-columns: minmax(0, 1fr); } .bsoc-stats { grid-template-columns: minmax(0, 1fr); } }
