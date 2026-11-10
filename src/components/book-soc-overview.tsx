@@ -81,34 +81,33 @@ export function BookSocOverview() {
   if (access !== "allowed") return shell(<section className="auth-card"><h1>{access === "error" ? "Não foi possível verificar o acesso" : "Acesso restrito"}</h1><p>Esta área é exclusiva da equipe Pier.</p></section>);
 
   return shell(
-    <>
+    <div className="bsoc-page">
       <header className="bsoc-head">
         <h1>Book SOC</h1>
         <p>Visão executiva · estado atual das vulnerabilidades</p>
       </header>
 
-      <form className="bsoc-context" aria-label="Empresa" onSubmit={(event) => event.preventDefault()}>
-        <label>Empresa
-          <select value={companyId} onChange={(event) => setCompanyId(event.target.value)}>
-            <option value="">Selecione uma empresa</option>
-            {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-          </select>
-        </label>
+      <form className="bsoc-card bsoc-context" aria-label="Empresa" onSubmit={(event) => event.preventDefault()}>
+        <label htmlFor="bsoc-company">Empresa</label>
+        <select id="bsoc-company" value={companyId} onChange={(event) => setCompanyId(event.target.value)}>
+          <option value="">Selecione uma empresa</option>
+          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+        </select>
       </form>
 
       {error && <div className="inline-alert" role="alert">{error}</div>}
       {loading && <div className="admin-loading" role="status"><div className="spinner" />Carregando indicadores…</div>}
 
       {overview && !loading && (
-        <>
+        <div className="bsoc-stack">
           <div className="bsoc-hero">
-            <section className="bsoc-highlight" aria-label="Destaque">
-              <span className="bsoc-label">Destaque da visão</span>
+            <section className="bsoc-card bsoc-card--inset" aria-label="Destaque">
+              <span className="bsoc-tag">Destaque da visão</span>
               <strong className="bsoc-big">{overview.activeCount.toLocaleString("pt-BR")}</strong>
               <p className="bsoc-caption">registros de vulnerabilidade ativos nesta empresa</p>
             </section>
-            <section className="bsoc-coverage" aria-label="Situação atual">
-              <h2>Situação atual</h2>
+            <section className="bsoc-card" aria-label="Situação atual">
+              <SectionHead title="Situação atual" />
               <div className="bsoc-stats">
                 <div><strong>{overview.criticalHighCount.toLocaleString("pt-BR")}</strong><span>críticas e altas</span></div>
                 <div><strong>{overview.inProgressCount.toLocaleString("pt-BR")}</strong><span>em andamento</span></div>
@@ -117,18 +116,108 @@ export function BookSocOverview() {
               <p className="bsoc-note">Estado atual lido do banco do PierVuln; não representa o fechamento histórico do mês.</p>
             </section>
           </div>
-          <section className="book-chart-section">
-            <div className="book-section-heading"><div><span className="book-section-tag">DISTRIBUIÇÃO POR SEVERIDADE</span><h2>Registros por severidade</h2></div></div>
-            <div className="book-table-scroll">
-              <table className="book-top-table">
-                <thead><tr><th scope="col">Severidade</th><th scope="col">Registros</th></tr></thead>
-                <tbody>{Object.entries(overview.severityCounts).map(([severity, count]) => <tr key={severity}><td>{severity}</td><td>{Number(count).toLocaleString("pt-BR")}</td></tr>)}</tbody>
+
+          <div className="bsoc-trio">
+            <section className="bsoc-card" aria-label="Distribuição por severidade">
+              <SectionHead tag="Distribuição por severidade" title="Registros por severidade" />
+              <BarList label="Registros por severidade" rows={sortedSeverities(overview).map(([label, count]) => ({ label, count: Number(count) }))} />
+              <p className="bsoc-note">Total de registros ativos em cada severidade.</p>
+            </section>
+            <section className="bsoc-card" aria-label="Tempo de exposição">
+              <SectionHead tag="Faixa de tempo da exposição" title="Há quanto tempo continuam ativas" />
+              <BarList label="Vulnerabilidades ativas por faixa de idade" rows={ageBands(overview)} />
+              <p className="bsoc-note">Idade contada a partir da primeira detecção registrada na fonte.</p>
+            </section>
+            <section className="bsoc-card" aria-label="Evolução por primeira detecção">
+              <SectionHead tag="Evolução temporal" title="Primeira detecção" side="Últimos 6 meses" />
+              <BarList label="Vulnerabilidades ativas por mês de primeira detecção" rows={lastMonths(overview)} />
+              <p className="bsoc-note">Agrupa os achados atuais pela data de primeira detecção. Não é o total histórico da fonte.</p>
+            </section>
+          </div>
+
+          <section className="bsoc-card" aria-label="Concentração por vulnerabilidade">
+            <SectionHead tag="Concentração por vulnerabilidade" title="Principais CVEs por ativos afetados" />
+            <div className="bsoc-table-wrap">
+              <table className="bsoc-table">
+                <thead>
+                  <tr><th scope="col">CVE</th><th scope="col">Severidade</th><th scope="col" className="is-num">CVSS</th><th scope="col" className="is-num hide-narrow">Registros</th><th scope="col" className="is-num">Hosts</th></tr>
+                </thead>
+                <tbody>
+                  {topCves(overview).map((item) => (
+                    <tr key={item.cve}>
+                      <td><strong>{item.cve}</strong></td>
+                      <td>{item.severity}</td>
+                      <td className="is-num">{Number.isFinite(item.cvss) ? item.cvss.toFixed(1) : "—"}</td>
+                      <td className="is-num hide-narrow">{item.cases.toLocaleString("pt-BR")}</td>
+                      <td className="is-num">{item.hosts.toLocaleString("pt-BR")}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
-            <p className="book-table-note">Estado atual lido do banco do PierVuln, com isolamento por empresa. Não representa o fechamento histórico do mês.</p>
+            <p className="bsoc-note">Ordenado pelo número de hosts distintos afetados. Para ativos, pacotes e tratamento de cada caso, abra o <Link href="/cases">inventário</Link>.</p>
           </section>
-        </>
+        </div>
       )}
-    </>,
+    </div>,
+  );
+}
+
+function SectionHead({ tag, title, side }: { tag?: string; title: string; side?: string }) {
+  return (
+    <div className="bsoc-section-head">
+      <div>{tag && <span className="bsoc-tag">{tag}</span>}<h2>{title}</h2></div>
+      {side && <small>{side}</small>}
+    </div>
+  );
+}
+
+const AGE_LABELS = ["Até 7 dias", "8–30 dias", "31–90 dias", "Mais de 90 dias"];
+const SEVERITY_ORDER = ["Critical", "High", "Medium", "Low", "Informational", "Unknown"];
+
+function ageBands(overview: VulnerabilityOverview) {
+  const totals = AGE_LABELS.map(() => 0);
+  for (const entry of overview.ageCounts) if (entry.band >= 0 && entry.band < totals.length) totals[entry.band] += entry.count;
+  return AGE_LABELS.map((label, index) => ({ label, count: totals[index] }));
+}
+
+function lastMonths(overview: VulnerabilityOverview, size = 6) {
+  const byMonth = new Map<string, number>();
+  for (const entry of overview.monthCounts) byMonth.set(entry.month, (byMonth.get(entry.month) ?? 0) + entry.count);
+  const now = new Date();
+  return Array.from({ length: size }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (size - 1 - index), 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return { label: date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", ""), count: byMonth.get(key) ?? 0 };
+  });
+}
+
+function sortedSeverities(overview: VulnerabilityOverview): [string, number][] {
+  const rank = (name: string) => { const index = SEVERITY_ORDER.indexOf(name); return index === -1 ? SEVERITY_ORDER.length : index; };
+  return Object.entries(overview.severityCounts).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+function topCves(overview: VulnerabilityOverview, size = 10) {
+  const byCve = new Map<string, { cve: string; severity: string; cvss: number; cases: number; hosts: number }>();
+  for (const group of overview.groups) {
+    const current = byCve.get(group.cve) ?? { cve: group.cve, severity: group.severity, cvss: group.cvss, cases: 0, hosts: 0 };
+    current.cases += group.caseCount; current.hosts += group.hostCount;
+    byCve.set(group.cve, current);
+  }
+  return [...byCve.values()].sort((a, b) => b.hosts - a.hosts || b.cases - a.cases || a.cve.localeCompare(b.cve)).slice(0, size);
+}
+
+function BarList({ rows, label }: { rows: { label: string; count: number }[]; label: string }) {
+  const max = Math.max(1, ...rows.map((row) => row.count));
+  return (
+    <ul className="bsoc-bars" aria-label={label}>
+      {rows.map((row) => (
+        <li key={row.label}>
+          <span className="bsoc-bar-label">{row.label}</span>
+          <span className="bsoc-bar-track" aria-hidden="true"><span className="bsoc-bar-fill" style={{ width: `${Math.round((row.count / max) * 100)}%` }} /></span>
+          <strong className="bsoc-bar-value">{row.count.toLocaleString("pt-BR")}</strong>
+        </li>
+      ))}
+    </ul>
   );
 }
