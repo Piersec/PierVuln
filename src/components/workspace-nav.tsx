@@ -27,7 +27,7 @@ export function WorkspaceNav({ companyId, isInternal = false }: { companyId?: st
   const pathname = usePathname();
   const company = companyId;
   const href = (path: string) => company ? `${path}?company=${encodeURIComponent(company)}` : path;
-  const current = pathname === "/alerts" ? "/alertas" : pathname === "/integridade-arquivos" ? "/archives-integrity" : pathname;
+  const current = pathname === "/alerts" ? "/alertas" : pathname === "/integridade-arquivos" ? "/archives-integrity" : pathname.startsWith("/book-soc") ? "/book-soc" : pathname;
   return <nav className="workspace-nav workspace-nav-grouped" aria-label="Navegação principal">
     <NavGroup label="VMDR" title="Vulnerabilidades" icon="vulnerabilities" items={vulnerabilityItems} current={current} href={href}/>
     <NavGroup label="SOC" title="Operação SOC" icon="alerts" items={socItems} current={current} href={href}/>
