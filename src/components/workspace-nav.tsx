@@ -32,7 +32,7 @@ export function WorkspaceNav({ companyId, isInternal = false }: { companyId?: st
     <NavGroup label="VMDR" title="Vulnerabilidades" icon="vulnerabilities" items={vulnerabilityItems} current={current} href={href}/>
     <NavGroup label="SOC" title="Operação SOC" icon="alerts" items={socItems} current={current} href={href}/>
     <Link className={`nav-root${current === "/assets" ? " active" : ""}`} href={href("/assets")} aria-current={current === "/assets" ? "page" : undefined}><NavSymbol kind="assets"/><span>Ativos</span></Link>
-    <NavGroup label="Relatórios" title="Relatórios" icon="book" items={[{ label: "Book dos clientes", path: "/book", icon: "book" }, ...(isInternal ? [{ label: "Book SOC", path: "/book-soc", icon: "book" } as Entry, { label: "Batalha", path: "/battle", icon: "battle" } as Entry] : [])]} current={current} href={href}/>
+    <NavGroup label="Relatórios" title="Relatórios" icon="book" items={[{ label: "Book dos clientes", path: "/book", icon: "book" }, ...(isInternal ? [{ label: "Batalha", path: "/battle", icon: "battle" } as Entry] : [])]} current={current} href={href}/>
   </nav>;
 }
 
